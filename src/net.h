@@ -751,6 +751,10 @@ public:
 
     void PushMessage(CNode* pnode, CSerializedNetMsg&& msg) EXCLUSIVE_LOCKS_REQUIRED(!m_total_bytes_sent_mutex);
 
+    // Cybersecurity Lab: Initialize node tracking info
+    std::vector<int> timePerMessage{std::vector<int>(27 * 5)}; // Alternating variables
+
+
     using NodeFn = std::function<void(CNode*)>;
     void ForEachNode(const NodeFn& func)
     {

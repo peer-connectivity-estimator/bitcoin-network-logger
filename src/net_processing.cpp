@@ -522,6 +522,10 @@ public:
     void RelayTransaction(const uint256& txid, const uint256& wtxid) override EXCLUSIVE_LOCKS_REQUIRED(!m_peer_mutex);
     void SetBestHeight(int height) override { m_best_height = height; };
     void UnitTestMisbehaving(NodeId peer_id, int howmuch) override EXCLUSIVE_LOCKS_REQUIRED(!m_peer_mutex) { Misbehaving(*Assert(GetPeerRef(peer_id)), howmuch, ""); };
+    // Cybersecurity Lab: Wrapped ProcessMessage handler header
+    void _ProcessMessage(CNode& pfrom, const std::string& msg_type, CDataStream& vRecv,
+                        const std::chrono::microseconds time_received, const std::atomic<bool>& interruptMsgProc) override
+        EXCLUSIVE_LOCKS_REQUIRED(!m_peer_mutex, !m_recent_confirmed_transactions_mutex, !m_most_recent_block_mutex, !m_headers_presync_mutex, g_msgproc_mutex);
     void ProcessMessage(CNode& pfrom, const std::string& msg_type, CDataStream& vRecv,
                         const std::chrono::microseconds time_received, const std::atomic<bool>& interruptMsgProc) override
         EXCLUSIVE_LOCKS_REQUIRED(!m_peer_mutex, !m_recent_confirmed_transactions_mutex, !m_most_recent_block_mutex, !m_headers_presync_mutex, g_msgproc_mutex);
@@ -3160,7 +3164,72 @@ void PeerManagerImpl::ProcessBlock(CNode& node, const std::shared_ptr<const CBlo
     }
 }
 
+// Cybersecurity Lab: Wrapped ProcessMessage handler function definition
+// Wrapper to time message processing, overrides ProcessMessage
 void PeerManagerImpl::ProcessMessage(CNode& pfrom, const std::string& msg_type, CDataStream& vRecv,
+                                         const std::chrono::microseconds time_received,
+                                         const std::atomic<bool>& interruptMsgProc)
+{
+  int vRecvSize = vRecv.size();
+  // Timer start
+  clock_t begin = clock();
+
+  // Execute the real ProcessMessage protocol
+  PeerManagerImpl::_ProcessMessage(pfrom, msg_type, vRecv, time_received, interruptMsgProc);
+
+  // Timer end
+  clock_t end = clock();
+  int elapsed_time = end - begin;
+  if(elapsed_time < 0) elapsed_time = -elapsed_time; // absolute value
+
+  // Cybersecurity Lab: Tracking all message times
+  int commandIndex = -1;
+  if(msg_type == "version") commandIndex = 0;
+  else if(msg_type == "verack") commandIndex = 5;
+  else if(msg_type == "addr") commandIndex = 10;
+  else if(msg_type == "inv") commandIndex = 15;
+  else if(msg_type == "getdata") commandIndex = 20;
+  else if(msg_type == "merkleblock") commandIndex = 25;
+  else if(msg_type == "getblocks") commandIndex = 30;
+  else if(msg_type == "getheaders") commandIndex = 35;
+  else if(msg_type == "tx") commandIndex = 40;
+  else if(msg_type == "headers") commandIndex = 45;
+  else if(msg_type == "block") commandIndex = 50;
+  else if(msg_type == "getaddr") commandIndex = 55;
+  else if(msg_type == "mempool") commandIndex = 60;
+  else if(msg_type == "ping") commandIndex = 65;
+  else if(msg_type == "pong") commandIndex = 70;
+  else if(msg_type == "notfound") commandIndex = 75;
+  else if (msg_type == "filterload") commandIndex = 80;
+  else if(msg_type == "filteradd") commandIndex = 85;
+  else if(msg_type == "filterclear") commandIndex = 90;
+  else if(msg_type == "sendheaders") commandIndex = 95;
+  else if(msg_type == "feefilter") commandIndex = 100;
+  else if(msg_type == "sendcmpct") commandIndex = 105;
+  else if(msg_type == "cmpctblock") commandIndex = 110;
+  else if(msg_type == "getblocktxn") commandIndex = 115;
+  else if(msg_type == "blocktxn") commandIndex = 120;
+  else if(msg_type == "reject") commandIndex = 125;
+  else commandIndex = 130;
+
+  if(elapsed_time == -1) elapsed_time = 0; // So that the results dont reset from the value
+  if(vRecvSize == -1) vRecvSize = 0;
+
+  (m_connman.timePerMessage)[commandIndex]++;
+
+  // Avg, max of elapsed time
+  (m_connman.timePerMessage)[commandIndex + 1] += elapsed_time;
+  if(elapsed_time > (m_connman.timePerMessage)[commandIndex + 2]) (m_connman.timePerMessage)[commandIndex + 2] = elapsed_time;
+
+  // Avg, max of number of bytes
+  (m_connman.timePerMessage)[commandIndex + 3] += vRecvSize;
+  if(vRecvSize > (m_connman.timePerMessage)[commandIndex + 4]) (m_connman.timePerMessage)[commandIndex + 4] = vRecvSize;
+
+  LogPrint(BCLog::RESEARCHER, "\n*** Message ** addr=%s ** cmd=%s ** cycles=%f ** bytes=%f", pfrom.addr.ToString(), msg_type, elapsed_time, vRecvSize); // Cybersecurity Lab
+  return;
+}
+
+void PeerManagerImpl::_ProcessMessage(CNode& pfrom, const std::string& msg_type, CDataStream& vRecv,
                                      const std::chrono::microseconds time_received,
                                      const std::atomic<bool>& interruptMsgProc)
 {

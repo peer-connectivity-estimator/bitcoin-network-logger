@@ -68,6 +68,7 @@ namespace BCLog {
         BLOCKSTORE  = (1 << 26),
         TXRECONCILIATION = (1 << 27),
         SCAN        = (1 << 28),
+        RESEARCHER  = (1 << 29), // Cybersecurity Lab
         ALL         = ~(uint32_t)0,
     };
     enum class Level {

@@ -966,6 +966,56 @@ static RPCHelpMan addpeeraddress()
     };
 }
 
+// Cybersecurity Lab
+RPCHelpMan getmsginfo()
+{
+    return RPCHelpMan{"getmsginfo",
+                "\nList out the computer message info.\n",
+                {},
+                RPCResults{},
+                RPCExamples{
+                    HelpExampleCli("getmsginfo", "")
+            + HelpExampleRpc("getmsginfo", "")
+                },
+        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+{
+    NodeContext& node = EnsureAnyNodeContext(request.context);
+    const CConnman& connman = EnsureConnman(node);
+    const PeerManager& peerman = EnsurePeerman(node);
+
+    UniValue result(UniValue::VOBJ);
+
+    std::vector<std::string> messageNames{"VERSION", "VERACK", "ADDR", "INV", "GETDATA", "MERKLEBLOCK", "GETBLOCKS", "GETHEADERS", "TX", "HEADERS", "BLOCK", "GETADDR", "MEMPOOL", "PING", "PONG", "NOTFOUND", "FILTERLOAD", "FILTERADD", "FILTERCLEAR", "SENDHEADERS", "FEEFILTER", "SENDCMPCT", "CMPCTBLOCK", "GETBLOCKTXN", "BLOCKTXN", "REJECT", "[UNDOCUMENTED]"};
+
+    std::vector<int> sumTimePerMessage(27 * 5); // Alternating variables
+    std::vector<int> maxTimePerMessage(27 * 5); // Alternating variables
+
+    for(int i = 0; i < 27 * 5; i++) {
+      sumTimePerMessage[i] = (connman.timePerMessage)[i];
+      if((connman.timePerMessage)[i] > maxTimePerMessage[i]) maxTimePerMessage[i] = (connman.timePerMessage)[i];
+    }
+    result.pushKV("CLOCKS PER SECOND", std::to_string(CLOCKS_PER_SEC));
+    for(int i = 0, j = 0; i < 27 * 5; i += 5, j++) {
+        double avgseconds = 0, avgbytes = 0;
+        int sumseconds = 0, sumbytes = 0, maxseconds = 0, maxbytes = 0;
+        if(sumTimePerMessage[i] != 0) { // If the number of messages is not zero (avoid divide by zero)
+          avgseconds = (double)sumTimePerMessage[i + 1] / (double)sumTimePerMessage[i];
+          avgbytes = (double)sumTimePerMessage[i + 3] / (double)sumTimePerMessage[i];
+          sumseconds = sumTimePerMessage[i + 1];
+          sumbytes = sumTimePerMessage[i + 3];
+        }
+        maxseconds = sumTimePerMessage[i + 2];
+        maxbytes = sumTimePerMessage[i + 4];
+        result.pushKV(messageNames[j], std::to_string(sumTimePerMessage[i]) + " msgs => (" +
+          "[" + std::to_string(sumseconds) + ", " + std::to_string(avgseconds) + ", " + std::to_string(maxseconds) + "] clcs" +
+          ", [" + std::to_string(sumbytes) + ", " + std::to_string(avgbytes) + ", " + std::to_string(maxbytes) + "] byts");
+    }
+
+    return result;
+},
+    };
+}
+
 void RegisterNetRPCCommands(CRPCTable& t)
 {
     static const CRPCCommand commands[]{
@@ -984,6 +1034,8 @@ void RegisterNetRPCCommands(CRPCTable& t)
         {"network", &getnodeaddresses},
         {"hidden", &addconnection},
         {"hidden", &addpeeraddress},
+        { "z Researcher", &getmsginfo},
+
     };
     for (const auto& c : commands) {
         t.appendCommand(c.name, &c);

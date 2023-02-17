@@ -182,6 +182,7 @@ const CLogCategoryDesc LogCategories[] =
     {BCLog::BLOCKSTORE, "blockstorage"},
     {BCLog::TXRECONCILIATION, "txreconciliation"},
     {BCLog::SCAN, "scan"},
+    {BCLog::RESEARCHER, "researcher"}, // Cybersecurity Lab
     {BCLog::ALL, "1"},
     {BCLog::ALL, "all"},
 };
