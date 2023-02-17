@@ -3215,15 +3215,29 @@ void PeerManagerImpl::ProcessMessage(CNode& pfrom, const std::string& msg_type, 
   if(elapsed_time == -1) elapsed_time = 0; // So that the results dont reset from the value
   if(vRecvSize == -1) vRecvSize = 0;
 
-  (m_connman.timePerMessage)[commandIndex]++;
-
+  (m_connman.getMessageInfoData)[commandIndex]++;
   // Avg, max of elapsed time
-  (m_connman.timePerMessage)[commandIndex + 1] += elapsed_time;
-  if(elapsed_time > (m_connman.timePerMessage)[commandIndex + 2]) (m_connman.timePerMessage)[commandIndex + 2] = elapsed_time;
-
+  (m_connman.getMessageInfoData)[commandIndex + 1] += elapsed_time;
+  if(elapsed_time > (m_connman.getMessageInfoData)[commandIndex + 2]) (m_connman.getMessageInfoData)[commandIndex + 2] = elapsed_time;
   // Avg, max of number of bytes
-  (m_connman.timePerMessage)[commandIndex + 3] += vRecvSize;
-  if(vRecvSize > (m_connman.timePerMessage)[commandIndex + 4]) (m_connman.timePerMessage)[commandIndex + 4] = vRecvSize;
+  (m_connman.getMessageInfoData)[commandIndex + 3] += vRecvSize;
+  if(vRecvSize > (m_connman.getMessageInfoData)[commandIndex + 4]) (m_connman.getMessageInfoData)[commandIndex + 4] = vRecvSize;
+
+  // Also store the same data type into a log for each peer
+  std::string address = pfrom.addr.ToString();
+  if((m_connman.getPeersMessageInfoData).find(address) == (m_connman.getPeersMessageInfoData).end()) {
+    // Peer does not exist in the entries, create a log for it
+    std::vector<int> timePerMessageContainer{std::vector<int>(27 * 5)}; // Copied from src/net.h#L754
+    (m_connman.getPeersMessageInfoData)[address] = timePerMessageContainer;
+  }
+  (m_connman.getPeersMessageInfoData)[address][commandIndex]++;
+  // Avg, max of elapsed time
+  (m_connman.getPeersMessageInfoData)[address][commandIndex + 1] += elapsed_time;
+  if(elapsed_time > (m_connman.getPeersMessageInfoData)[address][commandIndex + 2]) (m_connman.getPeersMessageInfoData)[address][commandIndex + 2] = elapsed_time;
+  // Avg, max of number of bytes
+  (m_connman.getPeersMessageInfoData)[address][commandIndex + 3] += vRecvSize;
+  if(vRecvSize > (m_connman.getPeersMessageInfoData)[address][commandIndex + 4]) (m_connman.getPeersMessageInfoData)[address][commandIndex + 4] = vRecvSize;
+
 
   LogPrint(BCLog::RESEARCHER, "\n*** Message ** addr=%s ** cmd=%s ** cycles=%f ** bytes=%f", pfrom.addr.ToString(), msg_type, elapsed_time, vRecvSize); // Cybersecurity Lab
   return;

@@ -2,11 +2,12 @@
 # ./run.sh
 # ./run.sh gui
 # ./run.sh -debug=researcher gui
+# ./run.sh -debug=researcher gui gdb
 
 bitcoinParams=""
 otherParams=""
 for var in "$@"; do
-    if [[ $var == -* ]] || [[ ! $var =~ ^(gui)$ ]] ; then
+    if [[ $var == -* ]]; then
 		bitcoinParams="$bitcoinParams $var"
 	else
 		otherParams="$otherParams $var"
@@ -111,10 +112,20 @@ if [[ " ${otherParams[*]} " =~ " gui " ]]; then
 	if [ "$pruned" == "true" ] ; then
 		echo "Pruned mode activated, only keeping 550 block transactions"
 		echo
-		src/qt/bitcoin-qt -prune=550 -datadir="$dir" $bitcoinParams #-debug=researcher
+
+		if [[ " ${otherParams[*]} " =~ " gdb " ]]; then
+			gdb -ex run --args src/qt/bitcoin-qt -prune=550 -datadir="$dir" $bitcoinParams #-debug=researcher
+		else
+			src/qt/bitcoin-qt -prune=550 -datadir="$dir" $bitcoinParams #-debug=researcher
+		fi
 	else
 		echo
-		src/qt/bitcoin-qt -datadir="$dir" $bitcoinParams #-debug=researcher
+
+		if [[ " ${otherParams[*]} " =~ " gdb " ]]; then
+			gdb -ex run --args src/qt/bitcoin-qt -datadir="$dir" $bitcoinParams #-debug=researcher
+		else
+			src/qt/bitcoin-qt -datadir="$dir" $bitcoinParams #-debug=researcher
+		fi
 	fi
 else
 
@@ -133,10 +144,20 @@ else
 	if [ "$pruned" == "true" ] ; then
 		echo "Pruned mode activated, only keeping 550 block transactions"
 		echo
-		src/bitcoind -prune=550 -datadir="$dir" $bitcoinParams #-debug=researcher
+
+		if [[ " ${otherParams[*]} " =~ " gdb " ]]; then
+			gdb -ex run --args src/bitcoind -prune=550 -datadir="$dir" $bitcoinParams #-debug=researcher
+		else
+			src/bitcoind -prune=550 -datadir="$dir" $bitcoinParams #-debug=researcher
+		fi
 	else
 		echo
-		src/bitcoind -datadir="$dir" -txindex=1 $bitcoinParams #-debug=researcher
+
+		if [[ " ${otherParams[*]} " =~ " gdb " ]]; then
+			gdb -ex run --args src/bitcoind -datadir="$dir" -txindex=1 $bitcoinParams #-debug=researcher
+		else
+			src/bitcoind -datadir="$dir" -txindex=1 $bitcoinParams #-debug=researcher
+		fi
 		# Reindexing the chainstate:
 		#src/bitcoind -datadir="/media/sf_Bitcoin" -debug=researcher -reindex-chainstate
 		

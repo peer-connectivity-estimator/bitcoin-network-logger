@@ -287,6 +287,8 @@ std::string LogCategoryToStr(BCLog::LogFlags category)
         return "txreconciliation";
     case BCLog::LogFlags::SCAN:
         return "scan";
+    case BCLog::LogFlags::RESEARCHER: // Cybersecurity Lab: Logging to string
+        return "researcher";
     case BCLog::LogFlags::ALL:
         return "all";
     }
