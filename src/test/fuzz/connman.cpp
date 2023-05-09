@@ -5,6 +5,7 @@
 #include <addrman.h>
 #include <chainparams.h>
 #include <chainparamsbase.h>
+#include <common/args.h>
 #include <net.h>
 #include <netaddress.h>
 #include <protocol.h>
@@ -13,7 +14,6 @@
 #include <test/fuzz/util.h>
 #include <test/fuzz/util/net.h>
 #include <test/util/setup_common.h>
-#include <util/system.h>
 #include <util/translation.h>
 
 #include <cstdint>
@@ -125,7 +125,6 @@ FUZZ_TARGET_INIT(connman, initialize_connman)
     std::vector<CNodeStats> stats;
     connman.GetNodeStats(stats);
     (void)connman.GetOutboundTargetBytesLeft();
-    (void)connman.GetReceiveFloodSize();
     (void)connman.GetTotalBytesRecv();
     (void)connman.GetTotalBytesSent();
     (void)connman.GetTryNewOutboundPeer();

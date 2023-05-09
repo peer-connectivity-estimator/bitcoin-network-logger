@@ -69,11 +69,14 @@ if os.name != 'nt' or sys.getwindowsversion() >= (10, 0, 14393): #type:ignore
 TEST_EXIT_PASSED = 0
 TEST_EXIT_SKIPPED = 77
 
+# List of framework modules containing unit tests. Should be kept in sync with
+# the output of `git grep unittest.TestCase ./test/functional/test_framework`
 TEST_FRAMEWORK_MODULES = [
     "address",
     "blocktools",
     "muhash",
     "key",
+    "ripemd160",
     "script",
     "segwit_addr",
     "util",
@@ -195,6 +198,7 @@ BASE_SCRIPTS = [
     'interface_http.py',
     'interface_rpc.py',
     'interface_usdt_coinselection.py',
+    'interface_usdt_mempool.py',
     'interface_usdt_net.py',
     'interface_usdt_utxocache.py',
     'interface_usdt_validation.py',
@@ -216,6 +220,8 @@ BASE_SCRIPTS = [
     'rpc_blockchain.py',
     'rpc_deprecated.py',
     'wallet_disable.py',
+    'wallet_change_address.py --legacy-wallet',
+    'wallet_change_address.py --descriptors',
     'p2p_addr_relay.py',
     'p2p_getaddr_caching.py',
     'p2p_getdata.py',
@@ -317,10 +323,12 @@ BASE_SCRIPTS = [
     'feature_includeconf.py',
     'feature_addrman.py',
     'feature_asmap.py',
+    'feature_fastprune.py',
     'mempool_unbroadcast.py',
     'mempool_compatibility.py',
     'mempool_accept_wtxid.py',
     'mempool_dust.py',
+    'mempool_sigoplimit.py',
     'rpc_deriveaddresses.py',
     'rpc_deriveaddresses.py --usecli',
     'p2p_ping.py',
@@ -340,6 +348,7 @@ BASE_SCRIPTS = [
     'p2p_permissions.py',
     'feature_blocksdir.py',
     'wallet_startup.py',
+    'feature_remove_pruned_files_on_startup.py',
     'p2p_i2p_ports.py',
     'p2p_i2p_sessions.py',
     'feature_config_args.py',

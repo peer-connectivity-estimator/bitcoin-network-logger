@@ -135,6 +135,10 @@ class PruneTest(BitcoinTestFramework):
             extra_args=['-prune=550', '-reindex-chainstate'],
         )
 
+    def test_rescan_blockchain(self):
+        self.restart_node(0, ["-prune=550"])
+        assert_raises_rpc_error(-1, "Can't rescan beyond pruned data. Use RPC call getblockchaininfo to determine your pruned height.", self.nodes[0].rescanblockchain)
+
     def test_height_min(self):
         assert os.path.isfile(os.path.join(self.prunedir, "blk00000.dat")), "blk00000.dat is missing, pruning too early"
         self.log.info("Success")
@@ -223,8 +227,8 @@ class PruneTest(BitcoinTestFramework):
     def reorg_back(self):
         # Verify that a block on the old main chain fork has been pruned away
         assert_raises_rpc_error(-1, "Block not available (pruned data)", self.nodes[2].getblock, self.forkhash)
-        with self.nodes[2].assert_debug_log(expected_msgs=['block verification stopping at height', '(pruning, no data)']):
-            self.nodes[2].verifychain(checklevel=4, nblocks=0)
+        with self.nodes[2].assert_debug_log(expected_msgs=['block verification stopping at height', '(no data)']):
+            assert not self.nodes[2].verifychain(checklevel=4, nblocks=0)
         self.log.info(f"Will need to redownload block {self.forkheight}")
 
         # Verify that we have enough history to reorg back to the fork point
@@ -468,6 +472,9 @@ class PruneTest(BitcoinTestFramework):
         if self.is_wallet_compiled():
             self.log.info("Test wallet re-scan")
             self.wallet_test()
+
+            self.log.info("Test it's not possible to rescan beyond pruned data")
+            self.test_rescan_blockchain()
 
         self.log.info("Test invalid pruning command line options")
         self.test_invalid_command_line_options()

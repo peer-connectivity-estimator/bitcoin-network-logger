@@ -44,6 +44,7 @@
 #include <txmempool.h>
 #include <util/strencodings.h>
 #include <util/string.h>
+#include <util/system.h>
 #include <util/thread.h>
 #include <util/threadnames.h>
 #include <util/time.h>
@@ -180,11 +181,18 @@ ChainTestingSetup::ChainTestingSetup(const std::string& chainName, const std::ve
 
     const ChainstateManager::Options chainman_opts{
         .chainparams = chainparams,
+        .datadir = m_args.GetDataDirNet(),
         .adjusted_time_callback = GetAdjustedTime,
         .check_block_index = true,
     };
-    m_node.chainman = std::make_unique<ChainstateManager>(chainman_opts);
-    m_node.chainman->m_blockman.m_block_tree_db = std::make_unique<CBlockTreeDB>(m_cache_sizes.block_tree_db, true);
+    node::BlockManager::Options blockman_opts{
+        .chainparams = chainman_opts.chainparams,
+    };
+    m_node.chainman = std::make_unique<ChainstateManager>(chainman_opts, blockman_opts);
+    m_node.chainman->m_blockman.m_block_tree_db = std::make_unique<CBlockTreeDB>(DBParams{
+        .path = m_args.GetDataDirNet() / "blocks" / "index",
+        .cache_bytes = static_cast<size_t>(m_cache_sizes.block_tree_db),
+        .memory_only = true});
 
     constexpr int script_check_threads = 2;
     StartScriptCheckWorkerThreads(script_check_threads);
@@ -206,7 +214,7 @@ ChainTestingSetup::~ChainTestingSetup()
     m_node.chainman.reset();
 }
 
-void TestingSetup::LoadVerifyActivateChainstate()
+void ChainTestingSetup::LoadVerifyActivateChainstate()
 {
     auto& chainman{*Assert(m_node.chainman)};
     node::ChainstateLoadOptions options;
@@ -218,6 +226,7 @@ void TestingSetup::LoadVerifyActivateChainstate()
     options.prune = chainman.m_blockman.IsPruneMode();
     options.check_blocks = m_args.GetIntArg("-checkblocks", DEFAULT_CHECKBLOCKS);
     options.check_level = m_args.GetIntArg("-checklevel", DEFAULT_CHECKLEVEL);
+    options.require_full_verification = m_args.IsArgSet("-checkblocks") || m_args.IsArgSet("-checklevel");
     auto [status, error] = LoadChainstate(chainman, m_cache_sizes, options);
     assert(status == node::ChainstateLoadStatus::SUCCESS);
 
@@ -235,10 +244,10 @@ TestingSetup::TestingSetup(
     const std::vector<const char*>& extra_args,
     const bool coins_db_in_memory,
     const bool block_tree_db_in_memory)
-    : ChainTestingSetup(chainName, extra_args),
-      m_coins_db_in_memory(coins_db_in_memory),
-      m_block_tree_db_in_memory(block_tree_db_in_memory)
+    : ChainTestingSetup(chainName, extra_args)
 {
+    m_coins_db_in_memory = coins_db_in_memory;
+    m_block_tree_db_in_memory = block_tree_db_in_memory;
     // Ideally we'd move all the RPC tests to the functional testing framework
     // instead of unit tests, but for now we need these here.
     RegisterAllCoreRPCCommands(tableRPC);
@@ -427,6 +436,33 @@ std::vector<CTransactionRef> TestChain100Setup::PopulateMempool(FastRandomContex
     return mempool_transactions;
 }
 
+void TestChain100Setup::MockMempoolMinFee(const CFeeRate& target_feerate)
+{
+    LOCK2(cs_main, m_node.mempool->cs);
+    // Transactions in the mempool will affect the new minimum feerate.
+    assert(m_node.mempool->size() == 0);
+    // The target feerate cannot be too low...
+    // ...otherwise the transaction's feerate will need to be negative.
+    assert(target_feerate > m_node.mempool->m_incremental_relay_feerate);
+    // ...otherwise this is not meaningful. The feerate policy uses the maximum of both feerates.
+    assert(target_feerate > m_node.mempool->m_min_relay_feerate);
+
+    // Manually create an invalid transaction. Manually set the fee in the CTxMemPoolEntry to
+    // achieve the exact target feerate.
+    CMutableTransaction mtx = CMutableTransaction();
+    mtx.vin.push_back(CTxIn{COutPoint{g_insecure_rand_ctx.rand256(), 0}});
+    mtx.vout.push_back(CTxOut(1 * COIN, GetScriptForDestination(WitnessV0ScriptHash(CScript() << OP_TRUE))));
+    const auto tx{MakeTransactionRef(mtx)};
+    LockPoints lp;
+    // The new mempool min feerate is equal to the removed package's feerate + incremental feerate.
+    const auto tx_fee = target_feerate.GetFee(GetVirtualTransactionSize(*tx)) -
+        m_node.mempool->m_incremental_relay_feerate.GetFee(GetVirtualTransactionSize(*tx));
+    m_node.mempool->addUnchecked(CTxMemPoolEntry(tx, /*fee=*/tx_fee,
+                                                 /*time=*/0, /*entry_height=*/1,
+                                                 /*spends_coinbase=*/true, /*sigops_cost=*/1, lp));
+    m_node.mempool->TrimToSize(0);
+    assert(m_node.mempool->GetMinFee() == target_feerate);
+}
 /**
  * @returns a real block (0000000000013b8ab2cd513b0261a14096412195a72a0c4827d229dcc7e0f7af)
  *      with 9 txs.

@@ -8,8 +8,8 @@
 #include <crypto/common.h>
 #include <logging.h>
 #include <sync.h>
+#include <util/fs_helpers.h>
 #include <util/strencodings.h>
-#include <util/system.h>
 #include <util/translation.h>
 #include <wallet/db.h>
 
@@ -22,9 +22,6 @@
 
 namespace wallet {
 static constexpr int32_t WALLET_SCHEMA_VERSION = 0;
-
-static GlobalMutex g_sqlite_mutex;
-static int g_sqlite_count GUARDED_BY(g_sqlite_mutex) = 0;
 
 static void ErrorLogCallback(void* arg, int code, const char* msg)
 {
@@ -83,6 +80,9 @@ static void SetPragma(sqlite3* db, const std::string& key, const std::string& va
     }
 }
 
+Mutex SQLiteDatabase::g_sqlite_mutex;
+int SQLiteDatabase::g_sqlite_count = 0;
+
 SQLiteDatabase::SQLiteDatabase(const fs::path& dir_path, const fs::path& file_path, const DatabaseOptions& options, bool mock)
     : WalletDatabase(), m_mock(mock), m_dir_path(fs::PathToString(dir_path)), m_file_path(fs::PathToString(file_path)), m_use_unsafe_sync(options.use_unsafe_sync)
 {
@@ -125,6 +125,7 @@ void SQLiteBatch::SetupSQLStatements()
         {&m_insert_stmt, "INSERT INTO main VALUES(?, ?)"},
         {&m_overwrite_stmt, "INSERT or REPLACE into main values(?, ?)"},
         {&m_delete_stmt, "DELETE FROM main WHERE key = ?"},
+        {&m_delete_prefix_stmt, "DELETE FROM main WHERE instr(key, ?) = 1"},
     };
 
     for (const auto& [stmt_prepared, stmt_text] : statements) {
@@ -145,6 +146,8 @@ SQLiteDatabase::~SQLiteDatabase()
 
 void SQLiteDatabase::Cleanup() noexcept
 {
+    AssertLockNotHeld(g_sqlite_mutex);
+
     Close();
 
     LOCK(g_sqlite_mutex);
@@ -373,6 +376,7 @@ void SQLiteBatch::Close()
         {&m_insert_stmt, "insert"},
         {&m_overwrite_stmt, "overwrite"},
         {&m_delete_stmt, "delete"},
+        {&m_delete_prefix_stmt, "delete prefix"},
     };
 
     for (const auto& [stmt_prepared, stmt_description] : statements) {
@@ -439,22 +443,32 @@ bool SQLiteBatch::WriteKey(DataStream&& key, DataStream&& value, bool overwrite)
     return res == SQLITE_DONE;
 }
 
-bool SQLiteBatch::EraseKey(DataStream&& key)
+bool SQLiteBatch::ExecStatement(sqlite3_stmt* stmt, Span<const std::byte> blob)
 {
     if (!m_database.m_db) return false;
-    assert(m_delete_stmt);
+    assert(stmt);
 
     // Bind: leftmost parameter in statement is index 1
-    if (!BindBlobToStatement(m_delete_stmt, 1, key, "key")) return false;
+    if (!BindBlobToStatement(stmt, 1, blob, "key")) return false;
 
     // Execute
-    int res = sqlite3_step(m_delete_stmt);
-    sqlite3_clear_bindings(m_delete_stmt);
-    sqlite3_reset(m_delete_stmt);
+    int res = sqlite3_step(stmt);
+    sqlite3_clear_bindings(stmt);
+    sqlite3_reset(stmt);
     if (res != SQLITE_DONE) {
         LogPrintf("%s: Unable to execute statement: %s\n", __func__, sqlite3_errstr(res));
     }
     return res == SQLITE_DONE;
+}
+
+bool SQLiteBatch::EraseKey(DataStream&& key)
+{
+    return ExecStatement(m_delete_stmt, key);
+}
+
+bool SQLiteBatch::ErasePrefix(Span<const std::byte> prefix)
+{
+    return ExecStatement(m_delete_prefix_stmt, prefix);
 }
 
 bool SQLiteBatch::HasKey(DataStream&& key)

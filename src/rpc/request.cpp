@@ -5,11 +5,13 @@
 
 #include <rpc/request.h>
 
-#include <fs.h>
+#include <util/fs.h>
 
+#include <common/args.h>
+#include <logging.h>
 #include <random.h>
 #include <rpc/protocol.h>
-#include <util/system.h>
+#include <util/fs_helpers.h>
 #include <util/strencodings.h>
 
 #include <fstream>
@@ -75,7 +77,7 @@ static fs::path GetAuthCookieFile(bool temp=false)
     if (temp) {
         arg += ".tmp";
     }
-    return AbsPathForConfigVal(arg);
+    return AbsPathForConfigVal(gArgs, arg);
 }
 
 bool GenerateAuthCookie(std::string *cookie_out)

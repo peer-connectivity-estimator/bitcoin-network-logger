@@ -9,6 +9,7 @@
 
 #include <chainparamsbase.h>
 #include <clientversion.h>
+#include <common/args.h>
 #include <common/url.h>
 #include <compat/compat.h>
 #include <compat/stdin.h>
@@ -19,8 +20,10 @@
 #include <rpc/request.h>
 #include <tinyformat.h>
 #include <univalue.h>
+#include <util/exception.h>
 #include <util/strencodings.h>
 #include <util/system.h>
+#include <util/time.h>
 #include <util/translation.h>
 
 #include <algorithm>
@@ -161,7 +164,7 @@ static int AppInitRPC(int argc, char* argv[])
         }
         return EXIT_SUCCESS;
     }
-    if (!CheckDataDirOption()) {
+    if (!CheckDataDirOption(gArgs)) {
         tfm::format(std::cerr, "Error: Specified data directory \"%s\" does not exist.\n", gArgs.GetArg("-datadir", ""));
         return EXIT_FAILURE;
     }
@@ -817,7 +820,7 @@ static UniValue CallRPC(BaseRequestHandler* rh, const std::string& strMethod, co
         if (failedToGetAuthCookie) {
             throw std::runtime_error(strprintf(
                 "Could not locate RPC credentials. No authentication cookie could be found, and RPC password is not set.  See -rpcpassword and -stdinrpcpass.  Configuration file: (%s)",
-                fs::PathToString(GetConfigFile(gArgs.GetPathArg("-conf", BITCOIN_CONF_FILENAME)))));
+                fs::PathToString(gArgs.GetConfigFilePath())));
         } else {
             throw std::runtime_error("Authorization failed: Incorrect rpcuser or rpcpassword");
         }
@@ -1031,6 +1034,7 @@ static void ParseGetInfoResult(UniValue& result)
     }
 
     std::vector<std::string> formatted_proxies;
+    formatted_proxies.reserve(ordered_proxies.size());
     for (const std::string& proxy : ordered_proxies) {
         formatted_proxies.emplace_back(strprintf("%s (%s)", proxy, Join(proxy_networks.find(proxy)->second, ", ")));
     }
@@ -1226,7 +1230,7 @@ static int CommandLineRPC(int argc, char *argv[])
 MAIN_FUNCTION
 {
 #ifdef WIN32
-    util::WinCmdLineArgs winArgs;
+    common::WinCmdLineArgs winArgs;
     std::tie(argc, argv) = winArgs.get();
 #endif
     SetupEnvironment();

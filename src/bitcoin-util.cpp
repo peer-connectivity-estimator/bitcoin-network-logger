@@ -11,9 +11,11 @@
 #include <chainparams.h>
 #include <chainparamsbase.h>
 #include <clientversion.h>
+#include <common/args.h>
 #include <compat/compat.h>
 #include <core_io.h>
 #include <streams.h>
+#include <util/exception.h>
 #include <util/system.h>
 #include <util/translation.h>
 #include <version.h>
@@ -126,6 +128,7 @@ static int Grind(const std::vector<std::string>& args, std::string& strPrint)
 
     std::vector<std::thread> threads;
     int n_tasks = std::max(1u, std::thread::hardware_concurrency());
+    threads.reserve(n_tasks);
     for (int i = 0; i < n_tasks; ++i) {
         threads.emplace_back(grind_task, nBits, header, i, n_tasks, std::ref(found), std::ref(proposed_nonce));
     }
