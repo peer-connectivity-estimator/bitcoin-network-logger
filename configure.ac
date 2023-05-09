@@ -98,6 +98,15 @@ else
 AX_CXX_COMPILE_STDCXX([20], [noext], [mandatory])
 fi
 
+# Cybersecurity Lab: Enable memory AddressSanitizer (ASan)
+# Install with sudo apt-get install autoconf-archive
+# AX_CHECK_COMPILE_FLAG([-Werror], [CXXFLAGS="$CXXFLAGS -Werror -fsanitize=address"])
+# AX_CHECK_LINK_FLAG([[-Wl,--version-script,$(srcdir)/contrib/link-warnings/version-script-ld]], [LINK_VERSION_SCRIPT=-Wl,--version-script,$(srcdir)/contrib/link-warnings/version-script-ld])
+# AX_APPEND_FLAG([-fsanitize=address], [CXXFLAGS])
+# AX_APPEND_FLAG([-fsanitize=address], [LDFLAGS])
+
+
+
 dnl check if additional link flags are required for std::filesystem
 CHECK_FILESYSTEM
 

@@ -3158,6 +3158,18 @@ void PeerManagerImpl::ProcessBlock(CNode& node, const std::shared_ptr<const CBlo
     m_chainman.ProcessNewBlock(block, force_processing, min_pow_checked, &new_block);
     if (new_block) {
         node.m_last_block_time = GetTime<std::chrono::seconds>();
+
+        // Cybersecurity Lab: Increment the unique block dissemination counter
+        std::string address = node.addr.ToStringIP();
+        std::shared_lock<std::shared_mutex> lock(m_connman.m_newBlockBroadcastsMutex);
+        std::map<std::string, int>::const_iterator it = (m_connman.newBlockBroadcasts).find(address);
+        if (it == m_connman.newBlockBroadcasts.end()) {
+            // Peer does not exist in the entries, create a log for it
+            (m_connman.newBlockBroadcasts)[address] = 1;
+        } else {
+            (m_connman.newBlockBroadcasts)[address]++;
+        }
+
     } else {
         LOCK(cs_main);
         mapBlockSource.erase(block->GetHash());
@@ -3171,46 +3183,53 @@ void PeerManagerImpl::ProcessMessage(CNode& pfrom, const std::string& msg_type, 
                                          const std::atomic<bool>& interruptMsgProc)
 {
   int vRecvSize = vRecv.size();
-  // Timer start
+  // Time the real ProcessMessage function
   clock_t begin = clock();
-
-  // Execute the real ProcessMessage protocol
   PeerManagerImpl::_ProcessMessage(pfrom, msg_type, vRecv, time_received, interruptMsgProc);
-
-  // Timer end
   clock_t end = clock();
-  int elapsed_time = end - begin;
-  if(elapsed_time < 0) elapsed_time = -elapsed_time; // absolute value
 
-  // Cybersecurity Lab: Tracking all message times
+  int elapsed_time = end - begin;
+  if(elapsed_time < 0) elapsed_time = -elapsed_time;
+
+  // Cybersecurity Lab: Track all messages by index
   int commandIndex = -1;
-  if(msg_type == "version") commandIndex = 0;
-  else if(msg_type == "verack") commandIndex = 5;
-  else if(msg_type == "addr") commandIndex = 10;
-  else if(msg_type == "inv") commandIndex = 15;
-  else if(msg_type == "getdata") commandIndex = 20;
-  else if(msg_type == "merkleblock") commandIndex = 25;
-  else if(msg_type == "getblocks") commandIndex = 30;
-  else if(msg_type == "getheaders") commandIndex = 35;
-  else if(msg_type == "tx") commandIndex = 40;
-  else if(msg_type == "headers") commandIndex = 45;
-  else if(msg_type == "block") commandIndex = 50;
-  else if(msg_type == "getaddr") commandIndex = 55;
-  else if(msg_type == "mempool") commandIndex = 60;
-  else if(msg_type == "ping") commandIndex = 65;
-  else if(msg_type == "pong") commandIndex = 70;
-  else if(msg_type == "notfound") commandIndex = 75;
-  else if (msg_type == "filterload") commandIndex = 80;
-  else if(msg_type == "filteradd") commandIndex = 85;
-  else if(msg_type == "filterclear") commandIndex = 90;
-  else if(msg_type == "sendheaders") commandIndex = 95;
-  else if(msg_type == "feefilter") commandIndex = 100;
-  else if(msg_type == "sendcmpct") commandIndex = 105;
-  else if(msg_type == "cmpctblock") commandIndex = 110;
-  else if(msg_type == "getblocktxn") commandIndex = 115;
-  else if(msg_type == "blocktxn") commandIndex = 120;
-  else if(msg_type == "reject") commandIndex = 125;
-  else commandIndex = 130;
+  if(msg_type == "addr") commandIndex = 5;
+  else if(msg_type == "addrv2") commandIndex = 10;
+  else if(msg_type == "block") commandIndex = 15;
+  else if(msg_type == "blocktxn") commandIndex = 20;
+  else if(msg_type == "cfcheckpt") commandIndex = 25;
+  else if(msg_type == "cfheaders") commandIndex = 30;
+  else if(msg_type == "cfilter") commandIndex = 35;
+  else if(msg_type == "cmpctblock") commandIndex = 40;
+  else if(msg_type == "feefilter") commandIndex = 45;
+  else if(msg_type == "filteradd") commandIndex = 50;
+  else if(msg_type == "filterclear") commandIndex = 55;
+  else if(msg_type == "filterload") commandIndex = 60;
+  else if(msg_type == "getaddr") commandIndex = 65;
+  else if(msg_type == "getblocks") commandIndex = 70;
+  else if(msg_type == "getblocktxn") commandIndex = 75;
+  else if(msg_type == "getcfcheckpt") commandIndex = 80;
+  else if(msg_type == "getcfheaders") commandIndex = 85;
+  else if(msg_type == "getcfilters") commandIndex = 90;
+  else if(msg_type == "getdata") commandIndex = 95;
+  else if(msg_type == "getheaders") commandIndex = 100;
+  else if(msg_type == "headers") commandIndex = 105;
+  else if(msg_type == "inv") commandIndex = 110;
+  else if(msg_type == "mempool") commandIndex = 115;
+  else if(msg_type == "merkleblock") commandIndex = 120;
+  else if(msg_type == "notfound") commandIndex = 125;
+  else if(msg_type == "ping") commandIndex = 130;
+  else if(msg_type == "pong") commandIndex = 135;
+  else if(msg_type == "reject") commandIndex = 140;
+  else if(msg_type == "sendaddrv2") commandIndex = 145;
+  else if(msg_type == "sendcmpct") commandIndex = 150;
+  else if(msg_type == "sendheaders") commandIndex = 155;
+  else if(msg_type == "sendtxrcncl") commandIndex = 160;
+  else if(msg_type == "tx") commandIndex = 165;
+  else if(msg_type == "verack") commandIndex = 170;
+  else if(msg_type == "version") commandIndex = 175;
+  else if(msg_type == "wtxidrelay") commandIndex = 180;
+  else commandIndex = 37 * 5;
 
   if(elapsed_time == -1) elapsed_time = 0; // So that the results dont reset from the value
   if(vRecvSize == -1) vRecvSize = 0;
@@ -3224,10 +3243,10 @@ void PeerManagerImpl::ProcessMessage(CNode& pfrom, const std::string& msg_type, 
   if(vRecvSize > (m_connman.getMessageInfoData)[commandIndex + 4]) (m_connman.getMessageInfoData)[commandIndex + 4] = vRecvSize;
 
   // Also store the same data type into a log for each peer
-  std::string address = pfrom.addr.ToString();
+  std::string address = pfrom.addr.ToStringIP();
   if((m_connman.getPeersMessageInfoData).find(address) == (m_connman.getPeersMessageInfoData).end()) {
     // Peer does not exist in the entries, create a log for it
-    std::vector<int> timePerMessageContainer{std::vector<int>(27 * 5)}; // Copied from src/net.h#L754
+    std::vector<int> timePerMessageContainer{std::vector<int>(37 * 5)}; // Copied from src/net.h#L754
     (m_connman.getPeersMessageInfoData)[address] = timePerMessageContainer;
   }
   (m_connman.getPeersMessageInfoData)[address][commandIndex]++;
@@ -4137,9 +4156,19 @@ void PeerManagerImpl::_ProcessMessage(CNode& pfrom, const std::string& msg_type,
                 pfrom.GetId(),
                 tx.GetHash().ToString(),
                 m_mempool.size(), m_mempool.DynamicMemoryUsage() / 1000);
-
             for (const CTransactionRef& removedTx : result.m_replaced_transactions.value()) {
                 AddToCompactExtraTransactions(removedTx);
+            }
+
+            // Cybersecurity Lab: Increment the unique transaction dissemination counter
+            std::string address = pfrom.addr.ToStringIP();
+            std::shared_lock<std::shared_mutex> lock(m_connman.m_newTxBroadcastsMutex);
+            std::map<std::string, int>::const_iterator it = (m_connman.newTxBroadcasts).find(address);
+            if (it == m_connman.newTxBroadcasts.end()) {
+                // Peer does not exist in the entries, create a log for it
+                (m_connman.newTxBroadcasts)[address] = 1;
+            } else {
+                (m_connman.newTxBroadcasts)[address]++;
             }
         }
         else if (state.GetResult() == TxValidationResult::TX_MISSING_INPUTS)

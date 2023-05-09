@@ -42,6 +42,8 @@
 #include <unordered_set>
 #include <vector>
 
+#include <shared_mutex>
+
 class AddrMan;
 class BanMan;
 class CNode;
@@ -752,9 +754,13 @@ public:
     void PushMessage(CNode* pnode, CSerializedNetMsg&& msg) EXCLUSIVE_LOCKS_REQUIRED(!m_total_bytes_sent_mutex);
 
     // Cybersecurity Lab: Initialize node tracking info
-    std::vector<int> getMessageInfoData{std::vector<int>(27 * 5)}; // Alternating variables
+    std::vector<int> getMessageInfoData{std::vector<int>(37 * 5)}; // Alternating variables
     std::map<std::string, std::vector<int>> getPeersMessageInfoData;
 
+    mutable std::shared_mutex m_newBlockBroadcastsMutex;
+    mutable std::shared_mutex m_newTxBroadcastsMutex;
+    mutable std::map<std::string, int> newBlockBroadcasts GUARDED_BY(m_newBlockBroadcastsMutex);
+    mutable std::map<std::string, int> newTxBroadcasts GUARDED_BY(m_newTxBroadcastsMutex);
 
     using NodeFn = std::function<void(CNode*)>;
     void ForEachNode(const NodeFn& func)

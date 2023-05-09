@@ -966,7 +966,7 @@ static RPCHelpMan addpeeraddress()
     };
 }
 
-// Cybersecurity Lab
+// Cybersecurity Lab: getmsginfo RPC definition
 RPCHelpMan getmsginfo()
 {
     return RPCHelpMan{"getmsginfo",
@@ -985,17 +985,17 @@ RPCHelpMan getmsginfo()
 
     UniValue result(UniValue::VOBJ);
 
-    std::vector<std::string> messageNames{"VERSION", "VERACK", "ADDR", "INV", "GETDATA", "MERKLEBLOCK", "GETBLOCKS", "GETHEADERS", "TX", "HEADERS", "BLOCK", "GETADDR", "MEMPOOL", "PING", "PONG", "NOTFOUND", "FILTERLOAD", "FILTERADD", "FILTERCLEAR", "SENDHEADERS", "FEEFILTER", "SENDCMPCT", "CMPCTBLOCK", "GETBLOCKTXN", "BLOCKTXN", "REJECT", "[UNDOCUMENTED]"};
+    std::vector<std::string> messageNames{"ADDR", "ADDRV2", "BLOCK", "BLOCKTXN", "CFCHECKPT", "CFHEADERS", "CFILTER", "CMPCTBLOCK", "FEEFILTER", "FILTERADD", "FILTERCLEAR", "FILTERLOAD", "GETADDR", "GETBLOCKS", "GETBLOCKTXN", "GETCFCHECKPT", "GETCFHEADERS", "GETCFILTERS", "GETDATA", "GETHEADERS", "HEADERS", "INV", "MEMPOOL", "MERKLEBLOCK", "NOTFOUND", "PING", "PONG", "REJECT", "SENDADDRV2", "SENDCMPCT", "SENDHEADERS", "SENDTXRCNCL", "TX", "VERACK", "VERSION", "WTXIDRELAY", "[UNDOCUMENTED]"};
 
-    std::vector<int> sumTimePerMessage(27 * 5); // Alternating variables
-    std::vector<int> maxTimePerMessage(27 * 5); // Alternating variables
+    std::vector<int> sumTimePerMessage(37 * 5); // Alternating variables
+    std::vector<int> maxTimePerMessage(37 * 5); // Alternating variables
 
-    for(int i = 0; i < 27 * 5; i++) {
+    for(int i = 0; i < 37 * 5; i++) {
       sumTimePerMessage[i] = (connman.getMessageInfoData)[i];
       if((connman.getMessageInfoData)[i] > maxTimePerMessage[i]) maxTimePerMessage[i] = (connman.getMessageInfoData)[i];
     }
     result.pushKV("CLOCKS PER SECOND", std::to_string(CLOCKS_PER_SEC));
-    for(int i = 0, j = 0; i < 27 * 5; i += 5, j++) {
+    for(int i = 0, j = 0; i < 37 * 5; i += 5, j++) {
         double avgseconds = 0, avgbytes = 0;
         int sumseconds = 0, sumbytes = 0, maxseconds = 0, maxbytes = 0;
         if(sumTimePerMessage[i] != 0) { // If the number of messages is not zero (avoid divide by zero)
@@ -1019,45 +1019,45 @@ RPCHelpMan getmsginfo()
 
 
 
+// Cybersecurity Lab: Convert to base64 and back
+//   static std::string string_to_base64(const std::string& in) {
+//     std::string out;
+//     int val = 0, valb = -6;
+//     for (unsigned char c : in) {
+//       val = (val << 8) + c;
+//       valb += 8;
+//       while (valb >= 0) {
+//         out.push_back("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"[(val>>valb)&0x3F]);
+//         valb -= 6;
+//       }
+//     }
+//     if (valb>-6) out.push_back("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"[((val<<8)>>(valb+8))&0x3F]);
+//     while (out.size()%4) out.push_back('=');
+//     return out;
+//   }
 
-  static std::string string_to_base64(const std::string& in) {
-    std::string out;
-    int val = 0, valb = -6;
-    for (unsigned char c : in) {
-      val = (val << 8) + c;
-      valb += 8;
-      while (valb >= 0) {
-        out.push_back("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"[(val>>valb)&0x3F]);
-        valb -= 6;
-      }
-    }
-    if (valb>-6) out.push_back("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"[((val<<8)>>(valb+8))&0x3F]);
-    while (out.size()%4) out.push_back('=');
-    return out;
-  }
-
-  static std::string base64_to_string(const std::string& in) {
-    std::string out;
-    std::vector<int> T(256,-1);
-    for (int i=0; i<64; i++) T["ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"[i]] = i;
-    int val=0, valb=-8;
-    for (unsigned char c : in) {
-      if (T[c] == -1) break;
-      val = (val << 6) + T[c];
-      valb += 6;
-      if (valb >= 0) {
-        out.push_back(char((val>>valb)&0xFF));
-        valb -= 8;
-      }
-    }
-    return out;
-  }
-
-
+//   static std::string base64_to_string(const std::string& in) {
+//     std::string out;
+//     std::vector<int> T(256,-1);
+//     for (int i=0; i<64; i++) T["ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"[i]] = i;
+//     int val=0, valb=-8;
+//     for (unsigned char c : in) {
+//       if (T[c] == -1) break;
+//       val = (val << 6) + T[c];
+//       valb += 6;
+//       if (valb >= 0) {
+//         out.push_back(char((val>>valb)&0xFF));
+//         valb -= 8;
+//       }
+//     }
+//     return out;
+//   }
 
 
 
-// Cybersecurity Lab
+
+
+// Cybersecurity Lab: getpeersmsginfo RPC definition
 RPCHelpMan getpeersmsginfo()
 {
     return RPCHelpMan{"getpeersmsginfo",
@@ -1076,21 +1076,22 @@ RPCHelpMan getpeersmsginfo()
 
     UniValue result(UniValue::VOBJ);
 
-    std::vector<std::string> messageNames{"VERSION", "VERACK", "ADDR", "INV", "GETDATA", "MERKLEBLOCK", "GETBLOCKS", "GETHEADERS", "TX", "HEADERS", "BLOCK", "GETADDR", "MEMPOOL", "PING", "PONG", "NOTFOUND", "FILTERLOAD", "FILTERADD", "FILTERCLEAR", "SENDHEADERS", "FEEFILTER", "SENDCMPCT", "CMPCTBLOCK", "GETBLOCKTXN", "BLOCKTXN", "REJECT", "[UNDOCUMENTED]"};
-
+    std::vector<std::string> messageNames{"ADDR", "ADDRV2", "BLOCK", "BLOCKTXN", "CFCHECKPT", "CFHEADERS", "CFILTER", "CMPCTBLOCK", "FEEFILTER", "FILTERADD", "FILTERCLEAR", "FILTERLOAD", "GETADDR", "GETBLOCKS", "GETBLOCKTXN", "GETCFCHECKPT", "GETCFHEADERS", "GETCFILTERS", "GETDATA", "GETHEADERS", "HEADERS", "INV", "MEMPOOL", "MERKLEBLOCK", "NOTFOUND", "PING", "PONG", "REJECT", "SENDADDRV2", "SENDCMPCT", "SENDHEADERS", "SENDTXRCNCL", "TX", "VERACK", "VERSION", "WTXIDRELAY", "[UNDOCUMENTED]"};
+    
     result.pushKV("CLOCKS PER SECOND", std::to_string(CLOCKS_PER_SEC));
 
     for (auto& it : connman.getPeersMessageInfoData) {
       std::string address = it.first;
       std::vector<int> data = it.second;
-      std::string subResult = "{";
-      std::vector<int> sumTimePerMessage(27 * 5); // Alternating variables
-      std::vector<int> maxTimePerMessage(27 * 5); // Alternating variables
-      for(int i = 0; i < 27 * 5; i++) {
+      UniValue subResult(UniValue::VOBJ);
+      //std::string subResult = "{";
+      std::vector<int> sumTimePerMessage(37 * 5); // Alternating variables
+      std::vector<int> maxTimePerMessage(37 * 5); // Alternating variables
+      for(int i = 0; i < 37 * 5; i++) {
         sumTimePerMessage[i] = data[i];
         if(data[i] > maxTimePerMessage[i]) maxTimePerMessage[i] = data[i];
       }
-      for(int i = 0, j = 0; i < 27 * 5; i += 5, j++) {
+      for(int i = 0, j = 0; i < 37 * 5; i += 5, j++) {
         double avgseconds = 0, avgbytes = 0;
         int sumseconds = 0, sumbytes = 0, maxseconds = 0, maxbytes = 0;
         if(sumTimePerMessage[i] != 0) { // If the number of messages is not zero (avoid divide by zero)
@@ -1101,15 +1102,96 @@ RPCHelpMan getpeersmsginfo()
         }
         maxseconds = sumTimePerMessage[i + 2];
         maxbytes = sumTimePerMessage[i + 4];
-        subResult += "\"" + messageNames[j] + "\": \"" + std::to_string(sumTimePerMessage[i]) + " msgs => (" +
+        //subResult += "\"" + messageNames[j] + "\": \"" + std::to_string(sumTimePerMessage[i]) + " msgs => (" +
+        //"[" + std::to_string(sumseconds) + ", " + std::to_string(avgseconds) + ", " + std::to_string(maxseconds) + "] clcs" +
+        //", [" + std::to_string(sumbytes) + ", " + std::to_string(avgbytes) + ", " + std::to_string(maxbytes) + "] byts" + "\",";
+      
+        subResult.pushKV(messageNames[j], std::to_string(sumTimePerMessage[i]) + " msgs => (" +
         "[" + std::to_string(sumseconds) + ", " + std::to_string(avgseconds) + ", " + std::to_string(maxseconds) + "] clcs" +
-        ", [" + std::to_string(sumbytes) + ", " + std::to_string(avgbytes) + ", " + std::to_string(maxbytes) + "] byts" + "\",";
+        ", [" + std::to_string(sumbytes) + ", " + std::to_string(avgbytes) + ", " + std::to_string(maxbytes) + "] byts");
       }
-      subResult = subResult.substr(0, subResult.size() - 1); // Remove the last comma
-      subResult += "}";
-      result.pushKV(address, string_to_base64(subResult));
+      //subResult = subResult.substr(0, subResult.size() - 1); // Remove the last comma
+      //subResult += "}";
+      //result.pushKV(address, string_to_base64(subResult));
+      result.pushKV(address, subResult);
     }
 
+    return result;
+},
+    };
+}
+
+// Cybersecurity Lab: listuniquedatabroadcasts RPC definition
+static RPCHelpMan listuniquedatabroadcasts()
+{
+    return RPCHelpMan{"listnewbroadcasts",
+                "\nList the unique block and transaction transmission counts for each peer.\n",
+                {},
+                RPCResults{},
+                RPCExamples{
+                    HelpExampleCli("listuniquedatabroadcasts", "")
+            + HelpExampleRpc("listuniquedatabroadcasts", "")
+                },
+        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+{
+    NodeContext& node = EnsureAnyNodeContext(request.context);
+    const CConnman& connman = EnsureConnman(node);
+    UniValue result(UniValue::VOBJ);
+    {
+        UniValue subresult1(UniValue::VOBJ);
+        std::shared_lock<std::shared_mutex> lock(connman.m_newBlockBroadcastsMutex);
+        for (std::map<std::string, int>::iterator it = connman.newBlockBroadcasts.begin(); it != connman.newBlockBroadcasts.end(); ++it) {
+            subresult1.pushKV(it->first, it->second);
+        }
+        result.pushKV("new_block_broadcasts", subresult1);
+    }
+    {
+        UniValue subresult2(UniValue::VOBJ);
+        std::shared_lock<std::shared_mutex> lock(connman.m_newTxBroadcastsMutex);
+        for (std::map<std::string, int>::iterator it = connman.newTxBroadcasts.begin(); it != connman.newTxBroadcasts.end(); ++it) {
+            subresult2.pushKV(it->first, it->second);
+        }
+        result.pushKV("new_transaction_broadcasts", subresult2);
+    }
+    return result;
+},
+    };
+}
+
+// Cybersecurity Lab: listuniquedatabroadcasts RPC definition
+static RPCHelpMan listuniquedatabroadcastsandclear()
+{
+    return RPCHelpMan{"listuniquedatabroadcastsandclear",
+                "\nList the unique block and transaction transmission counts for each peer, then clear the counters.\n",
+                {},
+                RPCResults{},
+                RPCExamples{
+                    HelpExampleCli("listuniquedatabroadcastsandclear", "")
+            + HelpExampleRpc("listuniquedatabroadcastsandclear", "")
+                },
+        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+{
+    NodeContext& node = EnsureAnyNodeContext(request.context);
+    const CConnman& connman = EnsureConnman(node);
+    UniValue result(UniValue::VOBJ);
+    {
+        UniValue subresult1(UniValue::VOBJ);
+        std::shared_lock<std::shared_mutex> lock(connman.m_newBlockBroadcastsMutex);
+        for (std::map<std::string, int>::iterator it = connman.newBlockBroadcasts.begin(); it != connman.newBlockBroadcasts.end(); ++it) {
+            subresult1.pushKV(it->first, it->second);
+        }
+        result.pushKV("new_block_broadcasts", subresult1);
+    }
+    {
+        UniValue subresult2(UniValue::VOBJ);
+        std::shared_lock<std::shared_mutex> lock(connman.m_newTxBroadcastsMutex);
+        for (std::map<std::string, int>::iterator it = connman.newTxBroadcasts.begin(); it != connman.newTxBroadcasts.end(); ++it) {
+            subresult2.pushKV(it->first, it->second);
+        }
+        result.pushKV("new_transaction_broadcasts", subresult2);
+    }
+    connman.newBlockBroadcasts.clear();
+    connman.newTxBroadcasts.clear();
     return result;
 },
     };
@@ -1135,6 +1217,8 @@ void RegisterNetRPCCommands(CRPCTable& t)
         {"hidden", &addpeeraddress},
         {"researcher", &getmsginfo},
         {"researcher", &getpeersmsginfo},
+        {"researcher", &listuniquedatabroadcasts},
+        {"researcher", &listuniquedatabroadcastsandclear},
 
     };
     for (const auto& c : commands) {

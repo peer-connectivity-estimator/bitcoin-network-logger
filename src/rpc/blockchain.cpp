@@ -2698,6 +2698,27 @@ UniValue CreateUTXOSnapshot(
     return result;
 }
 
+// Cybersecurity Lab: Get the latest block propagation time
+// static RPCHelpMan blockpropagationtime()
+// {
+//     return RPCHelpMan{"blockpropagationtime",
+//                 "\nReturns the number of milliseconds from the moment it was mined, to the moment it was received.\n",
+//                 {},
+//                 RPCResult{
+//                     RPCResult::Type::NUM_TIME, "", "Number of milliseconds"},
+//                 RPCExamples{
+//                     HelpExampleCli("blockpropagationtime", "")
+//             + HelpExampleRpc("blockpropagationtime", "")
+//                 },
+//         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+// {
+//     uint64_t blockPropagationTime = 42;
+//     if(blockPropagationTime == INT_MIN) return NullUniValue;
+//     return blockPropagationTime;
+// },
+//     };
+// }
+
 void RegisterBlockchainRPCCommands(CRPCTable& t)
 {
     static const CRPCCommand commands[]{
@@ -2728,6 +2749,7 @@ void RegisterBlockchainRPCCommands(CRPCTable& t)
         {"hidden", &waitforblockheight},
         {"hidden", &syncwithvalidationinterfacequeue},
         {"hidden", &dumptxoutset},
+        //{"researcher", &blockpropagationtime},
     };
     for (const auto& c : commands) {
         t.appendCommand(c.name, &c);
