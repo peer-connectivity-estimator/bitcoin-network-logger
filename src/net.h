@@ -789,6 +789,8 @@ public:
     mutable std::shared_mutex m_newTxBroadcastsMutex;
     mutable std::map<std::string, int> newBlockBroadcasts GUARDED_BY(m_newBlockBroadcastsMutex);
     mutable std::map<std::string, int> newTxBroadcasts GUARDED_BY(m_newTxBroadcastsMutex);
+    mutable std::map<std::string, int> newTxFeeBroadcasts GUARDED_BY(m_newTxBroadcastsMutex);
+    mutable std::map<std::string, int> newTxSizeBroadcasts GUARDED_BY(m_newTxBroadcastsMutex);
 
     using NodeFn = std::function<void(CNode*)>;
     void ForEachNode(const NodeFn& func)

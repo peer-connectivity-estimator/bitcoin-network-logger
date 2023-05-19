@@ -1121,16 +1121,16 @@ RPCHelpMan getpeersmsginfo()
     };
 }
 
-// Cybersecurity Lab: listuniquedatabroadcasts RPC definition
-static RPCHelpMan listuniquedatabroadcasts()
+// Cybersecurity Lab: listnewbroadcasts RPC definition
+static RPCHelpMan listnewbroadcasts()
 {
     return RPCHelpMan{"listnewbroadcasts",
                 "\nList the unique block and transaction transmission counts for each peer.\n",
                 {},
                 RPCResults{},
                 RPCExamples{
-                    HelpExampleCli("listuniquedatabroadcasts", "")
-            + HelpExampleRpc("listuniquedatabroadcasts", "")
+                    HelpExampleCli("listnewbroadcasts", "")
+            + HelpExampleRpc("listnewbroadcasts", "")
                 },
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {
@@ -1151,23 +1151,33 @@ static RPCHelpMan listuniquedatabroadcasts()
         for (std::map<std::string, int>::iterator it = connman.newTxBroadcasts.begin(); it != connman.newTxBroadcasts.end(); ++it) {
             subresult2.pushKV(it->first, it->second);
         }
+        UniValue subresult3(UniValue::VOBJ);
+        for (std::map<std::string, int>::iterator it = connman.newTxFeeBroadcasts.begin(); it != connman.newTxFeeBroadcasts.end(); ++it) {
+            subresult3.pushKV(it->first, it->second);
+        }
+        UniValue subresult4(UniValue::VOBJ);
+        for (std::map<std::string, int>::iterator it = connman.newTxSizeBroadcasts.begin(); it != connman.newTxSizeBroadcasts.end(); ++it) {
+            subresult4.pushKV(it->first, it->second);
+        }
         result.pushKV("new_transaction_broadcasts", subresult2);
+        result.pushKV("new_transaction_fee_broadcasts", subresult3);
+        result.pushKV("new_transaction_size_broadcasts", subresult4);
     }
     return result;
 },
     };
 }
 
-// Cybersecurity Lab: listuniquedatabroadcasts RPC definition
-static RPCHelpMan listuniquedatabroadcastsandclear()
+// Cybersecurity Lab: listnewbroadcastsandclear RPC definition
+static RPCHelpMan listnewbroadcastsandclear()
 {
-    return RPCHelpMan{"listuniquedatabroadcastsandclear",
+    return RPCHelpMan{"listnewbroadcastsandclear",
                 "\nList the unique block and transaction transmission counts for each peer, then clear the counters.\n",
                 {},
                 RPCResults{},
                 RPCExamples{
-                    HelpExampleCli("listuniquedatabroadcastsandclear", "")
-            + HelpExampleRpc("listuniquedatabroadcastsandclear", "")
+                    HelpExampleCli("listnewbroadcastsandclear", "")
+            + HelpExampleRpc("listnewbroadcastsandclear", "")
                 },
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {
@@ -1188,10 +1198,22 @@ static RPCHelpMan listuniquedatabroadcastsandclear()
         for (std::map<std::string, int>::iterator it = connman.newTxBroadcasts.begin(); it != connman.newTxBroadcasts.end(); ++it) {
             subresult2.pushKV(it->first, it->second);
         }
+        UniValue subresult3(UniValue::VOBJ);
+        for (std::map<std::string, int>::iterator it = connman.newTxFeeBroadcasts.begin(); it != connman.newTxFeeBroadcasts.end(); ++it) {
+            subresult3.pushKV(it->first, it->second);
+        }
+        UniValue subresult4(UniValue::VOBJ);
+        for (std::map<std::string, int>::iterator it = connman.newTxSizeBroadcasts.begin(); it != connman.newTxSizeBroadcasts.end(); ++it) {
+            subresult4.pushKV(it->first, it->second);
+        }
         result.pushKV("new_transaction_broadcasts", subresult2);
+        result.pushKV("new_transaction_fee_broadcasts", subresult3);
+        result.pushKV("new_transaction_size_broadcasts", subresult4);
     }
     connman.newBlockBroadcasts.clear();
     connman.newTxBroadcasts.clear();
+    connman.newTxFeeBroadcasts.clear();
+    connman.newTxSizeBroadcasts.clear();
     return result;
 },
     };
@@ -1217,8 +1239,8 @@ void RegisterNetRPCCommands(CRPCTable& t)
         {"hidden", &addpeeraddress},
         {"researcher", &getmsginfo},
         {"researcher", &getpeersmsginfo},
-        {"researcher", &listuniquedatabroadcasts},
-        {"researcher", &listuniquedatabroadcastsandclear},
+        {"researcher", &listnewbroadcasts},
+        {"researcher", &listnewbroadcastsandclear},
 
     };
     for (const auto& c : commands) {

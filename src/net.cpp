@@ -2264,9 +2264,6 @@ CConnman::CConnman(uint64_t nSeed0In, uint64_t nSeed1In, AddrMan& addrman_in,
     , nSeed0(nSeed0In)
     , nSeed1(nSeed1In)
 {
-    // Cybersecurity Lab: Initialize newBlockBroadcasts and newTxBroadcasts
-    // newBlockBroadcasts = std::map<std::string, int>{};
-    // newTxBroadcasts = std::map<std::string, int>{};
 
     SetTryNewOutboundPeer(false);
 

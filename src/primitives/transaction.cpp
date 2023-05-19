@@ -17,6 +17,13 @@
 #include <cassert>
 #include <stdexcept>
 
+ // Cybersecurity Lab: For computing a transaction's fee estimation
+#include "streams.h"
+#include "policy/feerate.h"
+#include "policy/fees.h"
+#include "coins.h"
+
+
 std::string COutPoint::ToString() const
 {
     return strprintf("COutPoint(%s, %u)", hash.ToString().substr(0,10), n);
@@ -120,3 +127,35 @@ std::string CTransaction::ToString() const
         str += "    " + tx_out.ToString() + "\n";
     return str;
 }
+
+// Cybersecurity Lab: Get transaction fee
+unsigned int GetTransactionSize(const CTransaction& tx) {
+    CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
+    ss << tx;
+    return ss.size();
+}
+
+// Cybersecurity Lab: Fee estimator
+// CFeeRate GetEstimatedFeeRate() {
+//     // The number of blocks to consider for averaging the fee rate.
+//     int numBlocks = 2;
+
+//     // Get the active chainstate.
+//     CChainState& activeChainState = g_chainman.ActiveChainstate();
+
+//     // Get the fee estimator.
+//     FeeCalculation feeCalc;
+//     CFeeRate feeRate = activeChainState.m_fee_estimator.estimateSmartFee(numBlocks, &feeCalc, false /* conservative */);
+
+//     return feeRate;
+// }
+
+// CAmount EstimateFee(const CTransaction& tx) {
+//     unsigned int txSize = GetTransactionSize(tx);
+//     CFeeRate feeRate = GetEstimatedFeeRate();
+//     // Calculate the fee. Note that this will be an estimate, not the exact fee.
+//     CAmount estimatedFee = feeRate.GetFee(txSize);
+//     return estimatedFee;
+// }
+
+

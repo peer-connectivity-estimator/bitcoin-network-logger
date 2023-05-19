@@ -19,6 +19,8 @@ sudo apt-get -y install libminiupnpc-dev
 # Used to check what windows are open
 sudo apt-get -y install wmctrl
 
+make clean
+
 ./autogen.sh
 ./configure --with-miniupnpc --enable-upnp-default --with-incompatible-bdb # --disablewallet # --prefix=`pwd`/depends/x86_64-linux-gnu
 #./configure --without-miniupnpc --enable-upnp-default --with-incompatible-bdb # --disablewallet # --prefix=`pwd`/depends/x86_64-linux-gnu

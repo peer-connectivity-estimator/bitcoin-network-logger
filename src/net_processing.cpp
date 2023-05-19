@@ -3161,7 +3161,7 @@ void PeerManagerImpl::ProcessBlock(CNode& node, const std::shared_ptr<const CBlo
         node.m_last_block_time = GetTime<std::chrono::seconds>();
 
         // Cybersecurity Lab: Increment the unique block dissemination counter
-        std::string address = node.addr.ToStringIP();
+        std::string address = node.addr.ToStringAddr();
         std::shared_lock<std::shared_mutex> lock(m_connman.m_newBlockBroadcastsMutex);
         std::map<std::string, int>::const_iterator it = (m_connman.newBlockBroadcasts).find(address);
         if (it == m_connman.newBlockBroadcasts.end()) {
@@ -3244,7 +3244,7 @@ void PeerManagerImpl::ProcessMessage(CNode& pfrom, const std::string& msg_type, 
   if(vRecvSize > (m_connman.getMessageInfoData)[commandIndex + 4]) (m_connman.getMessageInfoData)[commandIndex + 4] = vRecvSize;
 
   // Also store the same data type into a log for each peer
-  std::string address = pfrom.addr.ToStringIP();
+  std::string address = pfrom.addr.ToStringAddr();
   if((m_connman.getPeersMessageInfoData).find(address) == (m_connman.getPeersMessageInfoData).end()) {
     // Peer does not exist in the entries, create a log for it
     std::vector<int> timePerMessageContainer{std::vector<int>(37 * 5)}; // Copied from src/net.h#L754
@@ -3259,7 +3259,7 @@ void PeerManagerImpl::ProcessMessage(CNode& pfrom, const std::string& msg_type, 
   if(vRecvSize > (m_connman.getPeersMessageInfoData)[address][commandIndex + 4]) (m_connman.getPeersMessageInfoData)[address][commandIndex + 4] = vRecvSize;
 
 
-  LogPrint(BCLog::RESEARCHER, "\n*** Message ** addr=%s ** cmd=%s ** cycles=%f ** bytes=%f", pfrom.addr.ToString(), msg_type, elapsed_time, vRecvSize); // Cybersecurity Lab
+  LogPrint(BCLog::RESEARCHER, "\n*** Message ** addr=%s ** cmd=%s ** cycles=%f ** bytes=%f", pfrom.addr.ToStringAddrPort(), msg_type, elapsed_time, vRecvSize); // Cybersecurity Lab
   return;
 }
 
@@ -4166,15 +4166,41 @@ void PeerManagerImpl::_ProcessMessage(CNode& pfrom, const std::string& msg_type,
                 AddToCompactExtraTransactions(removedTx);
             }
 
+            // Cybersecurity Lab: Computing the estimated transaction fee
+            Chainstate& active_chainstate = m_chainman.ActiveChainstate();
+            CCoinsViewCache& coinsView = active_chainstate.CoinsTip();
+            CAmount inputsSum = 0, fee = 0;
+            for (const auto& txin : tx.vin) {
+                const Coin& coin = coinsView.AccessCoin(txin.prevout);
+                if (!coin.IsSpent()) {
+                    inputsSum += coin.out.nValue;
+                }
+            }
+            if(inputsSum == 0) fee = 0;
+            else {
+                CAmount outputsSum = tx.GetValueOut();
+                // for (const auto& txout : tx.vout) {
+                //     outputsSum += txout.nValue;
+                // }
+                if(inputsSum >= outputsSum) fee = inputsSum - outputsSum;
+                else fee = 0;
+            }
+            unsigned int txSize = tx.GetTotalSize();
+            //LogPrint(BCLog::RESEARCHER, "!!! Transaction fee: i%lld - o%lld = %lld", inputsSum, outputsSum, fee);
+
             // Cybersecurity Lab: Increment the unique transaction dissemination counter
-            std::string address = pfrom.addr.ToStringIP();
+            std::string address = pfrom.addr.ToStringAddr();
             std::shared_lock<std::shared_mutex> lock(m_connman.m_newTxBroadcastsMutex);
             std::map<std::string, int>::const_iterator it = (m_connman.newTxBroadcasts).find(address);
             if (it == m_connman.newTxBroadcasts.end()) {
                 // Peer does not exist in the entries, create a log for it
                 (m_connman.newTxBroadcasts)[address] = 1;
+                (m_connman.newTxFeeBroadcasts)[address] = static_cast<int>(fee);
+                (m_connman.newTxSizeBroadcasts)[address] = txSize;
             } else {
                 (m_connman.newTxBroadcasts)[address]++;
+                (m_connman.newTxFeeBroadcasts)[address] += static_cast<int>(fee);
+                (m_connman.newTxSizeBroadcasts)[address] += txSize;
             }
         }
         else if (state.GetResult() == TxValidationResult::TX_MISSING_INPUTS)
