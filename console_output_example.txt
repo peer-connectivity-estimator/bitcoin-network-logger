@@ -1,0 +1,917 @@
+--------------------------------------------------------------------------------
+                                Bitcoin Console                                 
+--------------------------------------------------------------------------------
+1   >   help
+
+== Blockchain ==
+getbestblockhash
+getblock "blockhash" ( verbosity )
+getblockchaininfo
+getblockcount
+getblockfilter "blockhash" ( "filtertype" )
+getblockfrompeer "blockhash" peer_id
+getblockhash height
+getblockheader "blockhash" ( verbose )
+getblockstats hash_or_height ( stats )
+getchaintips
+getchaintxstats ( nblocks "blockhash" )
+getdeploymentinfo ( "blockhash" )
+getdifficulty
+getmempoolancestors "txid" ( verbose )
+getmempooldescendants "txid" ( verbose )
+getmempoolentry "txid"
+getmempoolinfo
+getrawmempool ( verbose mempool_sequence )
+gettxout "txid" n ( include_mempool )
+gettxoutproof ["txid",...] ( "blockhash" )
+gettxoutsetinfo ( "hash_type" hash_or_height use_index )
+gettxspendingprevout [{"txid":"hex","vout":n},...]
+preciousblock "blockhash"
+pruneblockchain height
+savemempool
+scanblocks "action" ( [scanobjects,...] start_height stop_height "filtertype" "options" )
+scantxoutset "action" ( [scanobjects,...] )
+verifychain ( checklevel nblocks )
+verifytxoutproof "proof"
+
+== Control ==
+getmemoryinfo ( "mode" )
+getrpcinfo
+help ( "command" )
+logging ( ["include_category",...] ["exclude_category",...] )
+stop
+uptime
+
+== Mining ==
+getblocktemplate ( "template_request" )
+getmininginfo
+getnetworkhashps ( nblocks height )
+prioritisetransaction "txid" ( dummy ) fee_delta
+submitblock "hexdata" ( "dummy" )
+submitheader "hexdata"
+
+== Network ==
+addnode "node" "command"
+clearbanned
+disconnectnode ( "address" nodeid )
+getaddednodeinfo ( "node" )
+getconnectioncount
+getnettotals
+getnetworkinfo
+getnodeaddresses ( count "network" )
+getpeerinfo
+listbanned
+ping
+setban "subnet" "command" ( bantime absolute )
+setnetworkactive state
+
+== Rawtransactions ==
+analyzepsbt "psbt"
+combinepsbt ["psbt",...]
+combinerawtransaction ["hexstring",...]
+converttopsbt "hexstring" ( permitsigdata iswitness )
+createpsbt [{"txid":"hex","vout":n,"sequence":n},...] [{"address":amount,...},{"data":"hex"},...] ( locktime replaceable )
+createrawtransaction [{"txid":"hex","vout":n,"sequence":n},...] [{"address":amount,...},{"data":"hex"},...] ( locktime replaceable )
+decodepsbt "psbt"
+decoderawtransaction "hexstring" ( iswitness )
+decodescript "hexstring"
+finalizepsbt "psbt" ( extract )
+fundrawtransaction "hexstring" ( options iswitness )
+getrawtransaction "txid" ( verbosity "blockhash" )
+joinpsbts ["psbt",...]
+sendrawtransaction "hexstring" ( maxfeerate maxburnamount )
+signrawtransactionwithkey "hexstring" ["privatekey",...] ( [{"txid":"hex","vout":n,"scriptPubKey":"hex","redeemScript":"hex","witnessScript":"hex","amount":amount},...] "sighashtype" )
+testmempoolaccept ["rawtx",...] ( maxfeerate )
+utxoupdatepsbt "psbt" ( ["",{"desc":"str","range":n or [n,n]},...] )
+
+== Researcher ==
+getmsginfo
+getpeersmsginfo
+getpeersmsginfoandclear
+listnewbroadcasts
+listnewbroadcastsandclear
+
+== Signer ==
+enumeratesigners
+
+== Util ==
+createmultisig nrequired ["key",...] ( "address_type" )
+deriveaddresses "descriptor" ( range )
+estimatesmartfee conf_target ( "estimate_mode" )
+getdescriptorinfo "descriptor"
+getindexinfo ( "index_name" )
+signmessagewithprivkey "privkey" "message"
+validateaddress "address"
+verifymessage "address" "signature" "message"
+
+== Wallet ==
+abandontransaction "txid"
+abortrescan
+addmultisigaddress nrequired ["key",...] ( "label" "address_type" )
+backupwallet "destination"
+bumpfee "txid" ( options )
+createwallet "wallet_name" ( disable_private_keys blank "passphrase" avoid_reuse descriptors load_on_startup external_signer )
+dumpprivkey "address"
+dumpwallet "filename"
+encryptwallet "passphrase"
+getaddressesbylabel "label"
+getaddressinfo "address"
+getbalance ( "dummy" minconf include_watchonly avoid_reuse )
+getbalances
+getnewaddress ( "label" "address_type" )
+getrawchangeaddress ( "address_type" )
+getreceivedbyaddress "address" ( minconf include_immature_coinbase )
+getreceivedbylabel "label" ( minconf include_immature_coinbase )
+gettransaction "txid" ( include_watchonly verbose )
+getunconfirmedbalance
+getwalletinfo
+importaddress "address" ( "label" rescan p2sh )
+importdescriptors "requests"
+importmulti "requests" ( "options" )
+importprivkey "privkey" ( "label" rescan )
+importprunedfunds "rawtransaction" "txoutproof"
+importpubkey "pubkey" ( "label" rescan )
+importwallet "filename"
+keypoolrefill ( newsize )
+listaddressgroupings
+listdescriptors ( private )
+listlabels ( "purpose" )
+listlockunspent
+listreceivedbyaddress ( minconf include_empty include_watchonly "address_filter" include_immature_coinbase )
+listreceivedbylabel ( minconf include_empty include_watchonly include_immature_coinbase )
+listsinceblock ( "blockhash" target_confirmations include_watchonly include_removed include_change "label" )
+listtransactions ( "label" count skip include_watchonly )
+listunspent ( minconf maxconf ["address",...] include_unsafe query_options )
+listwalletdir
+listwallets
+loadwallet "filename" ( load_on_startup )
+lockunspent unlock ( [{"txid":"hex","vout":n},...] persistent )
+migratewallet ( "wallet_name" "passphrase" )
+newkeypool
+psbtbumpfee "txid" ( options )
+removeprunedfunds "txid"
+rescanblockchain ( start_height stop_height )
+restorewallet "wallet_name" "backup_file" ( load_on_startup )
+send [{"address":amount,...},{"data":"hex"},...] ( conf_target "estimate_mode" fee_rate options )
+sendall ["address",{"address":amount,...},...] ( conf_target "estimate_mode" fee_rate options )
+sendmany ( "" ) {"address":amount,...} ( minconf "comment" ["address",...] replaceable conf_target "estimate_mode" fee_rate verbose )
+sendtoaddress "address" amount ( "comment" "comment_to" subtractfeefromamount replaceable conf_target "estimate_mode" avoid_reuse fee_rate verbose )
+sethdseed ( newkeypool "seed" )
+setlabel "address" "label"
+settxfee amount
+setwalletflag "flag" ( value )
+signmessage "address" "message"
+signrawtransactionwithwallet "hexstring" ( [{"txid":"hex","vout":n,"scriptPubKey":"hex","redeemScript":"hex","witnessScript":"hex","amount":amount},...] "sighashtype" )
+simulaterawtransaction ( ["rawtx",...] {"include_watchonly":bool,...} )
+unloadwallet ( "wallet_name" load_on_startup )
+upgradewallet ( version )
+walletcreatefundedpsbt ( [{"txid":"hex","vout":n,"sequence":n,"weight":n},...] ) [{"address":amount,...},{"data":"hex"},...] ( locktime options bip32derivs )
+walletdisplayaddress "address"
+walletlock
+walletpassphrase "passphrase" timeout
+walletpassphrasechange "oldpassphrase" "newpassphrase"
+walletprocesspsbt "psbt" ( sign "sighashtype" bip32derivs finalize )
+
+== Zmq ==
+getzmqnotifications
+
+That took 0.033503894999739714 seconds (external).
+--------------------------------------------------------------------------------
+2   >   getpeerinfo
+
+[
+  {
+    "id": 0,
+    "addr": "108.221.203.186:8333",
+    "addrbind": "10.0.2.5:39772",
+    "addrlocal": "128.198.113.128:53467",
+    "network": "ipv4",
+    "services": "0000000000000409",
+    "servicesnames": [
+      "NETWORK",
+      "WITNESS",
+      "NETWORK_LIMITED"
+    ],
+    "relaytxes": false,
+    "lastsend": 1684537703,
+    "lastrecv": 1684537703,
+    "last_transaction": 0,
+    "last_block": 0,
+    "bytessent": 1317,
+    "bytesrecv": 198,
+    "conntime": 1684537693,
+    "timeoffset": 0,
+    "pingwait": 13.252258,
+    "version": 70016,
+    "subver": "/Satoshi:22.0.0/",
+    "inbound": false,
+    "bip152_hb_to": false,
+    "bip152_hb_from": false,
+    "startingheight": 790525,
+    "presynced_headers": -1,
+    "synced_headers": -1,
+    "synced_blocks": -1,
+    "inflight": [
+    ],
+    "addr_relay_enabled": false,
+    "addr_processed": 0,
+    "addr_rate_limited": 0,
+    "permissions": [
+    ],
+    "minfeefilter": 0.00000000,
+    "bytessent_per_msg": {
+      "getheaders": 1053,
+      "ping": 32,
+      "sendaddrv2": 24,
+      "sendcmpct": 33,
+      "verack": 24,
+      "version": 127,
+      "wtxidrelay": 24
+    },
+    "bytesrecv_per_msg": {
+      "sendaddrv2": 24,
+      "verack": 24,
+      "version": 126,
+      "wtxidrelay": 24
+    },
+    "connection_type": "block-relay-only"
+  },
+  {
+    "id": 1,
+    "addr": "119.42.55.203:8333",
+    "addrbind": "10.0.2.5:57838",
+    "addrlocal": "128.198.113.128:53468",
+    "network": "ipv4",
+    "services": "0000000000000409",
+    "servicesnames": [
+      "NETWORK",
+      "WITNESS",
+      "NETWORK_LIMITED"
+    ],
+    "relaytxes": false,
+    "lastsend": 1684537694,
+    "lastrecv": 1684537694,
+    "last_transaction": 0,
+    "last_block": 0,
+    "bytessent": 1479,
+    "bytesrecv": 1510,
+    "conntime": 1684537694,
+    "timeoffset": 0,
+    "pingtime": 0.224998,
+    "minping": 0.224998,
+    "version": 70016,
+    "subver": "/Satoshi:24.0.1/",
+    "inbound": false,
+    "bip152_hb_to": false,
+    "bip152_hb_from": false,
+    "startingheight": 790525,
+    "presynced_headers": -1,
+    "synced_headers": 790525,
+    "synced_blocks": 790525,
+    "inflight": [
+    ],
+    "addr_relay_enabled": false,
+    "addr_processed": 0,
+    "addr_rate_limited": 0,
+    "permissions": [
+    ],
+    "minfeefilter": 0.00000000,
+    "bytessent_per_msg": {
+      "getheaders": 1053,
+      "headers": 106,
+      "ping": 32,
+      "pong": 32,
+      "sendaddrv2": 24,
+      "sendcmpct": 33,
+      "sendheaders": 24,
+      "verack": 24,
+      "version": 127,
+      "wtxidrelay": 24
+    },
+    "bytesrecv_per_msg": {
+      "feefilter": 32,
+      "getheaders": 1053,
+      "headers": 106,
+      "ping": 32,
+      "pong": 32,
+      "sendaddrv2": 24,
+      "sendcmpct": 33,
+      "sendheaders": 24,
+      "verack": 24,
+      "version": 126,
+      "wtxidrelay": 24
+    },
+    "connection_type": "block-relay-only"
+  },
+  {
+    "id": 3,
+    "addr": "71.184.224.62:8333",
+    "addrbind": "10.0.2.5:55920",
+    "addrlocal": "128.198.113.128:53471",
+    "network": "ipv4",
+    "services": "0000000000000409",
+    "servicesnames": [
+      "NETWORK",
+      "WITNESS",
+      "NETWORK_LIMITED"
+    ],
+    "relaytxes": true,
+    "lastsend": 1684537710,
+    "lastrecv": 1684537714,
+    "last_transaction": 1684537706,
+    "last_block": 0,
+    "bytessent": 3958,
+    "bytesrecv": 21697,
+    "conntime": 1684537698,
+    "timeoffset": 0,
+    "pingtime": 0.09564499999999999,
+    "minping": 0.09564499999999999,
+    "version": 70016,
+    "subver": "/Satoshi:22.0.0/",
+    "inbound": false,
+    "bip152_hb_to": false,
+    "bip152_hb_from": false,
+    "startingheight": 790524,
+    "presynced_headers": -1,
+    "synced_headers": -1,
+    "synced_blocks": -1,
+    "inflight": [
+    ],
+    "addr_relay_enabled": true,
+    "addr_processed": 1001,
+    "addr_rate_limited": 0,
+    "permissions": [
+    ],
+    "minfeefilter": 0.00006554,
+    "bytessent_per_msg": {
+      "addrv2": 40,
+      "feefilter": 32,
+      "getaddr": 24,
+      "getdata": 205,
+      "getheaders": 1053,
+      "headers": 106,
+      "inv": 2202,
+      "ping": 32,
+      "pong": 32,
+      "sendaddrv2": 24,
+      "sendcmpct": 33,
+      "verack": 24,
+      "version": 127,
+      "wtxidrelay": 24
+    },
+    "bytesrecv_per_msg": {
+      "addrv2": 17981,
+      "feefilter": 32,
+      "getheaders": 1053,
+      "headers": 25,
+      "inv": 590,
+      "ping": 32,
+      "pong": 32,
+      "sendaddrv2": 24,
+      "sendcmpct": 66,
+      "sendheaders": 24,
+      "tx": 1664,
+      "verack": 24,
+      "version": 126,
+      "wtxidrelay": 24
+    },
+    "connection_type": "outbound-full-relay"
+  },
+  {
+    "id": 4,
+    "addr": "217.180.221.162:8333",
+    "addrbind": "10.0.2.5:46092",
+    "network": "ipv4",
+    "services": "0000000000000409",
+    "servicesnames": [
+      "NETWORK",
+      "WITNESS",
+      "NETWORK_LIMITED"
+    ],
+    "relaytxes": true,
+    "lastsend": 1684537711,
+    "lastrecv": 1684537711,
+    "last_transaction": 1684537711,
+    "last_block": 0,
+    "bytessent": 4568,
+    "bytesrecv": 63680,
+    "conntime": 1684537699,
+    "timeoffset": -2,
+    "pingtime": 0.119029,
+    "minping": 0.119029,
+    "version": 70016,
+    "subver": "/Satoshi:24.0.1/",
+    "inbound": false,
+    "bip152_hb_to": false,
+    "bip152_hb_from": false,
+    "startingheight": 790525,
+    "presynced_headers": -1,
+    "synced_headers": 790525,
+    "synced_blocks": 790525,
+    "inflight": [
+    ],
+    "addr_relay_enabled": true,
+    "addr_processed": 1000,
+    "addr_rate_limited": 0,
+    "permissions": [
+    ],
+    "minfeefilter": 0.00005959,
+    "bytessent_per_msg": {
+      "feefilter": 32,
+      "getaddr": 24,
+      "getdata": 2828,
+      "getheaders": 1053,
+      "headers": 106,
+      "inv": 205,
+      "ping": 32,
+      "pong": 32,
+      "sendaddrv2": 24,
+      "sendcmpct": 33,
+      "sendheaders": 24,
+      "verack": 24,
+      "version": 127,
+      "wtxidrelay": 24
+    },
+    "bytesrecv_per_msg": {
+      "addrv2": 17245,
+      "feefilter": 32,
+      "getheaders": 1053,
+      "headers": 106,
+      "inv": 2609,
+      "ping": 32,
+      "pong": 32,
+      "sendaddrv2": 24,
+      "sendcmpct": 33,
+      "sendheaders": 24,
+      "tx": 42316,
+      "verack": 24,
+      "version": 126,
+      "wtxidrelay": 24
+    },
+    "connection_type": "outbound-full-relay"
+  }
+]
+
+That took 0.00794811900050263 seconds (external).
+--------------------------------------------------------------------------------
+3   >   getmsginfo
+
+{
+  "CLOCKS PER SECOND": "1000000",
+  "ADDR": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+  "ADDRV2": "1 msgs => ([31, 31.000000, 31] clcs, [31, 31.000000, 31] byts",
+  "BLOCK": "5 msgs => ([10055, 2011.000000, 2832] clcs, [70334, 14066.800000, 17917] byts",
+  "BLOCKTXN": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+  "CFCHECKPT": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+  "CFHEADERS": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+  "CFILTER": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+  "CMPCTBLOCK": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+  "FEEFILTER": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+  "FILTERADD": "6 msgs => ([18, 3.000000, 5] clcs, [48, 8.000000, 8] byts",
+  "FILTERCLEAR": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+  "FILTERLOAD": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+  "GETADDR": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+  "GETBLOCKS": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+  "GETBLOCKTXN": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+  "GETCFCHECKPT": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+  "GETCFHEADERS": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+  "GETCFILTERS": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+  "GETDATA": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+  "GETHEADERS": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+  "HEADERS": "6 msgs => ([768, 128.000000, 234] clcs, [6174, 1029.000000, 1029] byts",
+  "INV": "6 msgs => ([94, 15.666667, 48] clcs, [411, 68.500000, 82] byts",
+  "MEMPOOL": "10 msgs => ([908, 90.800000, 254] clcs, [4438, 443.800000, 1081] byts",
+  "MERKLEBLOCK": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+  "NOTFOUND": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+  "PING": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+  "PONG": "6 msgs => ([1033, 172.166667, 490] clcs, [48, 8.000000, 8] byts",
+  "REJECT": "6 msgs => ([18, 3.000000, 7] clcs, [48, 8.000000, 8] byts",
+  "SENDADDRV2": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+  "SENDCMPCT": "7 msgs => ([16, 2.285714, 6] clcs, [0, 0.000000, 0] byts",
+  "SENDHEADERS": "8 msgs => ([62, 7.750000, 16] clcs, [72, 9.000000, 9] byts",
+  "SENDTXRCNCL": "6 msgs => ([28, 4.666667, 13] clcs, [0, 0.000000, 0] byts",
+  "TX": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+  "VERACK": "93 msgs => ([85065, 914.677419, 14650] clcs, [46408, 499.010753, 8485] byts",
+  "VERSION": "8 msgs => ([1621, 202.625000, 616] clcs, [0, 0.000000, 0] byts",
+  "WTXIDRELAY": "8 msgs => ([8649, 1081.125000, 2481] clcs, [816, 102.000000, 102] byts",
+  "[UNDOCUMENTED]": "7 msgs => ([26, 3.714286, 10] clcs, [0, 0.000000, 0] byts"
+}
+
+That took 0.020135848000791157 seconds (external).
+--------------------------------------------------------------------------------
+4   >   getpeersmsginfo
+
+{
+  "CLOCKS PER SECOND": "1000000",
+  "108.221.203.186": {
+    "ADDR": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "ADDRV2": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "BLOCK": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "BLOCKTXN": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "CFCHECKPT": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "CFHEADERS": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "CFILTER": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "CMPCTBLOCK": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "FEEFILTER": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "FILTERADD": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "FILTERCLEAR": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "FILTERLOAD": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "GETADDR": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "GETBLOCKS": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "GETBLOCKTXN": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "GETCFCHECKPT": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "GETCFHEADERS": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "GETCFILTERS": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "GETDATA": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "GETHEADERS": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "HEADERS": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "INV": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "MEMPOOL": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "MERKLEBLOCK": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "NOTFOUND": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "PING": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "PONG": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "REJECT": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "SENDADDRV2": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "SENDCMPCT": "1 msgs => ([1, 1.000000, 1] clcs, [0, 0.000000, 0] byts",
+    "SENDHEADERS": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "SENDTXRCNCL": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "TX": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "VERACK": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "VERSION": "1 msgs => ([12, 12.000000, 12] clcs, [0, 0.000000, 0] byts",
+    "WTXIDRELAY": "1 msgs => ([177, 177.000000, 177] clcs, [102, 102.000000, 102] byts",
+    "[UNDOCUMENTED]": "1 msgs => ([2, 2.000000, 2] clcs, [0, 0.000000, 0] byts"
+  },
+  "119.42.55.203": {
+    "ADDR": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "ADDRV2": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "BLOCK": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "BLOCKTXN": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "CFCHECKPT": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "CFHEADERS": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "CFILTER": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "CMPCTBLOCK": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "FEEFILTER": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "FILTERADD": "1 msgs => ([3, 3.000000, 3] clcs, [8, 8.000000, 8] byts",
+    "FILTERCLEAR": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "FILTERLOAD": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "GETADDR": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "GETBLOCKS": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "GETBLOCKTXN": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "GETCFCHECKPT": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "GETCFHEADERS": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "GETCFILTERS": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "GETDATA": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "GETHEADERS": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "HEADERS": "1 msgs => ([145, 145.000000, 145] clcs, [1029, 1029.000000, 1029] byts",
+    "INV": "1 msgs => ([48, 48.000000, 48] clcs, [82, 82.000000, 82] byts",
+    "MEMPOOL": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "MERKLEBLOCK": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "NOTFOUND": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "PING": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "PONG": "1 msgs => ([105, 105.000000, 105] clcs, [8, 8.000000, 8] byts",
+    "REJECT": "1 msgs => ([1, 1.000000, 1] clcs, [8, 8.000000, 8] byts",
+    "SENDADDRV2": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "SENDCMPCT": "1 msgs => ([1, 1.000000, 1] clcs, [0, 0.000000, 0] byts",
+    "SENDHEADERS": "1 msgs => ([16, 16.000000, 16] clcs, [9, 9.000000, 9] byts",
+    "SENDTXRCNCL": "1 msgs => ([5, 5.000000, 5] clcs, [0, 0.000000, 0] byts",
+    "TX": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "VERACK": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "VERSION": "1 msgs => ([82, 82.000000, 82] clcs, [0, 0.000000, 0] byts",
+    "WTXIDRELAY": "1 msgs => ([320, 320.000000, 320] clcs, [102, 102.000000, 102] byts",
+    "[UNDOCUMENTED]": "1 msgs => ([2, 2.000000, 2] clcs, [0, 0.000000, 0] byts"
+  },
+  "217.180.221.162": {
+    "ADDR": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "ADDRV2": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "BLOCK": "1 msgs => ([2276, 2276.000000, 2276] clcs, [17221, 17221.000000, 17221] byts",
+    "BLOCKTXN": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "CFCHECKPT": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "CFHEADERS": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "CFILTER": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "CMPCTBLOCK": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "FEEFILTER": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "FILTERADD": "1 msgs => ([3, 3.000000, 3] clcs, [8, 8.000000, 8] byts",
+    "FILTERCLEAR": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "FILTERLOAD": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "GETADDR": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "GETBLOCKS": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "GETBLOCKTXN": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "GETCFCHECKPT": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "GETCFHEADERS": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "GETCFILTERS": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "GETDATA": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "GETHEADERS": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "HEADERS": "1 msgs => ([67, 67.000000, 67] clcs, [1029, 1029.000000, 1029] byts",
+    "INV": "1 msgs => ([9, 9.000000, 9] clcs, [82, 82.000000, 82] byts",
+    "MEMPOOL": "6 msgs => ([729, 121.500000, 254] clcs, [3570, 595.000000, 1081] byts",
+    "MERKLEBLOCK": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "NOTFOUND": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "PING": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "PONG": "1 msgs => ([151, 151.000000, 151] clcs, [8, 8.000000, 8] byts",
+    "REJECT": "1 msgs => ([4, 4.000000, 4] clcs, [8, 8.000000, 8] byts",
+    "SENDADDRV2": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "SENDCMPCT": "1 msgs => ([2, 2.000000, 2] clcs, [0, 0.000000, 0] byts",
+    "SENDHEADERS": "1 msgs => ([5, 5.000000, 5] clcs, [9, 9.000000, 9] byts",
+    "SENDTXRCNCL": "1 msgs => ([1, 1.000000, 1] clcs, [0, 0.000000, 0] byts",
+    "TX": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "VERACK": "83 msgs => ([92477, 1114.180723, 14650] clcs, [43547, 524.662651, 8485] byts",
+    "VERSION": "1 msgs => ([128, 128.000000, 128] clcs, [0, 0.000000, 0] byts",
+    "WTXIDRELAY": "1 msgs => ([609, 609.000000, 609] clcs, [102, 102.000000, 102] byts",
+    "[UNDOCUMENTED]": "1 msgs => ([3, 3.000000, 3] clcs, [0, 0.000000, 0] byts"
+  },
+  "3.37.38.115": {
+    "ADDR": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "ADDRV2": "1 msgs => ([31, 31.000000, 31] clcs, [31, 31.000000, 31] byts",
+    "BLOCK": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "BLOCKTXN": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "CFCHECKPT": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "CFHEADERS": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "CFILTER": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "CMPCTBLOCK": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "FEEFILTER": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "FILTERADD": "1 msgs => ([2, 2.000000, 2] clcs, [8, 8.000000, 8] byts",
+    "FILTERCLEAR": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "FILTERLOAD": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "GETADDR": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "GETBLOCKS": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "GETBLOCKTXN": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "GETCFCHECKPT": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "GETCFHEADERS": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "GETCFILTERS": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "GETDATA": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "GETHEADERS": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "HEADERS": "1 msgs => ([141, 141.000000, 141] clcs, [1029, 1029.000000, 1029] byts",
+    "INV": "1 msgs => ([17, 17.000000, 17] clcs, [82, 82.000000, 82] byts",
+    "MEMPOOL": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "MERKLEBLOCK": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "NOTFOUND": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "PING": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "PONG": "1 msgs => ([101, 101.000000, 101] clcs, [8, 8.000000, 8] byts",
+    "REJECT": "1 msgs => ([1, 1.000000, 1] clcs, [8, 8.000000, 8] byts",
+    "SENDADDRV2": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "SENDCMPCT": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "SENDHEADERS": "2 msgs => ([14, 7.000000, 10] clcs, [18, 9.000000, 9] byts",
+    "SENDTXRCNCL": "1 msgs => ([13, 13.000000, 13] clcs, [0, 0.000000, 0] byts",
+    "TX": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "VERACK": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "VERSION": "1 msgs => ([66, 66.000000, 66] clcs, [0, 0.000000, 0] byts",
+    "WTXIDRELAY": "1 msgs => ([260, 260.000000, 260] clcs, [102, 102.000000, 102] byts",
+    "[UNDOCUMENTED]": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts"
+  },
+  "71.184.224.62": {
+    "ADDR": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "ADDRV2": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "BLOCK": "2 msgs => ([2184, 1092.000000, 2172] clcs, [17933, 8966.500000, 17917] byts",
+    "BLOCKTXN": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "CFCHECKPT": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "CFHEADERS": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "CFILTER": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "CMPCTBLOCK": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "FEEFILTER": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "FILTERADD": "1 msgs => ([3, 3.000000, 3] clcs, [8, 8.000000, 8] byts",
+    "FILTERCLEAR": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "FILTERLOAD": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "GETADDR": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "GETBLOCKS": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "GETBLOCKTXN": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "GETCFCHECKPT": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "GETCFHEADERS": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "GETCFILTERS": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "GETDATA": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "GETHEADERS": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "HEADERS": "1 msgs => ([75, 75.000000, 75] clcs, [1029, 1029.000000, 1029] byts",
+    "INV": "1 msgs => ([1, 1.000000, 1] clcs, [1, 1.000000, 1] byts",
+    "MEMPOOL": "3 msgs => ([168, 56.000000, 75] clcs, [831, 277.000000, 325] byts",
+    "MERKLEBLOCK": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "NOTFOUND": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "PING": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "PONG": "1 msgs => ([90, 90.000000, 90] clcs, [8, 8.000000, 8] byts",
+    "REJECT": "1 msgs => ([1, 1.000000, 1] clcs, [8, 8.000000, 8] byts",
+    "SENDADDRV2": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "SENDCMPCT": "1 msgs => ([3, 3.000000, 3] clcs, [0, 0.000000, 0] byts",
+    "SENDHEADERS": "2 msgs => ([6, 3.000000, 4] clcs, [18, 9.000000, 9] byts",
+    "SENDTXRCNCL": "1 msgs => ([5, 5.000000, 5] clcs, [0, 0.000000, 0] byts",
+    "TX": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "VERACK": "13 msgs => ([5321, 409.307692, 705] clcs, [3845, 295.769231, 477] byts",
+    "VERSION": "1 msgs => ([251, 251.000000, 251] clcs, [0, 0.000000, 0] byts",
+    "WTXIDRELAY": "1 msgs => ([986, 986.000000, 986] clcs, [102, 102.000000, 102] byts",
+    "[UNDOCUMENTED]": "1 msgs => ([5, 5.000000, 5] clcs, [0, 0.000000, 0] byts"
+  },
+  "72.74.68.192": {
+    "ADDR": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "ADDRV2": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "BLOCK": "1 msgs => ([2832, 2832.000000, 2832] clcs, [17409, 17409.000000, 17409] byts",
+    "BLOCKTXN": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "CFCHECKPT": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "CFHEADERS": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "CFILTER": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "CMPCTBLOCK": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "FEEFILTER": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "FILTERADD": "1 msgs => ([2, 2.000000, 2] clcs, [8, 8.000000, 8] byts",
+    "FILTERCLEAR": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "FILTERLOAD": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "GETADDR": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "GETBLOCKS": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "GETBLOCKTXN": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "GETCFCHECKPT": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "GETCFHEADERS": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "GETCFILTERS": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "GETDATA": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "GETHEADERS": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "HEADERS": "1 msgs => ([234, 234.000000, 234] clcs, [1029, 1029.000000, 1029] byts",
+    "INV": "1 msgs => ([10, 10.000000, 10] clcs, [82, 82.000000, 82] byts",
+    "MEMPOOL": "1 msgs => ([11, 11.000000, 11] clcs, [37, 37.000000, 37] byts",
+    "MERKLEBLOCK": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "NOTFOUND": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "PING": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "PONG": "1 msgs => ([490, 490.000000, 490] clcs, [8, 8.000000, 8] byts",
+    "REJECT": "1 msgs => ([7, 7.000000, 7] clcs, [8, 8.000000, 8] byts",
+    "SENDADDRV2": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "SENDCMPCT": "1 msgs => ([1, 1.000000, 1] clcs, [0, 0.000000, 0] byts",
+    "SENDHEADERS": "1 msgs => ([16, 16.000000, 16] clcs, [9, 9.000000, 9] byts",
+    "SENDTXRCNCL": "1 msgs => ([2, 2.000000, 2] clcs, [0, 0.000000, 0] byts",
+    "TX": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "VERACK": "1 msgs => ([592, 592.000000, 592] clcs, [340, 340.000000, 340] byts",
+    "VERSION": "1 msgs => ([147, 147.000000, 147] clcs, [0, 0.000000, 0] byts",
+    "WTXIDRELAY": "1 msgs => ([2212, 2212.000000, 2212] clcs, [102, 102.000000, 102] byts",
+    "[UNDOCUMENTED]": "1 msgs => ([2, 2.000000, 2] clcs, [0, 0.000000, 0] byts"
+  },
+  "72.83.171.244": {
+    "ADDR": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "ADDRV2": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "BLOCK": "1 msgs => ([2763, 2763.000000, 2763] clcs, [17771, 17771.000000, 17771] byts",
+    "BLOCKTXN": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "CFCHECKPT": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "CFHEADERS": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "CFILTER": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "CMPCTBLOCK": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "FEEFILTER": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "FILTERADD": "1 msgs => ([5, 5.000000, 5] clcs, [8, 8.000000, 8] byts",
+    "FILTERCLEAR": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "FILTERLOAD": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "GETADDR": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "GETBLOCKS": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "GETBLOCKTXN": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "GETCFCHECKPT": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "GETCFHEADERS": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "GETCFILTERS": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "GETDATA": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "GETHEADERS": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "HEADERS": "1 msgs => ([106, 106.000000, 106] clcs, [1029, 1029.000000, 1029] byts",
+    "INV": "1 msgs => ([9, 9.000000, 9] clcs, [82, 82.000000, 82] byts",
+    "MEMPOOL": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "MERKLEBLOCK": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "NOTFOUND": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "PING": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "PONG": "1 msgs => ([96, 96.000000, 96] clcs, [8, 8.000000, 8] byts",
+    "REJECT": "1 msgs => ([4, 4.000000, 4] clcs, [8, 8.000000, 8] byts",
+    "SENDADDRV2": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "SENDCMPCT": "1 msgs => ([6, 6.000000, 6] clcs, [0, 0.000000, 0] byts",
+    "SENDHEADERS": "1 msgs => ([5, 5.000000, 5] clcs, [9, 9.000000, 9] byts",
+    "SENDTXRCNCL": "1 msgs => ([2, 2.000000, 2] clcs, [0, 0.000000, 0] byts",
+    "TX": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "VERACK": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "VERSION": "1 msgs => ([616, 616.000000, 616] clcs, [0, 0.000000, 0] byts",
+    "WTXIDRELAY": "1 msgs => ([1604, 1604.000000, 1604] clcs, [102, 102.000000, 102] byts",
+    "[UNDOCUMENTED]": "1 msgs => ([10, 10.000000, 10] clcs, [0, 0.000000, 0] byts"
+  },
+  "95.111.229.184": {
+    "ADDR": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "ADDRV2": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "BLOCK": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "BLOCKTXN": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "CFCHECKPT": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "CFHEADERS": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "CFILTER": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "CMPCTBLOCK": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "FEEFILTER": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "FILTERADD": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "FILTERCLEAR": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "FILTERLOAD": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "GETADDR": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "GETBLOCKS": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "GETBLOCKTXN": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "GETCFCHECKPT": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "GETCFHEADERS": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "GETCFILTERS": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "GETDATA": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "GETHEADERS": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "HEADERS": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "INV": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "MEMPOOL": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "MERKLEBLOCK": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "NOTFOUND": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "PING": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "PONG": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "REJECT": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "SENDADDRV2": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "SENDCMPCT": "1 msgs => ([2, 2.000000, 2] clcs, [0, 0.000000, 0] byts",
+    "SENDHEADERS": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "SENDTXRCNCL": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "TX": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "VERACK": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "VERSION": "1 msgs => ([319, 319.000000, 319] clcs, [0, 0.000000, 0] byts",
+    "WTXIDRELAY": "1 msgs => ([2481, 2481.000000, 2481] clcs, [102, 102.000000, 102] byts",
+    "[UNDOCUMENTED]": "1 msgs => ([2, 2.000000, 2] clcs, [0, 0.000000, 0] byts"
+  }
+}
+
+That took 0.008322887000758783 seconds (external).
+--------------------------------------------------------------------------------
+5   >   getpeersmsginfoandclear
+
+{
+  "CLOCKS PER SECOND": "1000000",
+  "217.180.221.162": {
+    "ADDR": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "ADDRV2": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "BLOCK": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "BLOCKTXN": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "CFCHECKPT": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "CFHEADERS": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "CFILTER": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "CMPCTBLOCK": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "FEEFILTER": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "FILTERADD": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "FILTERCLEAR": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "FILTERLOAD": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "GETADDR": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "GETBLOCKS": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "GETBLOCKTXN": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "GETCFCHECKPT": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "GETCFHEADERS": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "GETCFILTERS": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "GETDATA": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "GETHEADERS": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "HEADERS": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "INV": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "MEMPOOL": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "MERKLEBLOCK": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "NOTFOUND": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "PING": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "PONG": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "REJECT": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "SENDADDRV2": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "SENDCMPCT": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "SENDHEADERS": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "SENDTXRCNCL": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "TX": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "VERACK": "1 msgs => ([2267, 2267.000000, 2267] clcs, [590, 590.000000, 590] byts",
+    "VERSION": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "WTXIDRELAY": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
+    "[UNDOCUMENTED]": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts"
+  }
+}
+
+That took 0.023823948000426753 seconds (external).
+--------------------------------------------------------------------------------
+6   >   listnewbroadcasts
+
+{
+  "new_block_broadcasts": {
+  },
+  "new_transaction_broadcasts": {
+    "217.180.221.162": 89,
+    "71.184.224.62": 13,
+    "72.74.68.192": 1
+  },
+  "new_transaction_fee_broadcasts": {
+    "217.180.221.162": 1564570,
+    "71.184.224.62": 115383,
+    "72.74.68.192": 7215
+  },
+  "new_transaction_size_broadcasts": {
+    "217.180.221.162": 46003,
+    "71.184.224.62": 3845,
+    "72.74.68.192": 340
+  }
+}
+
+That took 0.011543317999894498 seconds (external).
+--------------------------------------------------------------------------------
+7   >   listnewbroadcastsandclear
+
+{
+  "new_block_broadcasts": {
+  },
+  "new_transaction_broadcasts": {
+    "217.180.221.162": 89,
+    "71.184.224.62": 13,
+    "72.74.68.192": 1
+  },
+  "new_transaction_fee_broadcasts": {
+    "217.180.221.162": 1564570,
+    "71.184.224.62": 115383,
+    "72.74.68.192": 7215
+  },
+  "new_transaction_size_broadcasts": {
+    "217.180.221.162": 46003,
+    "71.184.224.62": 3845,
+    "72.74.68.192": 340
+  }
+}
+
+That took 0.00767691399960313 seconds (external).
+--------------------------------------------------------------------------------
+8   >   

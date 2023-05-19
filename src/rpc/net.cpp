@@ -1115,7 +1115,71 @@ RPCHelpMan getpeersmsginfo()
       //result.pushKV(address, string_to_base64(subResult));
       result.pushKV(address, subResult);
     }
+    return result;
+},
+    };
+}
 
+// Cybersecurity Lab: getpeersmsginfoandclear RPC definition
+RPCHelpMan getpeersmsginfoandclear()
+{
+    return RPCHelpMan{"getpeersmsginfoandclear",
+                "\nList out the computer message info for each peer.\n",
+                {},
+                RPCResults{},
+                RPCExamples{
+                    HelpExampleCli("getpeersmsginfoandclear", "")
+            + HelpExampleRpc("getpeersmsginfoandclear", "")
+                },
+        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+{
+    NodeContext& node = EnsureAnyNodeContext(request.context);
+    CConnman& connman = EnsureConnman(node);
+    // const PeerManager& peerman = EnsurePeerman(node);
+
+    UniValue result(UniValue::VOBJ);
+
+    std::vector<std::string> messageNames{"ADDR", "ADDRV2", "BLOCK", "BLOCKTXN", "CFCHECKPT", "CFHEADERS", "CFILTER", "CMPCTBLOCK", "FEEFILTER", "FILTERADD", "FILTERCLEAR", "FILTERLOAD", "GETADDR", "GETBLOCKS", "GETBLOCKTXN", "GETCFCHECKPT", "GETCFHEADERS", "GETCFILTERS", "GETDATA", "GETHEADERS", "HEADERS", "INV", "MEMPOOL", "MERKLEBLOCK", "NOTFOUND", "PING", "PONG", "REJECT", "SENDADDRV2", "SENDCMPCT", "SENDHEADERS", "SENDTXRCNCL", "TX", "VERACK", "VERSION", "WTXIDRELAY", "[UNDOCUMENTED]"};
+    
+    result.pushKV("CLOCKS PER SECOND", std::to_string(CLOCKS_PER_SEC));
+
+    for (auto& it : connman.getPeersMessageInfoData) {
+      std::string address = it.first;
+      std::vector<int> data = it.second;
+      UniValue subResult(UniValue::VOBJ);
+      //std::string subResult = "{";
+      std::vector<int> sumTimePerMessage(37 * 5); // Alternating variables
+      std::vector<int> maxTimePerMessage(37 * 5); // Alternating variables
+      for(int i = 0; i < 37 * 5; i++) {
+        sumTimePerMessage[i] = data[i];
+        if(data[i] > maxTimePerMessage[i]) maxTimePerMessage[i] = data[i];
+      }
+      for(int i = 0, j = 0; i < 37 * 5; i += 5, j++) {
+        double avgseconds = 0, avgbytes = 0;
+        int sumseconds = 0, sumbytes = 0, maxseconds = 0, maxbytes = 0;
+        if(sumTimePerMessage[i] != 0) { // If the number of messages is not zero (avoid divide by zero)
+          avgseconds = (double)sumTimePerMessage[i + 1] / (double)sumTimePerMessage[i];
+          avgbytes = (double)sumTimePerMessage[i + 3] / (double)sumTimePerMessage[i];
+          sumseconds = sumTimePerMessage[i + 1];
+          sumbytes = sumTimePerMessage[i + 3];
+        }
+        maxseconds = sumTimePerMessage[i + 2];
+        maxbytes = sumTimePerMessage[i + 4];
+        //subResult += "\"" + messageNames[j] + "\": \"" + std::to_string(sumTimePerMessage[i]) + " msgs => (" +
+        //"[" + std::to_string(sumseconds) + ", " + std::to_string(avgseconds) + ", " + std::to_string(maxseconds) + "] clcs" +
+        //", [" + std::to_string(sumbytes) + ", " + std::to_string(avgbytes) + ", " + std::to_string(maxbytes) + "] byts" + "\",";
+      
+        subResult.pushKV(messageNames[j], std::to_string(sumTimePerMessage[i]) + " msgs => (" +
+        "[" + std::to_string(sumseconds) + ", " + std::to_string(avgseconds) + ", " + std::to_string(maxseconds) + "] clcs" +
+        ", [" + std::to_string(sumbytes) + ", " + std::to_string(avgbytes) + ", " + std::to_string(maxbytes) + "] byts");
+      }
+      //subResult = subResult.substr(0, subResult.size() - 1); // Remove the last comma
+      //subResult += "}";
+      //result.pushKV(address, string_to_base64(subResult));
+      result.pushKV(address, subResult);
+    }
+    connman.getPeersMessageInfoData = std::map<std::string, std::vector<int>>();
+    //connman.getPeersMessageInfoData.clear();
     return result;
 },
     };
@@ -1239,9 +1303,9 @@ void RegisterNetRPCCommands(CRPCTable& t)
         {"hidden", &addpeeraddress},
         {"researcher", &getmsginfo},
         {"researcher", &getpeersmsginfo},
+        {"researcher", &getpeersmsginfoandclear},
         {"researcher", &listnewbroadcasts},
         {"researcher", &listnewbroadcastsandclear},
-
     };
     for (const auto& c : commands) {
         t.appendCommand(c.name, &c);
