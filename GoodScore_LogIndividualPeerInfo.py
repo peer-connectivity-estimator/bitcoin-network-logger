@@ -6,6 +6,10 @@ import csv
 numSecondsPerSample = 1
 directory = 'IndividualPeerInfoLog'
 
+# Compute the score
+def computeScore(b, t, wb = 0.5, wt = 0.5):
+	return (new_blocks * wb + new_tx_fees * wt)
+
 # List the files with a regular expression
 def listFiles(regex, directory = ''):
 	path = os.path.join(os.curdir, directory)
@@ -27,18 +31,31 @@ for filePath in filePaths:
 		new_tx_fees = row[10]
 		new_tx_bytes = row[11]
 
-		score = new_blocks + new_tx_fees
+		score = computeScore(new_blocks, new_tx_fees)
 
-		if address not in address_data:
-			address_data[address] = []
+		if timestamp_id not in data:
+			data[timestamp_id] = {}
 
-		address_data[address].append([timestamp_id, score])
+		data[timestamp_id][address] = score
 	file.close()
 
-addresses = address_data.keys()
-address_index = [0] * len(addresses)
+data = dict(sorted(data.items()))
 
+outputFileName = 'IndividualPeerGoodScore.csv'
+outputFile = open(outputFileName, 'w')
+line += 'Timestamp (UNIX epoch),'
 for address in addresses:
+	line += f'{address} Score,'
+outputFile.write(line + '\n')
 
+for timestamp in data:
+	print(f'Processing timestamp {timestamp}...')
+	line = timestamp
+	for address in addresses:
+		if address in data[timestamp]:
+			line += str(data[timestamp][address]) + ','
+		else:
+			line += ','
+	outputFile.write(line + '\n')
 
-print('Done. Have a nice day!')
+print('Done! That was fast. Have a nice day!')
