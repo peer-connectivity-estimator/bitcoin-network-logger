@@ -1,6 +1,5 @@
 from threading import Timer
 import datetime
-import glob
 import json
 import os
 import platform
@@ -9,10 +8,8 @@ import re
 import subprocess
 import sys
 import time
-import traceback
 
 numSecondsPerSample = 60
-
 directory = 'IndividualPeerInfoLog'
 
 # Send a command to the linux terminal
@@ -21,616 +18,31 @@ def terminal(cmd):
 
 # Send a command to the Bitcoin console
 def bitcoin(cmd):
-	if cmd == 'getpeerinfo':
-		return """[
-	{
-		"id": 0,
-		"addr": "108.221.203.186:8333",
-		"addrbind": "10.0.2.5:39772",
-		"addrlocal": "128.198.113.128:53467",
-		"network": "ipv4",
-		"services": "0000000000000409",
-		"servicesnames": [
-			"NETWORK",
-			"WITNESS",
-			"NETWORK_LIMITED"
-		],
-		"relaytxes": false,
-		"lastsend": 1684537703,
-		"lastrecv": 1684537703,
-		"last_transaction": 0,
-		"last_block": 0,
-		"bytessent": 1317,
-		"bytesrecv": 198,
-		"conntime": 1684537693,
-		"timeoffset": 0,
-		"pingwait": 13.252258,
-		"version": 70016,
-		"subver": "/Satoshi:22.0.0/",
-		"inbound": false,
-		"bip152_hb_to": false,
-		"bip152_hb_from": false,
-		"startingheight": 790525,
-		"presynced_headers": -1,
-		"synced_headers": -1,
-		"synced_blocks": -1,
-		"inflight": [
-		],
-		"addr_relay_enabled": false,
-		"addr_processed": 0,
-		"addr_rate_limited": 0,
-		"permissions": [
-		],
-		"minfeefilter": 0.00000000,
-		"bytessent_per_msg": {
-			"getheaders": 1053,
-			"ping": 32,
-			"sendaddrv2": 24,
-			"sendcmpct": 33,
-			"verack": 24,
-			"version": 127,
-			"wtxidrelay": 24
-		},
-		"bytesrecv_per_msg": {
-			"sendaddrv2": 24,
-			"verack": 24,
-			"version": 126,
-			"wtxidrelay": 24
-		},
-		"connection_type": "block-relay-only"
-	},
-	{
-		"id": 1,
-		"addr": "119.42.55.203:8333",
-		"addrbind": "10.0.2.5:57838",
-		"addrlocal": "128.198.113.128:53468",
-		"network": "ipv4",
-		"services": "0000000000000409",
-		"servicesnames": [
-			"NETWORK",
-			"WITNESS",
-			"NETWORK_LIMITED"
-		],
-		"relaytxes": false,
-		"lastsend": 1684537694,
-		"lastrecv": 1684537694,
-		"last_transaction": 0,
-		"last_block": 0,
-		"bytessent": 1479,
-		"bytesrecv": 1510,
-		"conntime": 1684537694,
-		"timeoffset": 0,
-		"pingtime": 0.224998,
-		"minping": 0.224998,
-		"version": 70016,
-		"subver": "/Satoshi:24.0.1/",
-		"inbound": false,
-		"bip152_hb_to": false,
-		"bip152_hb_from": false,
-		"startingheight": 790525,
-		"presynced_headers": -1,
-		"synced_headers": 790525,
-		"synced_blocks": 790525,
-		"inflight": [
-		],
-		"addr_relay_enabled": false,
-		"addr_processed": 0,
-		"addr_rate_limited": 0,
-		"permissions": [
-		],
-		"minfeefilter": 0.00000000,
-		"bytessent_per_msg": {
-			"getheaders": 1053,
-			"headers": 106,
-			"ping": 32,
-			"pong": 32,
-			"sendaddrv2": 24,
-			"sendcmpct": 33,
-			"sendheaders": 24,
-			"verack": 24,
-			"version": 127,
-			"wtxidrelay": 24
-		},
-		"bytesrecv_per_msg": {
-			"feefilter": 32,
-			"getheaders": 1053,
-			"headers": 106,
-			"ping": 32,
-			"pong": 32,
-			"sendaddrv2": 24,
-			"sendcmpct": 33,
-			"sendheaders": 24,
-			"verack": 24,
-			"version": 126,
-			"wtxidrelay": 24
-		},
-		"connection_type": "block-relay-only"
-	},
-	{
-		"id": 3,
-		"addr": "71.184.224.62:8333",
-		"addrbind": "10.0.2.5:55920",
-		"addrlocal": "128.198.113.128:53471",
-		"network": "ipv4",
-		"services": "0000000000000409",
-		"servicesnames": [
-			"NETWORK",
-			"WITNESS",
-			"NETWORK_LIMITED"
-		],
-		"relaytxes": true,
-		"lastsend": 1684537710,
-		"lastrecv": 1684537714,
-		"last_transaction": 1684537706,
-		"last_block": 0,
-		"bytessent": 3958,
-		"bytesrecv": 21697,
-		"conntime": 1684537698,
-		"timeoffset": 0,
-		"pingtime": 0.09564499999999999,
-		"minping": 0.09564499999999999,
-		"version": 70016,
-		"subver": "/Satoshi:22.0.0/",
-		"inbound": false,
-		"bip152_hb_to": false,
-		"bip152_hb_from": false,
-		"startingheight": 790524,
-		"presynced_headers": -1,
-		"synced_headers": -1,
-		"synced_blocks": -1,
-		"inflight": [
-		],
-		"addr_relay_enabled": true,
-		"addr_processed": 1001,
-		"addr_rate_limited": 0,
-		"permissions": [
-		],
-		"minfeefilter": 0.00006554,
-		"bytessent_per_msg": {
-			"addrv2": 40,
-			"feefilter": 32,
-			"getaddr": 24,
-			"getdata": 205,
-			"getheaders": 1053,
-			"headers": 106,
-			"inv": 2202,
-			"ping": 32,
-			"pong": 32,
-			"sendaddrv2": 24,
-			"sendcmpct": 33,
-			"verack": 24,
-			"version": 127,
-			"wtxidrelay": 24
-		},
-		"bytesrecv_per_msg": {
-			"addrv2": 17981,
-			"feefilter": 32,
-			"getheaders": 1053,
-			"headers": 25,
-			"inv": 590,
-			"ping": 32,
-			"pong": 32,
-			"sendaddrv2": 24,
-			"sendcmpct": 66,
-			"sendheaders": 24,
-			"tx": 1664,
-			"verack": 24,
-			"version": 126,
-			"wtxidrelay": 24
-		},
-		"connection_type": "outbound-full-relay"
-	},
-	{
-		"id": 4,
-		"addr": "217.180.221.162:8333",
-		"addrbind": "10.0.2.5:46092",
-		"network": "ipv4",
-		"services": "0000000000000409",
-		"servicesnames": [
-			"NETWORK",
-			"WITNESS",
-			"NETWORK_LIMITED"
-		],
-		"relaytxes": true,
-		"lastsend": 1684537711,
-		"lastrecv": 1684537711,
-		"last_transaction": 1684537711,
-		"last_block": 0,
-		"bytessent": 4568,
-		"bytesrecv": 63680,
-		"conntime": 1684537699,
-		"timeoffset": -2,
-		"pingtime": 0.119029,
-		"minping": 0.119029,
-		"version": 70016,
-		"subver": "/Satoshi:24.0.1/",
-		"inbound": false,
-		"bip152_hb_to": false,
-		"bip152_hb_from": false,
-		"startingheight": 790525,
-		"presynced_headers": -1,
-		"synced_headers": 790525,
-		"synced_blocks": 790525,
-		"inflight": [
-		],
-		"addr_relay_enabled": true,
-		"addr_processed": 1000,
-		"addr_rate_limited": 0,
-		"permissions": [
-		],
-		"minfeefilter": 0.00005959,
-		"bytessent_per_msg": {
-			"feefilter": 32,
-			"getaddr": 24,
-			"getdata": 2828,
-			"getheaders": 1053,
-			"headers": 106,
-			"inv": 205,
-			"ping": 32,
-			"pong": 32,
-			"sendaddrv2": 24,
-			"sendcmpct": 33,
-			"sendheaders": 24,
-			"verack": 24,
-			"version": 127,
-			"wtxidrelay": 24
-		},
-		"bytesrecv_per_msg": {
-			"addrv2": 17245,
-			"feefilter": 32,
-			"getheaders": 1053,
-			"headers": 106,
-			"inv": 2609,
-			"ping": 32,
-			"pong": 32,
-			"sendaddrv2": 24,
-			"sendcmpct": 33,
-			"sendheaders": 24,
-			"tx": 42316,
-			"verack": 24,
-			"version": 126,
-			"wtxidrelay": 24
-		},
-		"connection_type": "outbound-full-relay"
-	}
-]"""
-	elif cmd == 'getpeersmsginfoandclear':
-		return """{
-	"CLOCKS PER SECOND": "1000000",
-	"108.221.203.186": {
-		"ADDR": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"ADDRV2": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"BLOCK": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"BLOCKTXN": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"CFCHECKPT": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"CFHEADERS": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"CFILTER": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"CMPCTBLOCK": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"FEEFILTER": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"FILTERADD": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"FILTERCLEAR": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"FILTERLOAD": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"GETADDR": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"GETBLOCKS": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"GETBLOCKTXN": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"GETCFCHECKPT": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"GETCFHEADERS": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"GETCFILTERS": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"GETDATA": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"GETHEADERS": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"HEADERS": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"INV": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"MEMPOOL": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"MERKLEBLOCK": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"NOTFOUND": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"PING": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"PONG": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"REJECT": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"SENDADDRV2": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"SENDCMPCT": "1 msgs => ([1, 1.000000, 1] clcs, [0, 0.000000, 0] byts",
-		"SENDHEADERS": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"SENDTXRCNCL": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"TX": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"VERACK": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"VERSION": "1 msgs => ([12, 12.000000, 12] clcs, [0, 0.000000, 0] byts",
-		"WTXIDRELAY": "1 msgs => ([177, 177.000000, 177] clcs, [102, 102.000000, 102] byts",
-		"[UNDOCUMENTED]": "1 msgs => ([2, 2.000000, 2] clcs, [0, 0.000000, 0] byts"
-	},
-	"119.42.55.203": {
-		"ADDR": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"ADDRV2": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"BLOCK": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"BLOCKTXN": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"CFCHECKPT": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"CFHEADERS": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"CFILTER": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"CMPCTBLOCK": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"FEEFILTER": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"FILTERADD": "1 msgs => ([3, 3.000000, 3] clcs, [8, 8.000000, 8] byts",
-		"FILTERCLEAR": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"FILTERLOAD": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"GETADDR": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"GETBLOCKS": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"GETBLOCKTXN": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"GETCFCHECKPT": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"GETCFHEADERS": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"GETCFILTERS": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"GETDATA": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"GETHEADERS": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"HEADERS": "1 msgs => ([145, 145.000000, 145] clcs, [1029, 1029.000000, 1029] byts",
-		"INV": "1 msgs => ([48, 48.000000, 48] clcs, [82, 82.000000, 82] byts",
-		"MEMPOOL": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"MERKLEBLOCK": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"NOTFOUND": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"PING": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"PONG": "1 msgs => ([105, 105.000000, 105] clcs, [8, 8.000000, 8] byts",
-		"REJECT": "1 msgs => ([1, 1.000000, 1] clcs, [8, 8.000000, 8] byts",
-		"SENDADDRV2": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"SENDCMPCT": "1 msgs => ([1, 1.000000, 1] clcs, [0, 0.000000, 0] byts",
-		"SENDHEADERS": "1 msgs => ([16, 16.000000, 16] clcs, [9, 9.000000, 9] byts",
-		"SENDTXRCNCL": "1 msgs => ([5, 5.000000, 5] clcs, [0, 0.000000, 0] byts",
-		"TX": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"VERACK": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"VERSION": "1 msgs => ([82, 82.000000, 82] clcs, [0, 0.000000, 0] byts",
-		"WTXIDRELAY": "1 msgs => ([320, 320.000000, 320] clcs, [102, 102.000000, 102] byts",
-		"[UNDOCUMENTED]": "1 msgs => ([2, 2.000000, 2] clcs, [0, 0.000000, 0] byts"
-	},
-	"217.180.221.162": {
-		"ADDR": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"ADDRV2": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"BLOCK": "1 msgs => ([2276, 2276.000000, 2276] clcs, [17221, 17221.000000, 17221] byts",
-		"BLOCKTXN": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"CFCHECKPT": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"CFHEADERS": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"CFILTER": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"CMPCTBLOCK": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"FEEFILTER": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"FILTERADD": "1 msgs => ([3, 3.000000, 3] clcs, [8, 8.000000, 8] byts",
-		"FILTERCLEAR": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"FILTERLOAD": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"GETADDR": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"GETBLOCKS": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"GETBLOCKTXN": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"GETCFCHECKPT": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"GETCFHEADERS": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"GETCFILTERS": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"GETDATA": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"GETHEADERS": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"HEADERS": "1 msgs => ([67, 67.000000, 67] clcs, [1029, 1029.000000, 1029] byts",
-		"INV": "1 msgs => ([9, 9.000000, 9] clcs, [82, 82.000000, 82] byts",
-		"MEMPOOL": "6 msgs => ([729, 121.500000, 254] clcs, [3570, 595.000000, 1081] byts",
-		"MERKLEBLOCK": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"NOTFOUND": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"PING": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"PONG": "1 msgs => ([151, 151.000000, 151] clcs, [8, 8.000000, 8] byts",
-		"REJECT": "1 msgs => ([4, 4.000000, 4] clcs, [8, 8.000000, 8] byts",
-		"SENDADDRV2": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"SENDCMPCT": "1 msgs => ([2, 2.000000, 2] clcs, [0, 0.000000, 0] byts",
-		"SENDHEADERS": "1 msgs => ([5, 5.000000, 5] clcs, [9, 9.000000, 9] byts",
-		"SENDTXRCNCL": "1 msgs => ([1, 1.000000, 1] clcs, [0, 0.000000, 0] byts",
-		"TX": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"VERACK": "83 msgs => ([92477, 1114.180723, 14650] clcs, [43547, 524.662651, 8485] byts",
-		"VERSION": "1 msgs => ([128, 128.000000, 128] clcs, [0, 0.000000, 0] byts",
-		"WTXIDRELAY": "1 msgs => ([609, 609.000000, 609] clcs, [102, 102.000000, 102] byts",
-		"[UNDOCUMENTED]": "1 msgs => ([3, 3.000000, 3] clcs, [0, 0.000000, 0] byts"
-	},
-	"3.37.38.115": {
-		"ADDR": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"ADDRV2": "1 msgs => ([31, 31.000000, 31] clcs, [31, 31.000000, 31] byts",
-		"BLOCK": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"BLOCKTXN": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"CFCHECKPT": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"CFHEADERS": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"CFILTER": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"CMPCTBLOCK": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"FEEFILTER": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"FILTERADD": "1 msgs => ([2, 2.000000, 2] clcs, [8, 8.000000, 8] byts",
-		"FILTERCLEAR": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"FILTERLOAD": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"GETADDR": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"GETBLOCKS": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"GETBLOCKTXN": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"GETCFCHECKPT": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"GETCFHEADERS": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"GETCFILTERS": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"GETDATA": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"GETHEADERS": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"HEADERS": "1 msgs => ([141, 141.000000, 141] clcs, [1029, 1029.000000, 1029] byts",
-		"INV": "1 msgs => ([17, 17.000000, 17] clcs, [82, 82.000000, 82] byts",
-		"MEMPOOL": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"MERKLEBLOCK": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"NOTFOUND": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"PING": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"PONG": "1 msgs => ([101, 101.000000, 101] clcs, [8, 8.000000, 8] byts",
-		"REJECT": "1 msgs => ([1, 1.000000, 1] clcs, [8, 8.000000, 8] byts",
-		"SENDADDRV2": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"SENDCMPCT": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"SENDHEADERS": "2 msgs => ([14, 7.000000, 10] clcs, [18, 9.000000, 9] byts",
-		"SENDTXRCNCL": "1 msgs => ([13, 13.000000, 13] clcs, [0, 0.000000, 0] byts",
-		"TX": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"VERACK": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"VERSION": "1 msgs => ([66, 66.000000, 66] clcs, [0, 0.000000, 0] byts",
-		"WTXIDRELAY": "1 msgs => ([260, 260.000000, 260] clcs, [102, 102.000000, 102] byts",
-		"[UNDOCUMENTED]": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts"
-	},
-	"71.184.224.62": {
-		"ADDR": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"ADDRV2": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"BLOCK": "2 msgs => ([2184, 1092.000000, 2172] clcs, [17933, 8966.500000, 17917] byts",
-		"BLOCKTXN": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"CFCHECKPT": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"CFHEADERS": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"CFILTER": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"CMPCTBLOCK": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"FEEFILTER": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"FILTERADD": "1 msgs => ([3, 3.000000, 3] clcs, [8, 8.000000, 8] byts",
-		"FILTERCLEAR": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"FILTERLOAD": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"GETADDR": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"GETBLOCKS": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"GETBLOCKTXN": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"GETCFCHECKPT": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"GETCFHEADERS": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"GETCFILTERS": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"GETDATA": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"GETHEADERS": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"HEADERS": "1 msgs => ([75, 75.000000, 75] clcs, [1029, 1029.000000, 1029] byts",
-		"INV": "1 msgs => ([1, 1.000000, 1] clcs, [1, 1.000000, 1] byts",
-		"MEMPOOL": "3 msgs => ([168, 56.000000, 75] clcs, [831, 277.000000, 325] byts",
-		"MERKLEBLOCK": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"NOTFOUND": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"PING": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"PONG": "1 msgs => ([90, 90.000000, 90] clcs, [8, 8.000000, 8] byts",
-		"REJECT": "1 msgs => ([1, 1.000000, 1] clcs, [8, 8.000000, 8] byts",
-		"SENDADDRV2": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"SENDCMPCT": "1 msgs => ([3, 3.000000, 3] clcs, [0, 0.000000, 0] byts",
-		"SENDHEADERS": "2 msgs => ([6, 3.000000, 4] clcs, [18, 9.000000, 9] byts",
-		"SENDTXRCNCL": "1 msgs => ([5, 5.000000, 5] clcs, [0, 0.000000, 0] byts",
-		"TX": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"VERACK": "13 msgs => ([5321, 409.307692, 705] clcs, [3845, 295.769231, 477] byts",
-		"VERSION": "1 msgs => ([251, 251.000000, 251] clcs, [0, 0.000000, 0] byts",
-		"WTXIDRELAY": "1 msgs => ([986, 986.000000, 986] clcs, [102, 102.000000, 102] byts",
-		"[UNDOCUMENTED]": "1 msgs => ([5, 5.000000, 5] clcs, [0, 0.000000, 0] byts"
-	},
-	"72.74.68.192": {
-		"ADDR": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"ADDRV2": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"BLOCK": "1 msgs => ([2832, 2832.000000, 2832] clcs, [17409, 17409.000000, 17409] byts",
-		"BLOCKTXN": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"CFCHECKPT": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"CFHEADERS": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"CFILTER": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"CMPCTBLOCK": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"FEEFILTER": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"FILTERADD": "1 msgs => ([2, 2.000000, 2] clcs, [8, 8.000000, 8] byts",
-		"FILTERCLEAR": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"FILTERLOAD": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"GETADDR": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"GETBLOCKS": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"GETBLOCKTXN": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"GETCFCHECKPT": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"GETCFHEADERS": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"GETCFILTERS": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"GETDATA": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"GETHEADERS": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"HEADERS": "1 msgs => ([234, 234.000000, 234] clcs, [1029, 1029.000000, 1029] byts",
-		"INV": "1 msgs => ([10, 10.000000, 10] clcs, [82, 82.000000, 82] byts",
-		"MEMPOOL": "1 msgs => ([11, 11.000000, 11] clcs, [37, 37.000000, 37] byts",
-		"MERKLEBLOCK": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"NOTFOUND": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"PING": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"PONG": "1 msgs => ([490, 490.000000, 490] clcs, [8, 8.000000, 8] byts",
-		"REJECT": "1 msgs => ([7, 7.000000, 7] clcs, [8, 8.000000, 8] byts",
-		"SENDADDRV2": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"SENDCMPCT": "1 msgs => ([1, 1.000000, 1] clcs, [0, 0.000000, 0] byts",
-		"SENDHEADERS": "1 msgs => ([16, 16.000000, 16] clcs, [9, 9.000000, 9] byts",
-		"SENDTXRCNCL": "1 msgs => ([2, 2.000000, 2] clcs, [0, 0.000000, 0] byts",
-		"TX": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"VERACK": "1 msgs => ([592, 592.000000, 592] clcs, [340, 340.000000, 340] byts",
-		"VERSION": "1 msgs => ([147, 147.000000, 147] clcs, [0, 0.000000, 0] byts",
-		"WTXIDRELAY": "1 msgs => ([2212, 2212.000000, 2212] clcs, [102, 102.000000, 102] byts",
-		"[UNDOCUMENTED]": "1 msgs => ([2, 2.000000, 2] clcs, [0, 0.000000, 0] byts"
-	},
-	"72.83.171.244": {
-		"ADDR": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"ADDRV2": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"BLOCK": "1 msgs => ([2763, 2763.000000, 2763] clcs, [17771, 17771.000000, 17771] byts",
-		"BLOCKTXN": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"CFCHECKPT": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"CFHEADERS": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"CFILTER": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"CMPCTBLOCK": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"FEEFILTER": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"FILTERADD": "1 msgs => ([5, 5.000000, 5] clcs, [8, 8.000000, 8] byts",
-		"FILTERCLEAR": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"FILTERLOAD": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"GETADDR": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"GETBLOCKS": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"GETBLOCKTXN": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"GETCFCHECKPT": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"GETCFHEADERS": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"GETCFILTERS": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"GETDATA": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"GETHEADERS": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"HEADERS": "1 msgs => ([106, 106.000000, 106] clcs, [1029, 1029.000000, 1029] byts",
-		"INV": "1 msgs => ([9, 9.000000, 9] clcs, [82, 82.000000, 82] byts",
-		"MEMPOOL": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"MERKLEBLOCK": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"NOTFOUND": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"PING": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"PONG": "1 msgs => ([96, 96.000000, 96] clcs, [8, 8.000000, 8] byts",
-		"REJECT": "1 msgs => ([4, 4.000000, 4] clcs, [8, 8.000000, 8] byts",
-		"SENDADDRV2": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"SENDCMPCT": "1 msgs => ([6, 6.000000, 6] clcs, [0, 0.000000, 0] byts",
-		"SENDHEADERS": "1 msgs => ([5, 5.000000, 5] clcs, [9, 9.000000, 9] byts",
-		"SENDTXRCNCL": "1 msgs => ([2, 2.000000, 2] clcs, [0, 0.000000, 0] byts",
-		"TX": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"VERACK": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"VERSION": "1 msgs => ([616, 616.000000, 616] clcs, [0, 0.000000, 0] byts",
-		"WTXIDRELAY": "1 msgs => ([1604, 1604.000000, 1604] clcs, [102, 102.000000, 102] byts",
-		"[UNDOCUMENTED]": "1 msgs => ([10, 10.000000, 10] clcs, [0, 0.000000, 0] byts"
-	},
-	"95.111.229.184": {
-		"ADDR": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"ADDRV2": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"BLOCK": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"BLOCKTXN": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"CFCHECKPT": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"CFHEADERS": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"CFILTER": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"CMPCTBLOCK": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"FEEFILTER": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"FILTERADD": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"FILTERCLEAR": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"FILTERLOAD": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"GETADDR": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"GETBLOCKS": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"GETBLOCKTXN": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"GETCFCHECKPT": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"GETCFHEADERS": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"GETCFILTERS": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"GETDATA": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"GETHEADERS": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"HEADERS": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"INV": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"MEMPOOL": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"MERKLEBLOCK": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"NOTFOUND": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"PING": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"PONG": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"REJECT": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"SENDADDRV2": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"SENDCMPCT": "1 msgs => ([2, 2.000000, 2] clcs, [0, 0.000000, 0] byts",
-		"SENDHEADERS": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"SENDTXRCNCL": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"TX": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"VERACK": "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts",
-		"VERSION": "1 msgs => ([319, 319.000000, 319] clcs, [0, 0.000000, 0] byts",
-		"WTXIDRELAY": "1 msgs => ([2481, 2481.000000, 2481] clcs, [102, 102.000000, 102] byts",
-		"[UNDOCUMENTED]": "1 msgs => ([2, 2.000000, 2] clcs, [0, 0.000000, 0] byts"
-	}
-}"""
-	elif cmd == 'listnewbroadcastsandclear':
-		return """{
-	"new_block_broadcasts": {
-	},
-	"new_transaction_broadcasts": {
-		"217.180.221.162": 89,
-		"71.184.224.62": 13,
-		"72.74.68.192": 1
-	},
-	"new_transaction_fee_broadcasts": {
-		"217.180.221.162": 1564570,
-		"71.184.224.62": 115383,
-		"72.74.68.192": 7215
-	},
-	"new_transaction_size_broadcasts": {
-		"217.180.221.162": 46003,
-		"71.184.224.62": 3845,
-		"72.74.68.192": 340
-	}
-}"""
 	return terminal('./src/bitcoin-cli -rpcuser=cybersec -rpcpassword=kZIdeN4HjZ3fp9Lge4iezt0eJrbjSi8kuSuOHeUkEUbQVdf09JZXAAGwF3R5R2qQkPgoLloW91yTFuufo7CYxM2VPT7A5lYeTrodcLWWzMMwIrOKu7ZNiwkrKOQ95KGW8kIuL1slRVFXoFpGsXXTIA55V3iUYLckn8rj8MZHBpmdGQjLxakotkj83ZlSRx1aOJ4BFxdvDNz0WHk1i2OPgXL4nsd56Ph991eKNbXVJHtzqCXUbtDELVf4shFJXame -rpcport=8332 ' + str(cmd))
+
+# Start Bitcoin Core
+def startBitcoin():
+	subprocess.Popen(['gnome-terminal -t "Custom Bitcoin Core Instance" -- bash ./run.sh'], shell=True)
+	rpcReady = False
+	while rpcReady is False:
+		time.sleep(1)
+		try:
+			blockHeight = int(bitcoin('getblockcount'))
+			rpcReady = True
+		except: pass
+	print('Bitcoin is up and ready to go')
+
+# Check if the Bitcoin Core instance is up
+def bitcoinUp():
+	return winexists('Custom Bitcoin Core Instance')
+
+# Check if a window exists
+def winexists(target):
+	for line in subprocess.check_output(['wmctrl', '-l']).splitlines():
+		window_name = line.split(None, 3)[-1].decode()
+		if window_name == target:
+			return True
+	return False
 
 # Return the header for the CSV file
 def makeHeader():
@@ -646,7 +58,7 @@ def makeHeader():
 	line += 'Number of New Unique Transactions Received,'
 	line += 'Aggregate of New Unique Transaction Fees (satoshis),'
 	line += 'Aggregate of New Unique Transaction Sizes (bytes),'
-	line += 'Node time offset (seconds),'
+	line += 'Node Time Offset (seconds),'
 	line += 'Ping Round Trip Time (milliseconds),'
 	line += 'Minimum Ping Round Trip Time (milliseconds),'
 	line += 'Ping Wait Time for an Outstanding Ping (milliseconds),'
@@ -868,32 +280,29 @@ def makeMachineStateHeader():
 	line = 'Timestamp,'
 	line += 'Timestamp (UNIX epoch),'
 	line += 'Time Since Last Sample (seconds),'
-  line += 'Platform,'
-  line += 'Processor,'
-  line += 'RAM,'
-  line += 'Network Interface,'
-  line += 'Network Bytes Sent (bytes),'
-  line += 'Network Bytes Received (bytes),'
-  line += 'Network Packets Sent (packets),'
-  line += 'Network Packets Received (packets),'
-  line += 'Current Machine CPU (percent),'
-  line += 'Current Machine CPU Frequency,'
-  line += 'Current Machine Virtual Memory (percent),'
-  line += 'Current Machine Virtual Memory (bytes),'
-  line += 'Current Machine Swap Memory (percent),'
-  line += 'Current Machine Swap Memory (bytes),'
-  line += 'Current Machine Disk Usage (percent),'
-  line += 'Current Machine Disk Usage (bytes),'
-  line += 'Bitcoin Process Name,'
-  line += 'Bitcoin Process ID,'
-  line += 'Bitcoin Process Priority,'
-  line += 'Bitcoin Process Nice Value,'
-  line += 'Bitcoin Process Virtual Memory (bytes),'
-  line += 'Bitcoin Process Memory (bytes),'
-  line += 'Bitcoin Process Shared Memory (bytes),'
-  line += 'Bitcoin Process Memory (percent),'
-  line += 'Bitcoin Process CPU State,'
-  line += 'Bitcoin Process CPU (percent),'
+	line += 'Platform,'
+	line += 'Processor,'
+	line += 'Processor Cores,'
+	line += 'RAM,'
+	line += 'Network Interface,'
+	line += 'Network Bytes Sent (bytes),'
+	line += 'Network Bytes Received (bytes),'
+	line += 'Network Packets Sent (packets),'
+	line += 'Network Packets Received (packets),'
+	line += 'Current Machine CPU (percent),'
+	line += 'Current Machine CPU Frequency (megahertz),'
+	line += 'Current Machine Virtual Memory (percent),'
+	line += 'Current Machine Virtual Memory (bytes),'
+	line += 'Current Machine Swap Memory (percent),'
+	line += 'Current Machine Swap Memory (bytes),'
+	line += 'Current Machine Disk Usage (percent),'
+	line += 'Current Machine Disk Usage (bytes),'
+	line += 'Bitcoin Process ID,'
+	line += 'Bitcoin Process Virtual Memory (bytes),'
+	line += 'Bitcoin Process Memory (bytes),'
+	line += 'Bitcoin Process Shared Memory (bytes),'
+	line += 'Bitcoin Process Memory (percent),'
+	line += 'Bitcoin Process CPU (percent),'
 	return line
 
 # Given a raw memory string from the linux "top" command, return the number of bytes
@@ -903,63 +312,63 @@ def makeMachineStateHeader():
 # 1 MiB = 1024 * 1024 * 1024 bytes
 # 1 KiB = 1024 * 1024 bytes
 def topMemToBytes(mem):
-  if mem.endswith('e'): return float(mem[:-1]) * 1024 * 1024 * 1024 * 1024 * 1024 * 1024 # exbibytes to bytes
-  elif mem.endswith('p'): return float(mem[:-1]) * 1024 * 1024 * 1024 * 1024 * 1024 # gibibytes to bytes
-  elif mem.endswith('t'): return float(mem[:-1]) * 1024 * 1024 * 1024 * 1024 # tebibytes to bytes
-  elif mem.endswith('g'): return float(mem[:-1]) * 1024 * 1024 * 1024 # gibabytes to bytes
-  elif mem.endswith('m'): return float(mem[:-1]) * 1024 * 1024 # mebibytes to bytes
-  else: return float(mem) * 1024 # kibibytes to bytes
+	if mem.endswith('e'): return float(mem[:-1]) * 1024 * 1024 * 1024 * 1024 * 1024 * 1024 # exbibytes to bytes
+	elif mem.endswith('p'): return float(mem[:-1]) * 1024 * 1024 * 1024 * 1024 * 1024 # gibibytes to bytes
+	elif mem.endswith('t'): return float(mem[:-1]) * 1024 * 1024 * 1024 * 1024 # tebibytes to bytes
+	elif mem.endswith('g'): return float(mem[:-1]) * 1024 * 1024 * 1024 # gibabytes to bytes
+	elif mem.endswith('m'): return float(mem[:-1]) * 1024 * 1024 # mebibytes to bytes
+	else: return float(mem) * 1024 # kibibytes to bytes
 
 # Given a process name, return the specs for the process
 def logIndividualProcess(process_id):
-  raw = terminal('top -b -n 1 |grep ' + process_id).strip().split()
-  while len(raw) < 12: raw.append('0') # Fill in with zeros for any missing values
-  output = {
-    'process_ID': raw[0],
-    'user': raw[1],
-    'priority': raw[2],
-    'nice_value': raw[3],
-    'virtual_memory': str(topMemToBytes(raw[4])),
-    'memory': str(topMemToBytes(raw[5])),
-    'shared_memory': str(topMemToBytes(raw[6])),
-    'state': raw[7],
-    'cpu_percent': raw[8],
-    'memory_percent': raw[9],
-    'time': raw[10],
-    'process_name': raw[11],
-  }
-  return output
+	raw = terminal('top -b -n 1 |grep ' + process_id).strip().split()
+	while len(raw) < 12: raw.append('0') # Fill in with zeros for any missing values
+	output = {
+	'process_ID': raw[0],
+	'user': raw[1],
+	'priority': raw[2],
+	'nice_value': raw[3],
+	'virtual_memory': str(topMemToBytes(raw[4])),
+	'memory': str(topMemToBytes(raw[5])),
+	'shared_memory': str(topMemToBytes(raw[6])),
+	'state': raw[7],
+	'cpu_percent': raw[8],
+	'memory_percent': raw[9],
+	'time': raw[10],
+	'process_name': raw[11],
+	}
+	return output
 
 # Reads /proc/net/dev to get networking bytes/packets sent/received
 def getNetworkData():
-  raw = terminal('awk \'/:/ { print($1, $2, $3, $10, $11) }\' < /proc/net/dev -').strip().split('\n')
-  selected_interface = ''
-  for interface in raw:
-    if not interface.startswith('lo:'):
-      selected_interface = interface
-      break
-  data = selected_interface.strip().split()
-  if selected_interface != '' and len(data) == 5:
-    if data[0].endswith(':'): data[0] = data[0][:-1]
-    # Differentiate between error and no error
-    if data[0] == '': data[0] == ' '
-    try:
-      return {
-        'interface': data[0],
-        'bytes_sent': int(data[3]),
-        'bytes_received': int(data[1]),
-        'packets_sent': int(data[4]),
-        'packets_received': int(data[2]),
-      }
-    except:
-      pass
-  return {
-    'interface': '',
-    'bytes_sent': '',
-    'bytes_received': '',
-    'packets_sent': '',
-    'packets_received': '',
-  }
+	raw = terminal('awk \'/:/ { print($1, $2, $3, $10, $11) }\' < /proc/net/dev -').strip().split('\n')
+	selected_interface = ''
+	for interface in raw:
+		if not interface.startswith('lo:'):
+			selected_interface = interface
+			break
+	data = selected_interface.strip().split()
+	if selected_interface != '' and len(data) == 5:
+		if data[0].endswith(':'): data[0] = data[0][:-1]
+		# Differentiate between error and no error
+		if data[0] == '': data[0] == ' '
+		try:
+			return {
+			'interface': data[0],
+			'bytes_sent': int(data[3]),
+			'bytes_received': int(data[1]),
+			'packets_sent': int(data[4]),
+			'packets_received': int(data[2]),
+			}
+		except:
+			pass
+	return {
+		'interface': '',
+		'bytes_sent': '',
+		'bytes_received': '',
+		'packets_sent': '',
+		'packets_received': '',
+	}
 
 # Log the state of the machine to file, returns the sample number
 def logMachineState(timestamp):
@@ -968,6 +377,8 @@ def logMachineState(timestamp):
 		print(f'Creating machine state file')
 		file = open(filePath, 'w')
 		file.write(makeMachineStateHeader() + '\n')
+		prevLine = ''
+		numPrevLines = 1
 	else:
 		# Read the last line from the file
 		with open(filePath, 'r') as f:
@@ -985,13 +396,13 @@ def logMachineState(timestamp):
 			except PermissionError as e:
 				print(f'{e}, attempt {attempts}')
 				time.sleep(1)
- nmrrt
-  timestampSeconds = (timestamp - datetime.datetime(1970, 1, 1)).total_seconds()
-  if prevLine == '':
-    timeSinceLastSample = ''
-  else: 
-    timeSinceLastSample = timestampSeconds - float(prevLine[1])
-	cpu = psutil.cpu_percent()
+ 
+	timestampSeconds = (timestamp - datetime.datetime(1970, 1, 1)).total_seconds()
+	if prevLine == '':
+		timeSinceLastSample = ''
+	else: 
+		timeSinceLastSample = timestampSeconds - float(prevLine[1])
+	cpuPercent = psutil.cpu_percent()
 	cpuFrequency = 0
 	try:
 		cpuFrequency = psutil.cpu_freq().current
@@ -1002,40 +413,37 @@ def logMachineState(timestamp):
 	swapMemory = psutil.swap_memory().used
 	diskUsagePercent = psutil.disk_usage('/').percent
 	diskUsage = psutil.disk_usage('/').used
-  networkData = getNetworkData()
-  individualProcessData = logIndividualProcess('bitcoind')
+	networkData = getNetworkData()
+	individualProcessData = logIndividualProcess('bitcoind')
 
-  line = str(timestamp) + ','
-  line += str(timestampSeconds) + ','
-  line += str(timeSinceLastSample) + ','
-  line += platform.platform()
-  line += platform.processor()
-  line += str(round(psutil.virtual_memory().total / (1024.0 ** 3))) + ' GB'
-  line += str(networkData['interface']) + ','
-  line += str(networkData['bytes_sent']) + ','
-  line += str(networkData['bytes_received']) + ','
-  line += str(networkData['packets_sent']) + ','
-  line += str(networkData['packets_received']) + ','
-  line += str(cpu) + ','
-  line += str(cpuFrequency) + ','
-  line += str(virtualMemoryPercent) + ','
-  line += str(virtualMemory) + ','
-  line += str(swapMemoryPercent) + ','
-  line += str(swapMemory) + ','
-  line += str(diskUsagePercent) + ','
-  line += str(diskUsage) + ','
-  line += str(individualProcessData['process_name']) + ','
-  line += str(individualProcessData['process_ID']) + ','
-  line += str(individualProcessData['priority']) + ','
-  line += str(individualProcessData['nice_value']) + ','
-  line += str(individualProcessData['virtual_memory']) + ','
-  line += str(individualProcessData['memory']) + ','
-  line += str(individualProcessData['shared_memory']) + ','
-  line += str(individualProcessData['memory_percent']) + ','
-  line += str(individualProcessData['state']) + ','
-  line += str(individualProcessData['cpu_percent']) + ','
-  file.write(line + '\n')
-  return numPrevLines
+	line = str(timestamp) + ','
+	line += str(timestampSeconds) + ','
+	line += str(timeSinceLastSample) + ','
+	line += '"' + str(platform.platform()) + '",'
+	line += '"' + str(platform.processor()) + '",'
+	line += str(psutil.cpu_count()) + ','
+	line += str(round(psutil.virtual_memory().total / (1024.0 ** 3))) + ' GB,'
+	line += '"' + str(networkData['interface']) + '",'
+	line += str(networkData['bytes_sent']) + ','
+	line += str(networkData['bytes_received']) + ','
+	line += str(networkData['packets_sent']) + ','
+	line += str(networkData['packets_received']) + ','
+	line += str(cpuPercent) + ','
+	line += str(cpuFrequency) + ','
+	line += str(virtualMemoryPercent) + ','
+	line += str(virtualMemory) + ','
+	line += str(swapMemoryPercent) + ','
+	line += str(swapMemory) + ','
+	line += str(diskUsagePercent) + ','
+	line += str(diskUsage) + ','
+	line += str(individualProcessData['process_ID']) + ','
+	line += str(individualProcessData['virtual_memory']) + ','
+	line += str(individualProcessData['memory']) + ','
+	line += str(individualProcessData['shared_memory']) + ','
+	line += str(individualProcessData['memory_percent']) + ','
+	line += str(individualProcessData['cpu_percent']) + ','
+	file.write(line + '\n')
+	return numPrevLines
 
 
 # Given a combined address and port, return the individual address and port 
@@ -1051,7 +459,7 @@ def logNode(address, timestamp, updateInfo):
 		# Create a new file
 		prevLine = ''
 		numPrevLines = 1
-		print(f'		Logging {address} ({numPrevLines} sample)')
+		print(f'    Logging {address} ({numPrevLines} sample)')
 		file = open(filePath, 'w')
 		file.write(makeHeader() + '\n')
 	else:
@@ -1062,7 +470,7 @@ def logNode(address, timestamp, updateInfo):
 			if len(prevLines) > 1: prevLine = prevLines[-1].split(',')
 			else: prevLine = ''
 			numPrevLines = len(prevLines)
-		print(f'		Logging {address} ({numPrevLines} samples)')
+		print(f'    Logging {address} ({numPrevLines} samples)')
 
 		# Try to open the file for appending, loop until successful
 		attempts = 0
@@ -1334,12 +742,10 @@ def parseGetMsgInfoMessage(rawString, clocksPerSecond):
 	bytesMax = int(bytesMatch[2])
 	return count, bytesAvg, bytesMax, clocksAvg, clocksMax
 
-
-
 def log(targetDateTime):
 	global t
+	if not bitcoinUp(): startBitcoin()
 	timestamp = datetime.datetime.now()
-
 	getpeersmsginfoandclear = json.loads(bitcoin('getpeersmsginfoandclear'))
 	listnewbroadcastsandclear = json.loads(bitcoin('listnewbroadcastsandclear'))
 	getpeerinfo = json.loads(bitcoin('getpeerinfo'))
@@ -1631,11 +1037,11 @@ def log(targetDateTime):
 				peersToUpdate[address][f'MaxTime_{msg} (milliseconds)'] = timeMax
 
 	sampleNumber = logMachineState(timestamp)
-  print(f'Adding Sample #{sampleNumber}:')
+	print(f'Adding Sample #{sampleNumber}:')
 
 	for address in peersToUpdate:
 		logNode(address, timestamp, peersToUpdate[address])
-	print(f'		Sample successfully logged.')
+	print(f'    Sample successfully logged.')
 	
 
 	targetDateTime += datetime.timedelta(seconds = numSecondsPerSample)
@@ -1643,6 +1049,9 @@ def log(targetDateTime):
 	t = Timer(offset, log, [targetDateTime])
 	t.daemon = True
 	t.start()
+
+
+if not bitcoinUp(): startBitcoin()
 
 if not os.path.exists(directory):
 	print('Creating directory:', directory)
