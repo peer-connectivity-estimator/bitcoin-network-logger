@@ -1,6 +1,5 @@
 from threading import Timer
 import datetime
-import glob
 import json
 import os
 import platform
@@ -9,9 +8,8 @@ import re
 import subprocess
 import sys
 import time
-import traceback
 
-numSecondsPerSample = 1
+numSecondsPerSample = 60
 directory = 'IndividualPeerInfoLog'
 
 # Send a command to the linux terminal
@@ -60,7 +58,7 @@ def makeHeader():
 	line += 'Number of New Unique Transactions Received,'
 	line += 'Aggregate of New Unique Transaction Fees (satoshis),'
 	line += 'Aggregate of New Unique Transaction Sizes (bytes),'
-	line += 'Node time offset (seconds),'
+	line += 'Node Time Offset (seconds),'
 	line += 'Ping Round Trip Time (milliseconds),'
 	line += 'Minimum Ping Round Trip Time (milliseconds),'
 	line += 'Ping Wait Time for an Outstanding Ping (milliseconds),'
