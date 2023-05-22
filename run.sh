@@ -116,7 +116,7 @@ if [[ " ${otherParams[*]} " =~ " gui " ]]; then
 		if [[ " ${otherParams[*]} " =~ " gdb " ]]; then
 			gdb -ex run --args src/qt/bitcoin-qt -prune=550 -datadir="$dir" $bitcoinParams -debug=researcher
 		else
-			src/qt/bitcoin-qt -prune=550 -datadir="$dir" $bitcoinParams -debug=researcher
+			src/qt/bitcoin-qt -prune=550 -datadir="$dir" $bitcoinParams #-debug=researcher
 		fi
 	else
 		echo
@@ -124,7 +124,7 @@ if [[ " ${otherParams[*]} " =~ " gui " ]]; then
 		if [[ " ${otherParams[*]} " =~ " gdb " ]]; then
 			gdb -ex run --args src/qt/bitcoin-qt -datadir="$dir" $bitcoinParams -debug=researcher
 		else
-			src/qt/bitcoin-qt -datadir="$dir" $bitcoinParams -debug=researcher
+			src/qt/bitcoin-qt -datadir="$dir" $bitcoinParams #-debug=researcher
 		fi
 	fi
 else
@@ -148,7 +148,7 @@ else
 		if [[ " ${otherParams[*]} " =~ " gdb " ]]; then
 			gdb -ex run --args src/bitcoind -prune=550 -datadir="$dir" $bitcoinParams -debug=researcher
 		else
-			src/bitcoind -prune=550 -datadir="$dir" $bitcoinParams -debug=researcher
+			src/bitcoind -prune=550 -datadir="$dir" $bitcoinParams #-debug=researcher
 		fi
 	else
 		echo
@@ -156,7 +156,7 @@ else
 		if [[ " ${otherParams[*]} " =~ " gdb " ]]; then
 			gdb -ex run --args src/bitcoind -datadir="$dir" -txindex=1 $bitcoinParams -debug=researcher
 		else
-			src/bitcoind -datadir="$dir" -txindex=1 $bitcoinParams -debug=researcher
+			src/bitcoind -datadir="$dir" -txindex=1 $bitcoinParams #-debug=researcher
 		fi
 		# Reindexing the chainstate:
 		#src/bitcoind -datadir="/media/sf_Bitcoin" -debug=researcher -reindex-chainstate
