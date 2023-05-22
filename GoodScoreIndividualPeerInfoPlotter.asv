@@ -1,0 +1,48 @@
+clear
+
+
+font_size = 18
+usePseudonyms = 1
+onlyFocusOnNumPeers = 2
+filePath = 'GoodScoreIndividualPeerInfo.csv'
+
+
+data = readmatrix(filePath);
+data_str = readtable(filePath);
+addresses = []
+fid = fopen(filePath);
+textscan(fid,'%[^,\r\n],', 1); % Skip the first cell
+i = 1
+while true
+    cell0 = textscan(fid,'%[^,\r\n],', 1)
+    cell = cell0{1}{1};
+    if endsWith(cell, ' Score')
+        if usePseudonyms == 1
+            addresses{i} = strcat("Node ", num2str(i))
+        else
+            addresses{i} = cell(1:end-6)
+        end
+        i = i + 1
+        if onlyFocusOnNumPeers 
+    else
+        break
+    end
+end
+fclose(fid);
+
+hold on;
+x = data(:, 1)
+for i=1:length(addresses)-1
+    y = data(:, i + 1)
+    plot(x, y)
+end
+
+xlabel('Time (s)')
+ylabel('Score')
+
+grid on;
+box on;
+set(gca, 'FontSize', font_size);
+set(gca, 'XMinorTick','on', 'XMinorGrid','off', 'YMinorTick','on', 'YMinorGrid','on');
+
+legend(addresses, 'Location', 'EastOutside')

@@ -42,9 +42,9 @@ for filePath in filePaths:
 
 		data[timestamp_id][address] = score
 		if address not in addresses:
-			addresses[address] = 1
+			addresses[address] = score
 		else:
-			addresses[address] += 1
+			addresses[address] = max(addresses[address], score)
 
 	file.close()
 
@@ -64,7 +64,7 @@ for address in addresses:
 
 for timestamp in data:
 	print(f'Processing timestamp {timestamp}...')
-	line = timestamp
+	line = timestamp + ','
 	for address in addresses:
 		if address in data[timestamp]:
 			score[address] *= decayRate
