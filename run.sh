@@ -32,8 +32,12 @@ elif [ -d /media/$USER/BITCOIN/Bitcoin\ Full\ Ledger/Bitcoin\ Full\ Ledger/block
 	dir=/media/$USER/BITCOIN/Bitcoin\ Full\ Ledger/Bitcoin\ Full\ Ledger
 elif [ -d /media/$USER/Blockchains/Bitcoin/blocks/ ] && [ ! -f /media/$USER/Blockchains/Bitcoin/bitcoind.pid ] ; then
 	dir=/media/$USER/Blockchains/Bitcoin
+elif [ -d "/mnt/610F-0064/blocks/" ] && [ ! -f "/mnt/610F-0064/bitcoind.pid" ] ; then
+	dir="/mnt/610F-0064"
 elif [ -d /media/$USER/Long\ Term\ Storage/Bitcoin/blocks/ ] && [ ! -f /media/$USER/Long\ Term\ Storage/Bitcoin/bitcoind.pid ] ; then
 	dir=/media/$USER/Long\ Term\ Storage/Bitcoin
+elif [ -d /media/$USER/Long040Term040Storage/Bitcoin\ Full\ Ledger/blocks/ ] && [ ! -f /media/$USER/Long040Term040Storage/Bitcoin\ Full\ Ledger/bitcoind.pid ] ; then
+	dir=/media/$USER/Long040Term040Storage/Bitcoin\ Full\ Ledger
 
 
 # For running multiple nodes on the same machine
@@ -130,14 +134,14 @@ if [[ " ${otherParams[*]} " =~ " gui " ]]; then
 else
 
 	# Only open the console if not already open
-	if ! wmctrl -l | grep -q "Custom Bitcoin Console" ; then
+	if ! wmctrl -l | grep -q "Custom Bitcoin Core Instance" ; then
 		# Find the right terminal
 		if [ -x "$(command -v mate-terminal)" ] ; then
-			mate-terminal -t "Custom Bitcoin Console" -- python3 bitcoin_console.py
+			mate-terminal -t "Custom Bitcoin Core Instance" -- python3 bitcoin_console.py
 		elif [ -x "$(command -v xfce4-terminal)" ] ; then
-			xfce4-terminal -t "Custom Bitcoin Console" -- python3 bitcoin_console.py
+			xfce4-terminal -t "Custom Bitcoin Core Instance" -- python3 bitcoin_console.py
 		else
-			gnome-terminal -t "Custom Bitcoin Console" -- python3 bitcoin_console.py
+			gnome-terminal -t "Custom Bitcoin Core Instance" -- python3 bitcoin_console.py
 		fi
 	fi
 

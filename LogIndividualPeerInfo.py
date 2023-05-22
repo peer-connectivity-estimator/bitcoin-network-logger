@@ -34,15 +34,7 @@ def startBitcoin():
 
 # Check if the Bitcoin Core instance is up
 def bitcoinUp():
-	return winexists('Custom Bitcoin Core Instance')
-
-# Check if a window exists
-def winexists(target):
-	for line in subprocess.check_output(['wmctrl', '-l']).splitlines():
-		window_name = line.split(None, 3)[-1].decode()
-		if window_name == target:
-			return True
-	return False
+	return terminal('ps -A | grep bitcoind').strip() != ''
 
 # Return the header for the CSV file
 def makeHeader():
