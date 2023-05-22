@@ -9,7 +9,7 @@ import subprocess
 import sys
 import time
 
-numSecondsPerSample = 1
+numSecondsPerSample = 60
 directory = 'IndividualPeerInfoLog'
 
 # Send a command to the linux terminal
