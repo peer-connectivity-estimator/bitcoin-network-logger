@@ -2,12 +2,12 @@ filePath = 'GoodScoreIndividualPeerInfo.csv'
 
 font_size = 20
 line_width = 2
-usePseudonyms = 1
-onlyFocusOnNumPeers = 6 % Zero for all peers
-legendPosition = 'NorthWest' %'EastOutside'
-legendNumColumns = 1
-colors = {'#6A8999', '#86A69D', '#F2B263', '#F2E8DF', '#F2C6C2', '#F28585'}
-
+use_pseudonyms = 1
+onlyFocusOnNumPeers = 0 % Zero for all peers
+legendPosition = 'SouthEast' %'EastOutside'
+legendNumColumns = 6
+legendFontSize = 12
+colors = {'#747E7E', '#72F2EB', '#00CCBF', '#3F7C85', '#405952', '#9C9B7A', '#FFD393', '#FF974F', '#F54F29', '#FF7DD4'}
 figure('Position', [100 100 1500 600])
 
 data = readmatrix(filePath);
@@ -20,7 +20,7 @@ while true
     cell0 = textscan(fid,'%[^,\r\n],', 1)
     cell = cell0{1}{1};
     if endsWith(cell, ' Score')
-        if usePseudonyms == 1
+        if use_pseudonyms == 1
             addresses{i} = strcat("Node ", num2str(i))
         else
             addresses{i} = cell(1:end-6)
@@ -53,8 +53,8 @@ grid on;
 box on;
 set(gca, 'FontSize', font_size);
 set(gca, 'XMinorTick','on', 'XMinorGrid','off', 'YMinorTick','on', 'YMinorGrid','on');
-%set(gca, 'YScale', 'log')
+set(gca, 'YScale', 'log')
 xlim([min(x), max(x)])
 %xtickangle(45)
 
-legend(addresses, 'Location', legendPosition, 'NumColumns', legendNumColumns)
+legend(addresses, 'Location', legendPosition, 'NumColumns', legendNumColumns, 'FontSize', legendFontSize)

@@ -6,10 +6,10 @@ import csv
 numSecondsPerSample = 1
 directory = 'IndividualPeerInfoLog'
 
-decayRate = 0.95
+decayRate = 0.999
 
 # Compute the score
-def computeScore(b, t, wb = 1, wt = 1/9333):
+def computeScore(b, t, wb = 1, wt = 1/9333/2):
 	return (new_blocks * wb + new_tx_fees * wt)
 
 # List the files with a regular expression
