@@ -24,6 +24,9 @@ static const bool DEFAULT_PEERBLOCKFILTERS = false;
 static const int DISCOURAGEMENT_THRESHOLD{100};
 
 struct CNodeStateStats {
+    int m_misbehavior_score = 0; // Cybersecurity Lab: Add back the banscore
+    double m_fChance_score = 0.0; // Cybersecurity Lab: fChance factor
+    std::string m_isTerrible = "";
     int nSyncHeight = -1;
     int nCommonHeight = -1;
     int m_starting_height = -1;

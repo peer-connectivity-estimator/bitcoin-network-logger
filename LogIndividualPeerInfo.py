@@ -1,3 +1,12 @@
+# TODO:
+#	- Add consideration for addresses outside of getpeerinfo
+#		- Then if getpeerinfo[address] doesn't exist, just copy the stats from above, have a dummy template for if it's never received a getpeerinfo entry before
+#	- Add number of peer connections to machine_state
+#		- Also consider adding mempool size, MAYBE bucket info too
+#	- Add a block_data.csv file too, that logs all the individual info for the blocks with matching timestamps
+#		- If using getchaintips, we may even be able to capture forks and stale blocks!
+
+
 from threading import Timer
 import datetime
 import json
@@ -50,6 +59,9 @@ def makeHeader():
 	line += 'Number of New Unique Transactions Received,'
 	line += 'Aggregate of New Unique Transaction Fees (satoshis),'
 	line += 'Aggregate of New Unique Transaction Sizes (bytes),'
+	line += 'Peer Banscore (accumulated misbehavior score for this peer),'
+	line += 'Addrman fChance Score (the relative chance that this entry should be given when selecting nodes to connect to),'
+	line += 'Addrman isTerrible Rating (if the statistics about this entry are bad enough that it can just be deleted),'
 	line += 'Node Time Offset (seconds),'
 	line += 'Ping Round Trip Time (milliseconds),'
 	line += 'Minimum Ping Round Trip Time (milliseconds),'
@@ -498,6 +510,9 @@ def logNode(address, timestamp, updateInfo):
 	line += str(updateInfo['newTransactionsReceivedCount']) + ','
 	line += str(updateInfo['newTransactionsReceivedFee']) + ','
 	line += str(updateInfo['newTransactionsReceivedSize']) + ','
+	line += str(updateInfo['banscore']) + ','
+	line += str(updateInfo['fChance']) + ','
+	line += str(updateInfo['isTerrible']) + ','
 	line += str(updateInfo['secondsOffset']) + ','
 	line += str(updateInfo['pingRoundTripTime']) + ','
 	line += str(updateInfo['pingMinRoundTripTime']) + ','
@@ -754,6 +769,9 @@ def log(targetDateTime):
 				'newTransactionsReceivedSize': '0',
 				# End of listnewbroadcastsandclear
 				# Start of getpeerinfo
+				'banscore': '',
+				'fChance': '',
+				'isTerrible': '',
 				'port': '',
 				'connectionID': '',
 				'connectionDuration': '',
@@ -977,12 +995,15 @@ def log(targetDateTime):
 				# End of getpeersmsginfoandclear
 			}
 
-
-
 		if address in listnewbroadcastsandclear['new_block_broadcasts']: peersToUpdate[address]['newBlocksReceivedCount'] = listnewbroadcastsandclear['new_block_broadcasts'][address]
 		if address in listnewbroadcastsandclear['new_transaction_broadcasts']: peersToUpdate[address]['newTransactionsReceivedCount'] = listnewbroadcastsandclear['new_transaction_broadcasts'][address]
 		if address in listnewbroadcastsandclear['new_transaction_fee_broadcasts']: peersToUpdate[address]['newTransactionsReceivedFee'] = listnewbroadcastsandclear['new_transaction_fee_broadcasts'][address]
 		if address in listnewbroadcastsandclear['new_transaction_size_broadcasts']: peersToUpdate[address]['newTransactionsReceivedSize'] = listnewbroadcastsandclear['new_transaction_size_broadcasts'][address]
+
+		# Self-extracted out of Bitcoin Core using this custom network logger instance
+		peersToUpdate[address]['banscore'] = peerEntry['banscore']
+		peersToUpdate[address]['fChance'] = peerEntry['fchance']
+		peersToUpdate[address]['isTerrible'] = peerEntry['isterrible'].replace('true', '1').replace('false', '0')
 
 		peersToUpdate[address]['port'] = int(port)
 		peersToUpdate[address]['connectionID'] = int(peerEntry['id'])

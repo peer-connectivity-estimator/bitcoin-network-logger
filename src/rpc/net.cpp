@@ -132,6 +132,11 @@ static RPCHelpMan getpeerinfo()
                     {RPCResult::Type::BOOL, "bip152_hb_to", "Whether we selected peer as (compact blocks) high-bandwidth peer"},
                     {RPCResult::Type::BOOL, "bip152_hb_from", "Whether peer selected us as (compact blocks) high-bandwidth peer"},
                     {RPCResult::Type::NUM, "startingheight", "The starting height (block) of the peer"},
+                    // Cybersecurity Lab: Addeed back banscore and fchance
+                    {RPCResult::Type::NUM, "banscore", "The ban score added back since the Bitcoin devs removed it"},
+                    {RPCResult::Type::NUM, "fchance", "Addrman reputation score chance of connecting"},
+                    {RPCResult::Type::STR, "isterrible", "Addrman reputation score rating to determine if this is a terrible peer"},
+
                     {RPCResult::Type::NUM, "presynced_headers", "The current height of header pre-synchronization with this peer, or -1 if no low-work sync is in progress"},
                     {RPCResult::Type::NUM, "synced_headers", "The last header we have in common with this peer"},
                     {RPCResult::Type::NUM, "synced_blocks", "The last block we have in common with this peer"},
@@ -235,6 +240,11 @@ static RPCHelpMan getpeerinfo()
         obj.pushKV("bip152_hb_to", stats.m_bip152_highbandwidth_to);
         obj.pushKV("bip152_hb_from", stats.m_bip152_highbandwidth_from);
         obj.pushKV("startingheight", statestats.m_starting_height);
+        // Cybersecurity Lab: Start of added banscore, fchance, and isterrible
+        obj.pushKV("banscore", statestats.m_misbehavior_score);
+        obj.pushKV("fchance", statestats.m_fChance_score);
+        obj.pushKV("isterrible", statestats.m_isTerrible);
+        // Cybersecurity Lab: End of added banscore, fchance, and isterrible
         obj.pushKV("presynced_headers", statestats.presync_height);
         obj.pushKV("synced_headers", statestats.nSyncHeight);
         obj.pushKV("synced_blocks", statestats.nCommonHeight);
