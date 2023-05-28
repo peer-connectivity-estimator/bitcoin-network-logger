@@ -22,9 +22,10 @@ while true; do
     for dir in "${directories[@]}"; do
         # Determine file name based on counter
         if [[ $counter -eq 1 ]]; then
-            filename="giantZip.zip"
+            filename="$fileNameOfTheZipFiles.zip"
         else
-            filename="giantZip.z$(($counter - 1))"
+            counter_str=$(printf "%02d" $(($counter - 1)))
+            filename="$fileNameOfTheZipFiles.z$counter_str"
         fi
 
         # Check if the file exists in current directory
@@ -58,9 +59,10 @@ while true; do
     for dir in "${directories[@]}"; do
         # Determine file name based on counter
         if [[ $counter -eq 1 ]]; then
-            filename="giantZip.zip"
+            filename="$fileNameOfTheZipFiles.zip"
         else
-            filename="giantZip.z$(($counter - 1))"
+            counter_str=$(printf "%02d" $(($counter - 1)))
+            filename="$fileNameOfTheZipFiles.z$counter_str"
         fi
 
         # Check if the file exists in current directory
