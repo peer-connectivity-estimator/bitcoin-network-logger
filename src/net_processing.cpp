@@ -1607,6 +1607,30 @@ bool PeerManagerImpl::GetNodeStateStats(NodeId nodeid, CNodeStateStats& stats) c
     }
 
     stats.m_ping_wait = ping_wait;
+    // Cybersecurity Lab: Add back the banscore
+    stats.m_misbehavior_score = WITH_LOCK(peer->m_misbehavior_mutex, return peer->m_misbehavior_score);
+
+    // Cybersecurity Lab: Add the addrman fChance reputation score
+    CAddress addr;
+    double fChance = 0.0;
+    std::string isTerrible = "";
+    std::vector<CNodeStats> vstats;
+    m_connman.GetNodeStats(vstats);
+    for (const CNodeStats& stats : vstats) {
+        if(nodeid == stats.nodeid) {
+            CService addr_service;
+            if(Lookup(stats.addr.ToStringAddr(), addr_service, stats.addr.GetPort(), false)) {
+                std::pair<int, double> temp_pair = m_addrman.GetChanceScore(addr_service);
+                fChance = temp_pair.first;
+                if (temp_pair.second) isTerrible = "true";
+                else isTerrible = "false";
+            }
+            break;
+        }
+    }
+    stats.m_fChance_score = fChance;
+    stats.m_isTerrible = isTerrible;
+    
     stats.m_addr_processed = peer->m_addr_processed.load();
     stats.m_addr_rate_limited = peer->m_addr_rate_limited.load();
     stats.m_addr_relay_enabled = peer->m_addr_relay_enabled.load();

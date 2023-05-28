@@ -190,6 +190,9 @@ public:
      *                       or nullopt if address is not found.
      */
     std::optional<AddressPosition> FindAddressEntry(const CAddress& addr);
+
+    // Cybersecurity Lab: Add interace to retrieve the fChhance reputation score
+    std::pair<double, bool> GetChanceScore(const CService& addr_service);
 };
 
 #endif // BITCOIN_ADDRMAN_H
