@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Install the prereq with sudo apt-get install p7zip-full
+# Install the prereq with sudo apt-get install unzip
 
 fileNameOfTheZipFiles="BitcoinFullLedgerCompressed-5-25-2023"
 
@@ -74,8 +74,15 @@ while [[ $counter -le $max_counter ]]; do
             filefound=true
 
             echo "Processing $dir/$filename"
+            # Move the part to the target directory
             mv "$dir/$filename" "$target"
-            7z x "$target/$filename" -o"$target"
+            
+            # Unzip the archive if it's the first part
+            if [[ $counter -eq 1 ]]; then
+                unzip "$target/$filename" -d "$target"
+            fi
+
+            # Remove the part from the target directory
             rm "$target/$filename"
 
             # Break the loop as the file is found and processed
@@ -84,11 +91,4 @@ while [[ $counter -le $max_counter ]]; do
     done
 
     # If the file was not found in any directory, break the while loop
-    if [[ $filefound == false ]]; then
-        echo "File $filename not found in any directory."
-        break
-    fi
-
-    # Increase the counter
-    counter=$((counter + 1))
-done
+    if [[ $filefound
