@@ -8,6 +8,7 @@
 #		- If using getchaintips, we may even be able to capture forks and stale blocks!
 
 # Sanity checking to ensure that it behaves properly
+#	getblockfrompeer "blockhash" peer_id
 # Horizontal line --> make sure good score works properly
 
 
@@ -31,7 +32,169 @@ def terminal(cmd):
 
 # Send a command to the Bitcoin console
 def bitcoin(cmd):
-	return terminal('./src/bitcoin-cli -rpcuser=cybersec -rpcpassword=kZIdeN4HjZ3fp9Lge4iezt0eJrbjSi8kuSuOHeUkEUbQVdf09JZXAAGwF3R5R2qQkPgoLloW91yTFuufo7CYxM2VPT7A5lYeTrodcLWWzMMwIrOKu7ZNiwkrKOQ95KGW8kIuL1slRVFXoFpGsXXTIA55V3iUYLckn8rj8MZHBpmdGQjLxakotkj83ZlSRx1aOJ4BFxdvDNz0WHk1i2OPgXL4nsd56Ph991eKNbXVJHtzqCXUbtDELVf4shFJXame -rpcport=8332 ' + str(cmd))
+	# The following are mock commands to work on the implementation without requiring the node up
+	if cmd == 'getchaintips':
+		return """getblock[
+  {
+    "height": 791846,
+    "hash": "0000000000000000000458e426948dec172ee891fd6684bcd24bb331819cc5a8",
+    "branchlen": 26,
+    "status": "headers-only"
+  },
+  {
+    "height": 791820,
+    "hash": "000000000000000000048809d486e4cd65ba16dccf7be2f2184e86011746b68b",
+    "branchlen": 0,
+    "status": "active"
+  }
+]"""
+	elif cmd == 'getblockchaininfo':
+		return """{
+  "chain": "main",
+  "blocks": 791822,
+  "headers": 791846,
+  "bestblockhash": "00000000000000000003d288db338920ac70cdc18b22680f3433415d8820bcd7",
+  "difficulty": 49549703178592.68,
+  "time": 1685299124,
+  "mediantime": 1685296654,
+  "verificationprogress": 0.9999473676814419,
+  "initialblockdownload": false,
+  "chainwork": "000000000000000000000000000000000000000049e6ee76f6527960df7dbe10",
+  "size_on_disk": 780964179,
+  "pruned": true,
+  "pruneheight": 791456,
+  "automatic_pruning": true,
+  "prune_target_size": 576716800,
+  "warnings": ""
+}"""
+	elif cmd == 'getmininginfo':
+		return """{
+  "blocks": 791846,
+  "difficulty": 49549703178592.68,
+  "networkhashps": 4.062438317971382e+20,
+  "pooledtx": 9794,
+  "chain": "main",
+  "warnings": ""
+}"""
+	elif cmd == 'getnettotals':
+		return """{
+  "totalbytesrecv": 279699994,
+  "totalbytessent": 76273873,
+  "timemillis": 1685311542470,
+  "uploadtarget": {
+    "timeframe": 86400,
+    "target": 0,
+    "target_reached": false,
+    "serve_historical_blocks": true,
+    "bytes_left_in_cycle": 0,
+    "time_left_in_cycle": 0
+  }
+}"""
+	elif cmd == 'getblock 0000000000000000000458e426948dec172ee891fd6684bcd24bb331819cc5a8':
+		return """{
+  "hash": "0000000000000000000458e426948dec172ee891fd6684bcd24bb331819cc5a8",
+  "confirmations": 1,
+  "height": 791846,
+  "version": 1073676288,
+  "versionHex": "3fff0000",
+  "merkleroot": "811bf4bb860bceabcb05a280599b27208b8f6e6e1b697cee978a7c0a8745f2d5",
+  "time": 1685310888,
+  "mediantime": 1685307490,
+  "nonce": 2067043226,
+  "bits": "1705ae3a",
+  "difficulty": 49549703178592.68,
+  "chainwork": "000000000000000000000000000000000000000049eb280bbadd1efbe547a290",
+  "nTx": 3578,
+  "previousblockhash": "000000000000000000038acddc18db9829a8e4517d321cf29b88e89eeee05e50",
+  "strippedsize": 746634,
+  "size": 1753537,
+  "weight": 3993439,
+  "tx": [
+    "ec0dba36a961cf78448b2d4bd5291eed74f3f1ef6e881f770f86cfeebb6dd74b",
+    "356d93bafe9506cbc278b1e5ee78621d16c24c522cafd4f68ce20927757b23f0"
+  ]
+}"""
+	elif cmd == 'gettxout ec0dba36a961cf78448b2d4bd5291eed74f3f1ef6e881f770f86cfeebb6dd74b 0':
+		return """{
+  "bestblock": "00000000000000000000ef263c1a23ba30872e9982352562df5e84115b806050",
+  "confirmations": 3,
+  "value": 6.75362791,
+  "scriptPubKey": {
+    "asm": "OP_HASH160 4b09d828dfc8baaba5d04ee77397e04b1050cc73 OP_EQUAL",
+    "desc": "addr(38XnPvu9PmonFU9WouPXUjYbW91wa5MerL)#ap48vquh",
+    "hex": "a9144b09d828dfc8baaba5d04ee77397e04b1050cc7387",
+    "address": "38XnPvu9PmonFU9WouPXUjYbW91wa5MerL",
+    "type": "scripthash"
+  },
+  "coinbase": true
+}"""
+	elif cmd == 'getblockstats 791846'
+		return """{
+  "avgfee": 14079,
+  "avgfeerate": 50,
+  "avgtxsize": 490,
+  "blockhash": "0000000000000000000458e426948dec172ee891fd6684bcd24bb331819cc5a8",
+  "feerate_percentiles": [
+    28,
+    37,
+    43,
+    53,
+    81
+  ],
+  "height": 791846,
+  "ins": 6005,
+  "maxfee": 797347,
+  "maxfeerate": 1948,
+  "maxtxsize": 45581,
+  "medianfee": 7319,
+  "mediantime": 1685307490,
+  "mediantxsize": 316,
+  "minfee": 1925,
+  "minfeerate": 15,
+  "mintxsize": 150,
+  "outs": 10725,
+  "subsidy": 625000000,
+  "swtotal_size": 1665404,
+  "swtotal_weight": 3641015,
+  "swtxs": 3345,
+  "time": 1685310888,
+  "total_out": 542930816532,
+  "total_size": 1753150,
+  "total_weight": 3991999,
+  "totalfee": 50362791,
+  "txs": 3578,
+  "utxo_increase": 4720,
+  "utxo_size_inc": 366048,
+  "utxo_increase_actual": 4702,
+  "utxo_size_inc_actual": 363937
+}"""
+	elif cmd == 'getchaintxstats 1 "0000000000000000000458e426948dec172ee891fd6684bcd24bb331819cc5a8"':
+			return """{
+  "time": 1685310888,
+  "txcount": 844906653,
+  "window_final_block_hash": "0000000000000000000458e426948dec172ee891fd6684bcd24bb331819cc5a8",
+  "window_final_block_height": 791846,
+  "window_block_count": 1,
+  "window_tx_count": 3578,
+  "window_interval": 745,
+  "txrate": 4.802684563758389
+}"""
+	elif cmd == 'getmempoolinfo'
+		return """{
+  "loaded": true,
+  "size": 12017,
+  "bytes": 26109830,
+  "usage": 80949680,
+  "total_fee": 3.20091376,
+  "maxmempool": 300000000,
+  "mempoolminfee": 0.00001000,
+  "minrelaytxfee": 0.00001000,
+  "incrementalrelayfee": 0.00001000,
+  "unbroadcastcount": 0,
+  "fullrbf": false
+}"""
+	else:
+		return terminal('./src/bitcoin-cli -rpcuser=cybersec -rpcpassword=kZIdeN4HjZ3fp9Lge4iezt0eJrbjSi8kuSuOHeUkEUbQVdf09JZXAAGwF3R5R2qQkPgoLloW91yTFuufo7CYxM2VPT7A5lYeTrodcLWWzMMwIrOKu7ZNiwkrKOQ95KGW8kIuL1slRVFXoFpGsXXTIA55V3iUYLckn8rj8MZHBpmdGQjLxakotkj83ZlSRx1aOJ4BFxdvDNz0WHk1i2OPgXL4nsd56Ph991eKNbXVJHtzqCXUbtDELVf4shFJXame -rpcport=8332 ' + str(cmd))
 
 # Start Bitcoin Core
 def startBitcoin():
