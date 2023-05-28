@@ -3192,7 +3192,7 @@ void PeerManagerImpl::ProcessBlock(CNode& node, const std::shared_ptr<const CBlo
     m_chainman.ProcessNewBlock(block, force_processing, min_pow_checked, &new_block);
     if (new_block) {
         node.m_last_block_time = GetTime<std::chrono::seconds>();
-
+        
         // Cybersecurity Lab: Increment the unique block dissemination counter
         std::string address = node.addr.ToStringAddr();
         std::shared_lock<std::shared_mutex> lock(m_connman.m_newBlockBroadcastsMutex);
@@ -3203,7 +3203,7 @@ void PeerManagerImpl::ProcessBlock(CNode& node, const std::shared_ptr<const CBlo
         } else {
             (m_connman.newBlockBroadcasts)[address]++;
         }
-
+        
         // In case this block came from a different peer than we requested
         // from, we can erase the block request now anyway (as we just stored
         // this block to disk).
