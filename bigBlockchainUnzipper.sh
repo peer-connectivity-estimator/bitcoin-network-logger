@@ -13,11 +13,12 @@ directories=(
 
 target="/home/research/BitcoinFullLedger"
 counter=1
+max_counter=459  # Set this to the maximum counter value
 
 # Check all files exist before processing
 echo "Checking all files exist before processing..."
 
-while true; do
+while [[ $counter -le $max_counter ]]; do
     # Reset found flag for each iteration
     filefound=false
 
@@ -54,7 +55,7 @@ echo "All files are present. Starting processing..."
 counter=1
 
 # Now that all files are confirmed to exist, start processing
-while true; do
+while [[ $counter -le $max_counter ]]; do
     # Reset found flag for each iteration
     filefound=false
 
