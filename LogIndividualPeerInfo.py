@@ -1,10 +1,14 @@
 # TODO:
-#	- Add consideration for addresses outside of getpeerinfo
+#	- Upgrade our custom Bitcoin to the latest stable release
+#	- Add consideration for peers connecting and disconnecting between samples
 #		- Then if getpeerinfo[address] doesn't exist, just copy the stats from above, have a dummy template for if it's never received a getpeerinfo entry before
 #	- Add number of peer connections to machine_state
 #		- Also consider adding mempool size, MAYBE bucket info too
 #	- Add a block_data.csv file too, that logs all the individual info for the blocks with matching timestamps
 #		- If using getchaintips, we may even be able to capture forks and stale blocks!
+
+# Sanity checking to ensure that it behaves properly
+# Horizontal line --> make sure good score works properly
 
 
 from threading import Timer
