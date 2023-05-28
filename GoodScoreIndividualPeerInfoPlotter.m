@@ -2,10 +2,10 @@ filePath = 'GoodScoreIndividualPeerInfo.csv'
 
 font_size = 20
 line_width = 2
-use_pseudonyms = 1
+use_pseudonyms = 0
 onlyFocusOnNumPeers = 0 % Zero for all peers
-legendPosition = 'SouthEast' %'EastOutside'
-legendNumColumns = 6
+legendPosition = 'EastOutside' %'EastOutside'
+legendNumColumns = 3
 legendFontSize = 12
 colors = {'#747E7E', '#72F2EB', '#00CCBF', '#3F7C85', '#405952', '#9C9B7A', '#FFD393', '#FF974F', '#F54F29', '#FF7DD4'}
 figure('Position', [100 100 1500 600])
@@ -40,9 +40,9 @@ x = data(:, 1)
 for i=1:length(addresses)-1
     y = data(:, i + 1)
     if i <= length(colors)
-        plot(x, y, 'LineWidth', line_width, 'Color', colors{i})
+        plot(x, y, '.', 'LineWidth', line_width, 'Color', colors{i})
     else
-        plot(x, y, 'LineWidth', line_width)
+        plot(x, y, '.', 'LineWidth', line_width)
     end
 end
 
@@ -53,7 +53,7 @@ grid on;
 box on;
 set(gca, 'FontSize', font_size);
 set(gca, 'XMinorTick','on', 'XMinorGrid','off', 'YMinorTick','on', 'YMinorGrid','on');
-set(gca, 'YScale', 'log')
+%set(gca, 'YScale', 'log')
 xlim([min(x), max(x)])
 %xtickangle(45)
 

@@ -5,8 +5,9 @@ import csv
 
 numSecondsPerSample = 1
 directory = 'IndividualPeerInfoLog'
+directory = 'IndividualPeerInfoLog_1000mins'
 
-decayRate = 0.999
+decayRate = 0.99
 
 # Compute the score
 def computeScore(b, t, wb = 1, wt = 1/9333/2):
