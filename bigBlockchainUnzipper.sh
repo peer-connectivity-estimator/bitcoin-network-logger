@@ -2,13 +2,16 @@
 
 # Install the prereq with sudo apt-get install p7zip-full
 
+fileNameOfTheZipFiles="BitcoinFullLedgerCompressed-5-25-2023"
+
 directories=(
-"/path/to/ssd1"
-"/path/to/ssd2"
+"/media/research/BTC"
+"/media/research/SIM/btc"
+"/media/research/Windows/btc"
 # Add more paths as needed
 )
 
-target="/path/to/home/directory"
+target="/home/research/BitcoinFullLedger"
 counter=1
 
 # Check all files exist before processing
