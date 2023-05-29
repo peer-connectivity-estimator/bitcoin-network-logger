@@ -1,5 +1,4 @@
 # TODO:
-#	- Upgrade our custom Bitcoin to the latest stable release
 #	- Add consideration for peers connecting and disconnecting between samples
 #		- Then if getpeerinfo[address] doesn't exist, just copy the stats from above, have a dummy template for if it's never received a getpeerinfo entry before
 #	- Add number of peer connections to machine_state
@@ -11,6 +10,11 @@
 #	getblockfrompeer "blockhash" peer_id
 # Horizontal line --> make sure good score works properly
 
+# -------------------------------------------------------------------
+
+# Logs a lot of Bitcoin info into the Research_Logs folder
+# 	For the initial block download, data is written to Research_Logs/IBD_Research_Log/
+# 	Otherwise, every month the logging directory changes to Research_Logs/MONTH_YEAR_Research_Log/, and the node restarts
 
 from threading import Timer
 import datetime
@@ -19,12 +23,20 @@ import os
 import platform
 import psutil
 import re
+import shutil
 import subprocess
 import sys
 import time
 
-numSecondsPerSample = 60
-directory = 'IndividualPeerInfoLog'
+# The path to copy over the finalized output files (preferably an external storage device)
+outputFilesToTransferPath = '/home/linux/Desktop/Research_Logs'
+outputFilesToTransfer = []
+if not os.path.exists(outputFilesToTransferPath):
+	print(f'Note: {outputFilesToTransferPath} does not exist, please set it, then retry.')
+	sys.exit()
+
+#numSecondsPerSample = 60
+numSecondsPerSample = 1
 
 # Send a command to the linux terminal
 def terminal(cmd):
@@ -36,16 +48,16 @@ def bitcoin(cmd):
 	if cmd == 'getchaintips':
 		return """getblock[
   {
-    "height": 791846,
-    "hash": "0000000000000000000458e426948dec172ee891fd6684bcd24bb331819cc5a8",
-    "branchlen": 26,
-    "status": "headers-only"
+	"height": 791846,
+	"hash": "0000000000000000000458e426948dec172ee891fd6684bcd24bb331819cc5a8",
+	"branchlen": 26,
+	"status": "headers-only"
   },
   {
-    "height": 791820,
-    "hash": "000000000000000000048809d486e4cd65ba16dccf7be2f2184e86011746b68b",
-    "branchlen": 0,
-    "status": "active"
+	"height": 791820,
+	"hash": "000000000000000000048809d486e4cd65ba16dccf7be2f2184e86011746b68b",
+	"branchlen": 0,
+	"status": "active"
   }
 ]"""
 	elif cmd == 'getblockchaininfo':
@@ -82,12 +94,12 @@ def bitcoin(cmd):
   "totalbytessent": 76273873,
   "timemillis": 1685311542470,
   "uploadtarget": {
-    "timeframe": 86400,
-    "target": 0,
-    "target_reached": false,
-    "serve_historical_blocks": true,
-    "bytes_left_in_cycle": 0,
-    "time_left_in_cycle": 0
+	"timeframe": 86400,
+	"target": 0,
+	"target_reached": false,
+	"serve_historical_blocks": true,
+	"bytes_left_in_cycle": 0,
+	"time_left_in_cycle": 0
   }
 }"""
 	elif cmd == 'getblock 0000000000000000000458e426948dec172ee891fd6684bcd24bb331819cc5a8':
@@ -110,8 +122,8 @@ def bitcoin(cmd):
   "size": 1753537,
   "weight": 3993439,
   "tx": [
-    "ec0dba36a961cf78448b2d4bd5291eed74f3f1ef6e881f770f86cfeebb6dd74b",
-    "356d93bafe9506cbc278b1e5ee78621d16c24c522cafd4f68ce20927757b23f0"
+	"ec0dba36a961cf78448b2d4bd5291eed74f3f1ef6e881f770f86cfeebb6dd74b",
+	"356d93bafe9506cbc278b1e5ee78621d16c24c522cafd4f68ce20927757b23f0"
   ]
 }"""
 	elif cmd == 'gettxout ec0dba36a961cf78448b2d4bd5291eed74f3f1ef6e881f770f86cfeebb6dd74b 0':
@@ -120,26 +132,26 @@ def bitcoin(cmd):
   "confirmations": 3,
   "value": 6.75362791,
   "scriptPubKey": {
-    "asm": "OP_HASH160 4b09d828dfc8baaba5d04ee77397e04b1050cc73 OP_EQUAL",
-    "desc": "addr(38XnPvu9PmonFU9WouPXUjYbW91wa5MerL)#ap48vquh",
-    "hex": "a9144b09d828dfc8baaba5d04ee77397e04b1050cc7387",
-    "address": "38XnPvu9PmonFU9WouPXUjYbW91wa5MerL",
-    "type": "scripthash"
+	"asm": "OP_HASH160 4b09d828dfc8baaba5d04ee77397e04b1050cc73 OP_EQUAL",
+	"desc": "addr(38XnPvu9PmonFU9WouPXUjYbW91wa5MerL)#ap48vquh",
+	"hex": "a9144b09d828dfc8baaba5d04ee77397e04b1050cc7387",
+	"address": "38XnPvu9PmonFU9WouPXUjYbW91wa5MerL",
+	"type": "scripthash"
   },
   "coinbase": true
 }"""
-	elif cmd == 'getblockstats 791846'
+	elif cmd == 'getblockstats 791846':
 		return """{
   "avgfee": 14079,
   "avgfeerate": 50,
   "avgtxsize": 490,
   "blockhash": "0000000000000000000458e426948dec172ee891fd6684bcd24bb331819cc5a8",
   "feerate_percentiles": [
-    28,
-    37,
-    43,
-    53,
-    81
+	28,
+	37,
+	43,
+	53,
+	81
   ],
   "height": 791846,
   "ins": 6005,
@@ -179,7 +191,7 @@ def bitcoin(cmd):
   "window_interval": 745,
   "txrate": 4.802684563758389
 }"""
-	elif cmd == 'getmempoolinfo'
+	elif cmd == 'getmempoolinfo':
 		return """{
   "loaded": true,
   "size": 12017,
@@ -196,9 +208,14 @@ def bitcoin(cmd):
 	else:
 		return terminal('./src/bitcoin-cli -rpcuser=cybersec -rpcpassword=kZIdeN4HjZ3fp9Lge4iezt0eJrbjSi8kuSuOHeUkEUbQVdf09JZXAAGwF3R5R2qQkPgoLloW91yTFuufo7CYxM2VPT7A5lYeTrodcLWWzMMwIrOKu7ZNiwkrKOQ95KGW8kIuL1slRVFXoFpGsXXTIA55V3iUYLckn8rj8MZHBpmdGQjLxakotkj83ZlSRx1aOJ4BFxdvDNz0WHk1i2OPgXL4nsd56Ph991eKNbXVJHtzqCXUbtDELVf4shFJXame -rpcport=8332 ' + str(cmd))
 
-# Start Bitcoin Core
+# Check if the Bitcoin Core instance is up
+def bitcoinUp():
+	return terminal('ps -A | grep bitcoind').strip() != ''
+
+# Start the Bitcoin Core instance
 def startBitcoin():
-	subprocess.Popen(['gnome-terminal -t "Custom Bitcoin Core Instance" -- bash ./run.sh'], shell=True)
+	print('Starting Bitcoin...')
+	subprocess.Popen(['gnome-terminal -t "Bitcoin Core Instance" -- bash ./run.sh'], shell=True)
 	rpcReady = False
 	while rpcReady is False:
 		time.sleep(1)
@@ -208,12 +225,51 @@ def startBitcoin():
 		except: pass
 	print('Bitcoin is up and ready to go')
 
-# Check if the Bitcoin Core instance is up
-def bitcoinUp():
-	return terminal('ps -A | grep bitcoind').strip() != ''
+# Stop the Bitcoin Core instance
+def stopBitcoin():
+	print('Stopping Bitcoin...')
+	secondCount = 0
+	while bitcoinUp():
+		bitcoin('stop')
+		time.sleep(5)
+		secondCount += 5
+		if secondCount >= 60 * 5: # After five minutes, use a harder stop
+			terminal('pkill -SIGTERM bitcoind')
+			time.sleep(5)
+			secondCount += 5
 
-# Return the header for the CSV file
-def makeHeader():
+		if secondCount >= 60 * 10: # After ten minutes, force shutdown
+			terminal('pkill -SIGKILL bitcoind')
+			time.sleep(5)
+			secondCount += 5
+
+# Restart the Bitcoin Core instance
+def restartBitcoin():
+	print('Restarting Bitcoin...')
+	stopBitcoin()
+	while not bitcoinUp():
+		startBitcoin()
+
+
+def writeInitialMachineInfo(timestamp, directory):
+	contents = 'Directory Creation Time (date):\n'
+	contents += '\t' + str(timestamp) + '\n'
+	contents += '\nOperating System (lsb_release -idrc):\n'
+	contents += '\t' + terminal('lsb_release -idrc').strip().replace('\n', '\n\t') + '\n'
+	contents += '\nProcessor (lscpu):\n'
+	contents += '\t' + terminal('lscpu').strip().replace('\n', '\n\t') + '\n'
+	contents += '\nNetwork (ifconfig):\n'
+	contents += '\t' + terminal('ifconfig').strip().replace('\n', '\n\t') + '\n'
+	contents += '\nMemory (cat /proc/meminfo):\n'
+	contents += '\t' + terminal('cat /proc/meminfo').strip().replace('\n', '\n\t') + '\n'
+	contents += '\nPython (python3 --version):\n'
+	contents += '\t' + terminal('python3 --version').strip().replace('\n', '\n\t') + '\n'
+	file = open(os.path.join(directory, 'machine_info.txt'), 'w')
+	file.write(contents)
+	file.close()
+
+# Generate the main peer CSV header line
+def makeMainPeerHeader():
 	line = 'Timestamp,'
 	line += 'Timestamp (UNIX epoch),'
 	line += 'Time Since Last Sample (seconds),'
@@ -446,7 +502,7 @@ def makeHeader():
 	line += 'Max Time [UNDOCUMENTED] (milliseconds),'
 	return line
 
-# Generate the machine state 
+# Generate the machine state CSV header line
 def makeMachineStateHeader():
 	line = 'Timestamp,'
 	line += 'Timestamp (UNIX epoch),'
@@ -475,6 +531,12 @@ def makeMachineStateHeader():
 	line += 'Bitcoin Process Memory (percent),'
 	line += 'Bitcoin Process CPU (percent),'
 	return line
+
+# Generate the block information CSV header line
+def makeBlockInfoHeader():
+	line = 'Timestamp,'
+	line += 'Timestamp (UNIX epoch),'
+	line += 'Time Since Last Sample (seconds),'
 
 # Given a raw memory string from the linux "top" command, return the number of bytes
 # 1 EiB = 1024 * 1024 * 1024 * 1024 * 1024 * 1024 bytes
@@ -541,8 +603,33 @@ def getNetworkData():
 		'packets_received': '',
 	}
 
+# Processes the syntax of the RPC command: getmsginfo
+def parseGetMsgInfoMessage(rawString, clocksPerSecond):
+	# rawString is in the format "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts"
+	count = int(re.findall(r'([0-9\.]+) msgs', rawString)[0])
+	matches = re.findall(r'\[[0-9\., ]+\]', rawString)
+	clocksMatch = json.loads(matches[0])
+	# clocks / clocksPerSecond * 1000 --> milliseconds
+	clocksSum = int(clocksMatch[0]) / clocksPerSecond * 1000
+	if count != 0: clocksAvg = clocksSum / count
+	else: clocksAvg = 0
+	clocksMax = int(clocksMatch[2]) / clocksPerSecond * 1000
+	bytesMatch = json.loads(matches[1])
+	bytesSum = int(bytesMatch[0])
+	if count != 0: bytesAvg = bytesSum / count
+	else: bytesAvg = 0
+	bytesMax = int(bytesMatch[2])
+	return count, bytesAvg, bytesMax, clocksAvg, clocksMax
+
+# Given a combined address and port, return the individual address and port 
+def splitAddress(address):
+	split = address.split(':')
+	port = split.pop()
+	address = ':'.join(split)
+	return address, port
+
 # Log the state of the machine to file, returns the sample number
-def logMachineState(timestamp):
+def logMachineState(timestamp, directory):
 	filePath = os.path.join(directory, 'machine_state_info.csv')
 	if not os.path.exists(filePath):
 		print(f'Creating machine state file')
@@ -616,23 +703,16 @@ def logMachineState(timestamp):
 	file.write(line + '\n')
 	return numPrevLines
 
-
-# Given a combined address and port, return the individual address and port 
-def splitAddress(address):
-	split = address.split(':')
-	port = split.pop()
-	address = ':'.join(split)
-	return address, port
-
-def logNode(address, timestamp, updateInfo):
+# Log the state of the node to file, returns the sample number
+def logNode(address, timestamp, directory, updateInfo):
 	filePath = os.path.join(directory, re.sub('[^A-Za-z0-9\.]', '-', address)) + '.csv'
 	if not os.path.exists(filePath):
 		# Create a new file
 		prevLine = ''
 		numPrevLines = 1
-		print(f'    Logging {address} ({numPrevLines} sample)')
+		print(f'	Logging {address} ({numPrevLines} sample)')
 		file = open(filePath, 'w')
-		file.write(makeHeader() + '\n')
+		file.write(makeMainPeerHeader() + '\n')
 	else:
 		# Read the last line from the file
 		with open(filePath, 'r') as f:
@@ -641,7 +721,7 @@ def logNode(address, timestamp, updateInfo):
 			if len(prevLines) > 1: prevLine = prevLines[-1].split(',')
 			else: prevLine = ''
 			numPrevLines = len(prevLines)
-		print(f'    Logging {address} ({numPrevLines} samples)')
+		print(f'	Logging {address} ({numPrevLines} samples)')
 
 		# Try to open the file for appending, loop until successful
 		attempts = 0
@@ -899,268 +979,309 @@ def logNode(address, timestamp, updateInfo):
 	file.write(line + '\n')
 	file.close()
 
-def parseGetMsgInfoMessage(rawString, clocksPerSecond):
-	# rawString is in the format "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts"
-	count = int(re.findall(r'([0-9\.]+) msgs', rawString)[0])
-	matches = re.findall(r'\[[0-9\., ]+\]', rawString)
-	clocksMatch = json.loads(matches[0])
-	# clocks / clocksPerSecond * 1000 --> milliseconds
-	clocksSum = int(clocksMatch[0]) / clocksPerSecond * 1000
-	if count != 0: clocksAvg = clocksSum / count
-	else: clocksAvg = 0
-	clocksMax = int(clocksMatch[2]) / clocksPerSecond * 1000
-	bytesMatch = json.loads(matches[1])
-	bytesSum = int(bytesMatch[0])
-	if count != 0: bytesAvg = bytesSum / count
-	else: bytesAvg = 0
-	bytesMax = int(bytesMatch[2])
-	return count, bytesAvg, bytesMax, clocksAvg, clocksMax
+def getPeerInfoTemplate():
+	return {
+		# Start of listnewbroadcastsandclear
+		'newBlocksReceivedCount': '0',
+		'newTransactionsReceivedCount': '0',
+		'newTransactionsReceivedFee': '0',
+		'newTransactionsReceivedSize': '0',
+		# End of listnewbroadcastsandclear
+		# Start of getpeerinfo
+		'banscore': '',
+		'fChance': '',
+		'isTerrible': '',
+		'port': '',
+		'connectionID': '',
+		'connectionDuration': '',
+		'secondsOffset': '',
+		'pingRoundTripTime': '',
+		'pingMinRoundTripTime': '',
+		'pingWaitTime': '',
+		'addressType': '',
+		'prototolVersion': '',
+		'softwareVersion': '',
+		'connectionType': '',
+		'isOutboundConnection': '',
+		'services': '',
+		'servicesEncodedInt': '',
+		'specialPermissions': '',
+		'willRelayTransactions': '',
+		'willRelayAddrs': '',
+		'numAddrsAccepted': '',
+		'numAddrsDroppedFromRateLimit': '',
+		'minTransactionFeeAccepted': '',
+		'sendCmpctEnabledToThem': '',
+		'sendCmpctEnabledFromThem': '',
+		'lastSendTime': '',
+		'bytesSent': '',
+		'bytesSentDistribution': '',
+		'lastReceiveTime': '',
+		'bytesReceived': '',
+		'bytesReceivedDistribution': '',
+		'lastTransactionTime': '',
+		'lastBlockTime': '',
+		'startingBlockHeight': '',
+		'currentBlockHeightInCommon': '',
+		'currentHeaderHeightInCommon': '',
+		# End of getpeerinfo
+		# Start of getpeersmsginfoandclear
+		'New_ADDRs_Received (count)': '0',
+		'Size_ADDR (bytes)': '0',
+		'MaxSize_ADDR (bytes)': '0',
+		'Time_ADDR (milliseconds)': '0',
+		'MaxTime_ADDR (milliseconds)': '0',
+		'New_ADDRV2s_Received (count)': '0',
+		'Size_ADDRV2 (bytes)': '0',
+		'MaxSize_ADDRV2 (bytes)': '0',
+		'Time_ADDRV2 (milliseconds)': '0',
+		'MaxTime_ADDRV2 (milliseconds)': '0',
+		'New_BLOCKs_Received (count)': '0',
+		'Size_BLOCK (bytes)': '0',
+		'MaxSize_BLOCK (bytes)': '0',
+		'Time_BLOCK (milliseconds)': '0',
+		'MaxTime_BLOCK (milliseconds)': '0',
+		'New_BLOCKTXNs_Received (count)': '0',
+		'Size_BLOCKTXN (bytes)': '0',
+		'MaxSize_BLOCKTXN (bytes)': '0',
+		'Time_BLOCKTXN (milliseconds)': '0',
+		'MaxTime_BLOCKTXN (milliseconds)': '0',
+		'New_CFCHECKPTs_Received (count)': '0',
+		'Size_CFCHECKPT (bytes)': '0',
+		'MaxSize_CFCHECKPT (bytes)': '0',
+		'Time_CFCHECKPT (milliseconds)': '0',
+		'MaxTime_CFCHECKPT (milliseconds)': '0',
+		'New_CFHEADERSs_Received (count)': '0',
+		'Size_CFHEADERS (bytes)': '0',
+		'MaxSize_CFHEADERS (bytes)': '0',
+		'Time_CFHEADERS (milliseconds)': '0',
+		'MaxTime_CFHEADERS (milliseconds)': '0',
+		'New_CFILTERs_Received (count)': '0',
+		'Size_CFILTER (bytes)': '0',
+		'MaxSize_CFILTER (bytes)': '0',
+		'Time_CFILTER (milliseconds)': '0',
+		'MaxTime_CFILTER (milliseconds)': '0',
+		'New_CMPCTBLOCKs_Received (count)': '0',
+		'Size_CMPCTBLOCK (bytes)': '0',
+		'MaxSize_CMPCTBLOCK (bytes)': '0',
+		'Time_CMPCTBLOCK (milliseconds)': '0',
+		'MaxTime_CMPCTBLOCK (milliseconds)': '0',
+		'New_FEEFILTERs_Received (count)': '0',
+		'Size_FEEFILTER (bytes)': '0',
+		'MaxSize_FEEFILTER (bytes)': '0',
+		'Time_FEEFILTER (milliseconds)': '0',
+		'MaxTime_FEEFILTER (milliseconds)': '0',
+		'New_FILTERADDs_Received (count)': '0',
+		'Size_FILTERADD (bytes)': '0',
+		'MaxSize_FILTERADD (bytes)': '0',
+		'Time_FILTERADD (milliseconds)': '0',
+		'MaxTime_FILTERADD (milliseconds)': '0',
+		'New_FILTERCLEARs_Received (count)': '0',
+		'Size_FILTERCLEAR (bytes)': '0',
+		'MaxSize_FILTERCLEAR (bytes)': '0',
+		'Time_FILTERCLEAR (milliseconds)': '0',
+		'MaxTime_FILTERCLEAR (milliseconds)': '0',
+		'New_FILTERLOADs_Received (count)': '0',
+		'Size_FILTERLOAD (bytes)': '0',
+		'MaxSize_FILTERLOAD (bytes)': '0',
+		'Time_FILTERLOAD (milliseconds)': '0',
+		'MaxTime_FILTERLOAD (milliseconds)': '0',
+		'New_GETADDRs_Received (count)': '0',
+		'Size_GETADDR (bytes)': '0',
+		'MaxSize_GETADDR (bytes)': '0',
+		'Time_GETADDR (milliseconds)': '0',
+		'MaxTime_GETADDR (milliseconds)': '0',
+		'New_GETBLOCKSs_Received (count)': '0',
+		'Size_GETBLOCKS (bytes)': '0',
+		'MaxSize_GETBLOCKS (bytes)': '0',
+		'Time_GETBLOCKS (milliseconds)': '0',
+		'MaxTime_GETBLOCKS (milliseconds)': '0',
+		'New_GETBLOCKTXNs_Received (count)': '0',
+		'Size_GETBLOCKTXN (bytes)': '0',
+		'MaxSize_GETBLOCKTXN (bytes)': '0',
+		'Time_GETBLOCKTXN (milliseconds)': '0',
+		'MaxTime_GETBLOCKTXN (milliseconds)': '0',
+		'New_GETCFCHECKPTs_Received (count)': '0',
+		'Size_GETCFCHECKPT (bytes)': '0',
+		'MaxSize_GETCFCHECKPT (bytes)': '0',
+		'Time_GETCFCHECKPT (milliseconds)': '0',
+		'MaxTime_GETCFCHECKPT (milliseconds)': '0',
+		'New_GETCFHEADERSs_Received (count)': '0',
+		'Size_GETCFHEADERS (bytes)': '0',
+		'MaxSize_GETCFHEADERS (bytes)': '0',
+		'Time_GETCFHEADERS (milliseconds)': '0',
+		'MaxTime_GETCFHEADERS (milliseconds)': '0',
+		'New_GETCFILTERSs_Received (count)': '0',
+		'Size_GETCFILTERS (bytes)': '0',
+		'MaxSize_GETCFILTERS (bytes)': '0',
+		'Time_GETCFILTERS (milliseconds)': '0',
+		'MaxTime_GETCFILTERS (milliseconds)': '0',
+		'New_GETDATAs_Received (count)': '0',
+		'Size_GETDATA (bytes)': '0',
+		'MaxSize_GETDATA (bytes)': '0',
+		'Time_GETDATA (milliseconds)': '0',
+		'MaxTime_GETDATA (milliseconds)': '0',
+		'New_GETHEADERSs_Received (count)': '0',
+		'Size_GETHEADERS (bytes)': '0',
+		'MaxSize_GETHEADERS (bytes)': '0',
+		'Time_GETHEADERS (milliseconds)': '0',
+		'MaxTime_GETHEADERS (milliseconds)': '0',
+		'New_HEADERSs_Received (count)': '0',
+		'Size_HEADERS (bytes)': '0',
+		'MaxSize_HEADERS (bytes)': '0',
+		'Time_HEADERS (milliseconds)': '0',
+		'MaxTime_HEADERS (milliseconds)': '0',
+		'New_INVs_Received (count)': '0',
+		'Size_INV (bytes)': '0',
+		'MaxSize_INV (bytes)': '0',
+		'Time_INV (milliseconds)': '0',
+		'MaxTime_INV (milliseconds)': '0',
+		'New_MEMPOOLs_Received (count)': '0',
+		'Size_MEMPOOL (bytes)': '0',
+		'MaxSize_MEMPOOL (bytes)': '0',
+		'Time_MEMPOOL (milliseconds)': '0',
+		'MaxTime_MEMPOOL (milliseconds)': '0',
+		'New_MERKLEBLOCKs_Received (count)': '0',
+		'Size_MERKLEBLOCK (bytes)': '0',
+		'MaxSize_MERKLEBLOCK (bytes)': '0',
+		'Time_MERKLEBLOCK (milliseconds)': '0',
+		'MaxTime_MERKLEBLOCK (milliseconds)': '0',
+		'New_NOTFOUNDs_Received (count)': '0',
+		'Size_NOTFOUND (bytes)': '0',
+		'MaxSize_NOTFOUND (bytes)': '0',
+		'Time_NOTFOUND (milliseconds)': '0',
+		'MaxTime_NOTFOUND (milliseconds)': '0',
+		'New_PINGs_Received (count)': '0',
+		'Size_PING (bytes)': '0',
+		'MaxSize_PING (bytes)': '0',
+		'Time_PING (milliseconds)': '0',
+		'MaxTime_PING (milliseconds)': '0',
+		'New_PONGs_Received (count)': '0',
+		'Size_PONG (bytes)': '0',
+		'MaxSize_PONG (bytes)': '0',
+		'Time_PONG (milliseconds)': '0',
+		'MaxTime_PONG (milliseconds)': '0',
+		'New_REJECTs_Received (count)': '0',
+		'Size_REJECT (bytes)': '0',
+		'MaxSize_REJECT (bytes)': '0',
+		'Time_REJECT (milliseconds)': '0',
+		'MaxTime_REJECT (milliseconds)': '0',
+		'New_SENDADDRV2s_Received (count)': '0',
+		'Size_SENDADDRV2 (bytes)': '0',
+		'MaxSize_SENDADDRV2 (bytes)': '0',
+		'Time_SENDADDRV2 (milliseconds)': '0',
+		'MaxTime_SENDADDRV2 (milliseconds)': '0',
+		'New_SENDCMPCTs_Received (count)': '0',
+		'Size_SENDCMPCT (bytes)': '0',
+		'MaxSize_SENDCMPCT (bytes)': '0',
+		'Time_SENDCMPCT (milliseconds)': '0',
+		'MaxTime_SENDCMPCT (milliseconds)': '0',
+		'New_SENDHEADERSs_Received (count)': '0',
+		'Size_SENDHEADERS (bytes)': '0',
+		'MaxSize_SENDHEADERS (bytes)': '0',
+		'Time_SENDHEADERS (milliseconds)': '0',
+		'MaxTime_SENDHEADERS (milliseconds)': '0',
+		'New_SENDTXRCNCLs_Received (count)': '0',
+		'Size_SENDTXRCNCL (bytes)': '0',
+		'MaxSize_SENDTXRCNCL (bytes)': '0',
+		'Time_SENDTXRCNCL (milliseconds)': '0',
+		'MaxTime_SENDTXRCNCL (milliseconds)': '0',
+		'New_TXs_Received (count)': '0',
+		'Size_TX (bytes)': '0',
+		'MaxSize_TX (bytes)': '0',
+		'Time_TX (milliseconds)': '0',
+		'MaxTime_TX (milliseconds)': '0',
+		'New_VERACKs_Received (count)': '0',
+		'Size_VERACK (bytes)': '0',
+		'MaxSize_VERACK (bytes)': '0',
+		'Time_VERACK (milliseconds)': '0',
+		'MaxTime_VERACK (milliseconds)': '0',
+		'New_VERSIONs_Received (count)': '0',
+		'Size_VERSION (bytes)': '0',
+		'MaxSize_VERSION (bytes)': '0',
+		'Time_VERSION (milliseconds)': '0',
+		'MaxTime_VERSION (milliseconds)': '0',
+		'New_WTXIDRELAYs_Received (count)': '0',
+		'Size_WTXIDRELAY (bytes)': '0',
+		'MaxSize_WTXIDRELAY (bytes)': '0',
+		'Time_WTXIDRELAY (milliseconds)': '0',
+		'MaxTime_WTXIDRELAY (milliseconds)': '0',
+		'New_[UNDOCUMENTED]s_Received (count)': '0',
+		'Size_[UNDOCUMENTED] (bytes)': '0',
+		'MaxSize_[UNDOCUMENTED] (bytes)': '0',
+		'Time_[UNDOCUMENTED] (milliseconds)': '0',
+		'MaxTime_[UNDOCUMENTED] (milliseconds)': '0',
+		# End of getpeersmsginfoandclear
+	}
 
-def log(targetDateTime):
-	global t
-	if not bitcoinUp(): startBitcoin()
+# When a directory is finalized, we can zip it up with maximum compression, and remove the original
+def finalizeLogDirectory(directory):
+	global outputFilesToTransferPath, outputFilesToTransfer
+	print(f'Finalizing {directory}...')
+	outputFilePath = directory + '.tar.xz'
+	terminal(f'tar cvf - "{directory}" | xz -9 - > "{outputFilePath}"')
+	if os.path.exists(outputFilePath):
+		if os.path.getsize(outputFilePath) > 0:
+			terminal(f'rm -rf "{directory}"')
+		else:
+			print(f'\tFailed to compress {directory}, keeping original directory')
+			terminal(f'rm -rf "{outputFilePath}"')
+			outputFilePath = directory
+	else:
+		outputFilePath = directory
+	# Now try to copy over the outputs to our path (preferably an external storage device)
+	outputFilesToTransfer.append(outputFilePath)
+	if os.path.exists(outputFilesToTransferPath):
+		for source in outputFilesToTransfer:
+			terminal(f'cp -r "{source}" "{outputFilesToTransferPath}"')
+			print(f'\tExported {source} to {outputFilesToTransferPath}.')
+		del outputFilesToTransfer[:]
+	else:
+		for source in outputFilesToTransfer:
+			print(f'\tCould not export {source} to {outputFilesToTransferPath}, will retry next cycle.')
+
+
+
+def log(targetDateTime, previousDirectory):
+	global timerThread
+	if not bitcoinUp():
+		startBitcoin()
+	
 	timestamp = datetime.datetime.now()
+	getblockchaininfo = json.loads(bitcoin('getblockchaininfo'))
+
+	# Determine the directory to write the logs to
+	if getblockchaininfo['initialblockdownload']:
+		directory = f'Research_Logs/IBD_Research_Log'
+	else:
+		#month = timestamp.strftime("%b")
+		month = timestamp.strftime("%b") + str(int(timestamp.minute / 10) * 10) # Temporary sample every ten minute
+		year = timestamp.year
+		directory = f'Research_Logs/{month}_{year}_Research_Log'
+		# Every month, restart the Bitcoin node to get a new fresh set of peers, along with a fresh new directory
+		if len(previousDirectory) > 0 and previousDirectory != directory:
+			finalizeLogDirectory(previousDirectory)
+			restartBitcoin()
+			# Reset the target datetime to accomodate for the time just spent finalizing the sample
+			timestamp = targetDateTime = datetime.datetime.now()
+
+	if not os.path.exists(directory):
+		print('Creating directory:', directory)
+		os.makedirs(directory)
+		writeInitialMachineInfo(timestamp, directory)
+		# Reset the target datetime to accomodate for the time just spent creating the directory
+		timestamp = targetDateTime = datetime.datetime.now()
+	
+	# Call the Bitcoin Core RPC commands for logging
+	getpeerinfo = json.loads(bitcoin('getpeerinfo'))
 	getpeersmsginfoandclear = json.loads(bitcoin('getpeersmsginfoandclear'))
 	listnewbroadcastsandclear = json.loads(bitcoin('listnewbroadcastsandclear'))
-	getpeerinfo = json.loads(bitcoin('getpeerinfo'))
 	peersToUpdate = {}
 
 	for peerEntry in getpeerinfo:
 		address, port = splitAddress(peerEntry['addr'])
 		if address not in peersToUpdate:
-			peersToUpdate[address] = {
-				# Start of listnewbroadcastsandclear
-				'newBlocksReceivedCount': '0',
-				'newTransactionsReceivedCount': '0',
-				'newTransactionsReceivedFee': '0',
-				'newTransactionsReceivedSize': '0',
-				# End of listnewbroadcastsandclear
-				# Start of getpeerinfo
-				'banscore': '',
-				'fChance': '',
-				'isTerrible': '',
-				'port': '',
-				'connectionID': '',
-				'connectionDuration': '',
-				'secondsOffset': '',
-				'pingRoundTripTime': '',
-				'pingMinRoundTripTime': '',
-				'pingWaitTime': '',
-				'addressType': '',
-				'prototolVersion': '',
-				'softwareVersion': '',
-				'connectionType': '',
-				'isOutboundConnection': '',
-				'services': '',
-				'servicesEncodedInt': '',
-				'specialPermissions': '',
-				'willRelayTransactions': '',
-				'willRelayAddrs': '',
-				'numAddrsAccepted': '',
-				'numAddrsDroppedFromRateLimit': '',
-				'minTransactionFeeAccepted': '',
-				'sendCmpctEnabledToThem': '',
-				'sendCmpctEnabledFromThem': '',
-				'lastSendTime': '',
-				'bytesSent': '',
-				'bytesSentDistribution': '',
-				'lastReceiveTime': '',
-				'bytesReceived': '',
-				'bytesReceivedDistribution': '',
-				'lastTransactionTime': '',
-				'lastBlockTime': '',
-				'startingBlockHeight': '',
-				'currentBlockHeightInCommon': '',
-				'currentHeaderHeightInCommon': '',
-				# End of getpeerinfo
-				# Start of getpeersmsginfoandclear
-				'New_ADDRs_Received (count)': '0',
-				'Size_ADDR (bytes)': '0',
-				'MaxSize_ADDR (bytes)': '0',
-				'Time_ADDR (milliseconds)': '0',
-				'MaxTime_ADDR (milliseconds)': '0',
-				'New_ADDRV2s_Received (count)': '0',
-				'Size_ADDRV2 (bytes)': '0',
-				'MaxSize_ADDRV2 (bytes)': '0',
-				'Time_ADDRV2 (milliseconds)': '0',
-				'MaxTime_ADDRV2 (milliseconds)': '0',
-				'New_BLOCKs_Received (count)': '0',
-				'Size_BLOCK (bytes)': '0',
-				'MaxSize_BLOCK (bytes)': '0',
-				'Time_BLOCK (milliseconds)': '0',
-				'MaxTime_BLOCK (milliseconds)': '0',
-				'New_BLOCKTXNs_Received (count)': '0',
-				'Size_BLOCKTXN (bytes)': '0',
-				'MaxSize_BLOCKTXN (bytes)': '0',
-				'Time_BLOCKTXN (milliseconds)': '0',
-				'MaxTime_BLOCKTXN (milliseconds)': '0',
-				'New_CFCHECKPTs_Received (count)': '0',
-				'Size_CFCHECKPT (bytes)': '0',
-				'MaxSize_CFCHECKPT (bytes)': '0',
-				'Time_CFCHECKPT (milliseconds)': '0',
-				'MaxTime_CFCHECKPT (milliseconds)': '0',
-				'New_CFHEADERSs_Received (count)': '0',
-				'Size_CFHEADERS (bytes)': '0',
-				'MaxSize_CFHEADERS (bytes)': '0',
-				'Time_CFHEADERS (milliseconds)': '0',
-				'MaxTime_CFHEADERS (milliseconds)': '0',
-				'New_CFILTERs_Received (count)': '0',
-				'Size_CFILTER (bytes)': '0',
-				'MaxSize_CFILTER (bytes)': '0',
-				'Time_CFILTER (milliseconds)': '0',
-				'MaxTime_CFILTER (milliseconds)': '0',
-				'New_CMPCTBLOCKs_Received (count)': '0',
-				'Size_CMPCTBLOCK (bytes)': '0',
-				'MaxSize_CMPCTBLOCK (bytes)': '0',
-				'Time_CMPCTBLOCK (milliseconds)': '0',
-				'MaxTime_CMPCTBLOCK (milliseconds)': '0',
-				'New_FEEFILTERs_Received (count)': '0',
-				'Size_FEEFILTER (bytes)': '0',
-				'MaxSize_FEEFILTER (bytes)': '0',
-				'Time_FEEFILTER (milliseconds)': '0',
-				'MaxTime_FEEFILTER (milliseconds)': '0',
-				'New_FILTERADDs_Received (count)': '0',
-				'Size_FILTERADD (bytes)': '0',
-				'MaxSize_FILTERADD (bytes)': '0',
-				'Time_FILTERADD (milliseconds)': '0',
-				'MaxTime_FILTERADD (milliseconds)': '0',
-				'New_FILTERCLEARs_Received (count)': '0',
-				'Size_FILTERCLEAR (bytes)': '0',
-				'MaxSize_FILTERCLEAR (bytes)': '0',
-				'Time_FILTERCLEAR (milliseconds)': '0',
-				'MaxTime_FILTERCLEAR (milliseconds)': '0',
-				'New_FILTERLOADs_Received (count)': '0',
-				'Size_FILTERLOAD (bytes)': '0',
-				'MaxSize_FILTERLOAD (bytes)': '0',
-				'Time_FILTERLOAD (milliseconds)': '0',
-				'MaxTime_FILTERLOAD (milliseconds)': '0',
-				'New_GETADDRs_Received (count)': '0',
-				'Size_GETADDR (bytes)': '0',
-				'MaxSize_GETADDR (bytes)': '0',
-				'Time_GETADDR (milliseconds)': '0',
-				'MaxTime_GETADDR (milliseconds)': '0',
-				'New_GETBLOCKSs_Received (count)': '0',
-				'Size_GETBLOCKS (bytes)': '0',
-				'MaxSize_GETBLOCKS (bytes)': '0',
-				'Time_GETBLOCKS (milliseconds)': '0',
-				'MaxTime_GETBLOCKS (milliseconds)': '0',
-				'New_GETBLOCKTXNs_Received (count)': '0',
-				'Size_GETBLOCKTXN (bytes)': '0',
-				'MaxSize_GETBLOCKTXN (bytes)': '0',
-				'Time_GETBLOCKTXN (milliseconds)': '0',
-				'MaxTime_GETBLOCKTXN (milliseconds)': '0',
-				'New_GETCFCHECKPTs_Received (count)': '0',
-				'Size_GETCFCHECKPT (bytes)': '0',
-				'MaxSize_GETCFCHECKPT (bytes)': '0',
-				'Time_GETCFCHECKPT (milliseconds)': '0',
-				'MaxTime_GETCFCHECKPT (milliseconds)': '0',
-				'New_GETCFHEADERSs_Received (count)': '0',
-				'Size_GETCFHEADERS (bytes)': '0',
-				'MaxSize_GETCFHEADERS (bytes)': '0',
-				'Time_GETCFHEADERS (milliseconds)': '0',
-				'MaxTime_GETCFHEADERS (milliseconds)': '0',
-				'New_GETCFILTERSs_Received (count)': '0',
-				'Size_GETCFILTERS (bytes)': '0',
-				'MaxSize_GETCFILTERS (bytes)': '0',
-				'Time_GETCFILTERS (milliseconds)': '0',
-				'MaxTime_GETCFILTERS (milliseconds)': '0',
-				'New_GETDATAs_Received (count)': '0',
-				'Size_GETDATA (bytes)': '0',
-				'MaxSize_GETDATA (bytes)': '0',
-				'Time_GETDATA (milliseconds)': '0',
-				'MaxTime_GETDATA (milliseconds)': '0',
-				'New_GETHEADERSs_Received (count)': '0',
-				'Size_GETHEADERS (bytes)': '0',
-				'MaxSize_GETHEADERS (bytes)': '0',
-				'Time_GETHEADERS (milliseconds)': '0',
-				'MaxTime_GETHEADERS (milliseconds)': '0',
-				'New_HEADERSs_Received (count)': '0',
-				'Size_HEADERS (bytes)': '0',
-				'MaxSize_HEADERS (bytes)': '0',
-				'Time_HEADERS (milliseconds)': '0',
-				'MaxTime_HEADERS (milliseconds)': '0',
-				'New_INVs_Received (count)': '0',
-				'Size_INV (bytes)': '0',
-				'MaxSize_INV (bytes)': '0',
-				'Time_INV (milliseconds)': '0',
-				'MaxTime_INV (milliseconds)': '0',
-				'New_MEMPOOLs_Received (count)': '0',
-				'Size_MEMPOOL (bytes)': '0',
-				'MaxSize_MEMPOOL (bytes)': '0',
-				'Time_MEMPOOL (milliseconds)': '0',
-				'MaxTime_MEMPOOL (milliseconds)': '0',
-				'New_MERKLEBLOCKs_Received (count)': '0',
-				'Size_MERKLEBLOCK (bytes)': '0',
-				'MaxSize_MERKLEBLOCK (bytes)': '0',
-				'Time_MERKLEBLOCK (milliseconds)': '0',
-				'MaxTime_MERKLEBLOCK (milliseconds)': '0',
-				'New_NOTFOUNDs_Received (count)': '0',
-				'Size_NOTFOUND (bytes)': '0',
-				'MaxSize_NOTFOUND (bytes)': '0',
-				'Time_NOTFOUND (milliseconds)': '0',
-				'MaxTime_NOTFOUND (milliseconds)': '0',
-				'New_PINGs_Received (count)': '0',
-				'Size_PING (bytes)': '0',
-				'MaxSize_PING (bytes)': '0',
-				'Time_PING (milliseconds)': '0',
-				'MaxTime_PING (milliseconds)': '0',
-				'New_PONGs_Received (count)': '0',
-				'Size_PONG (bytes)': '0',
-				'MaxSize_PONG (bytes)': '0',
-				'Time_PONG (milliseconds)': '0',
-				'MaxTime_PONG (milliseconds)': '0',
-				'New_REJECTs_Received (count)': '0',
-				'Size_REJECT (bytes)': '0',
-				'MaxSize_REJECT (bytes)': '0',
-				'Time_REJECT (milliseconds)': '0',
-				'MaxTime_REJECT (milliseconds)': '0',
-				'New_SENDADDRV2s_Received (count)': '0',
-				'Size_SENDADDRV2 (bytes)': '0',
-				'MaxSize_SENDADDRV2 (bytes)': '0',
-				'Time_SENDADDRV2 (milliseconds)': '0',
-				'MaxTime_SENDADDRV2 (milliseconds)': '0',
-				'New_SENDCMPCTs_Received (count)': '0',
-				'Size_SENDCMPCT (bytes)': '0',
-				'MaxSize_SENDCMPCT (bytes)': '0',
-				'Time_SENDCMPCT (milliseconds)': '0',
-				'MaxTime_SENDCMPCT (milliseconds)': '0',
-				'New_SENDHEADERSs_Received (count)': '0',
-				'Size_SENDHEADERS (bytes)': '0',
-				'MaxSize_SENDHEADERS (bytes)': '0',
-				'Time_SENDHEADERS (milliseconds)': '0',
-				'MaxTime_SENDHEADERS (milliseconds)': '0',
-				'New_SENDTXRCNCLs_Received (count)': '0',
-				'Size_SENDTXRCNCL (bytes)': '0',
-				'MaxSize_SENDTXRCNCL (bytes)': '0',
-				'Time_SENDTXRCNCL (milliseconds)': '0',
-				'MaxTime_SENDTXRCNCL (milliseconds)': '0',
-				'New_TXs_Received (count)': '0',
-				'Size_TX (bytes)': '0',
-				'MaxSize_TX (bytes)': '0',
-				'Time_TX (milliseconds)': '0',
-				'MaxTime_TX (milliseconds)': '0',
-				'New_VERACKs_Received (count)': '0',
-				'Size_VERACK (bytes)': '0',
-				'MaxSize_VERACK (bytes)': '0',
-				'Time_VERACK (milliseconds)': '0',
-				'MaxTime_VERACK (milliseconds)': '0',
-				'New_VERSIONs_Received (count)': '0',
-				'Size_VERSION (bytes)': '0',
-				'MaxSize_VERSION (bytes)': '0',
-				'Time_VERSION (milliseconds)': '0',
-				'MaxTime_VERSION (milliseconds)': '0',
-				'New_WTXIDRELAYs_Received (count)': '0',
-				'Size_WTXIDRELAY (bytes)': '0',
-				'MaxSize_WTXIDRELAY (bytes)': '0',
-				'Time_WTXIDRELAY (milliseconds)': '0',
-				'MaxTime_WTXIDRELAY (milliseconds)': '0',
-				'New_[UNDOCUMENTED]s_Received (count)': '0',
-				'Size_[UNDOCUMENTED] (bytes)': '0',
-				'MaxSize_[UNDOCUMENTED] (bytes)': '0',
-				'Time_[UNDOCUMENTED] (milliseconds)': '0',
-				'MaxTime_[UNDOCUMENTED] (milliseconds)': '0',
-				# End of getpeersmsginfoandclear
-			}
+			peersToUpdate[address] = getPeerInfoTemplate()
 
 		if address in listnewbroadcastsandclear['new_block_broadcasts']: peersToUpdate[address]['newBlocksReceivedCount'] = listnewbroadcastsandclear['new_block_broadcasts'][address]
 		if address in listnewbroadcastsandclear['new_transaction_broadcasts']: peersToUpdate[address]['newTransactionsReceivedCount'] = listnewbroadcastsandclear['new_transaction_broadcasts'][address]
@@ -1216,36 +1337,33 @@ def log(targetDateTime):
 				peersToUpdate[address][f'Time_{msg} (milliseconds)'] = time
 				peersToUpdate[address][f'MaxTime_{msg} (milliseconds)'] = timeMax
 
-	sampleNumber = logMachineState(timestamp)
-	print(f'Adding Sample #{sampleNumber}:')
+	sampleNumber = logMachineState(timestamp, directory)
+	print(f'Adding Sample #{sampleNumber} to {directory}:')
 
 	for address in peersToUpdate:
-		logNode(address, timestamp, peersToUpdate[address])
-	print(f'    Sample successfully logged.')
+		logNode(address, timestamp, directory, peersToUpdate[address])
+	print(f'	Sample successfully logged.')
 	
-
+	# Compute the time until the next sample will run, then schedule the run
 	targetDateTime += datetime.timedelta(seconds = numSecondsPerSample)
 	offset = (targetDateTime - datetime.datetime.now()).total_seconds()
-	t = Timer(offset, log, [targetDateTime])
-	t.daemon = True
-	t.start()
+	timerThread = Timer(offset, log, [targetDateTime, directory])
+	timerThread.daemon = True
+	timerThread.start()
 
+if __name__ == '__main__':
+	if not bitcoinUp(): startBitcoin()
 
-if not bitcoinUp(): startBitcoin()
+	# Begin the timer
+	targetDateTime = datetime.datetime.now()
+	log(targetDateTime, '')
 
-if not os.path.exists(directory):
-	print('Creating directory:', directory)
-	os.makedirs(directory)
-
-targetDateTime = datetime.datetime.now()
-log(targetDateTime)
-
-while True:
-	try:
-		time.sleep(3600) # Every hour
-	except KeyboardInterrupt as e:
-		print(e)
-		t.cancel()
-		break
+	while True:
+		try:
+			time.sleep(86400) # Every day
+		except KeyboardInterrupt as e:
+			print(e)
+			timerThread.cancel()
+			break
 
 print('Logger terminated by user. Have a nice day!')
