@@ -1,10 +1,9 @@
 # TODO:
+#	- Make the date look more human readable
 #	- Add consideration for peers connecting and disconnecting between samples
 #		- Then if getpeerinfo[address] doesn't exist, just copy the stats from above, have a dummy template for if it's never received a getpeerinfo entry before
 #	- Add number of peer connections to machine_state
 #		- Also consider adding mempool size, MAYBE bucket info too
-#	- Add a block_data.csv file too, that logs all the individual info for the blocks with matching timestamps
-#		- If using getchaintips, we may even be able to capture forks and stale blocks!
 
 # Sanity checking to ensure that it behaves properly
 #	getblockfrompeer "blockhash" peer_id
@@ -31,236 +30,53 @@ import time
 # The path to copy over the finalized output files (preferably an external storage device)
 outputFilesToTransferPath = '/home/linux/Desktop/Research_Logs'
 
+# The path where the Bitcoin blockchain is stored
+bitcoinDirectory = '/home/linux/.bitcoin'
+
 #numSecondsPerSample = 60
-numSecondsPerSample = 10
+numSecondsPerSample = 1
 
 outputFilesToTransfer = []
+
 if not os.path.exists(outputFilesToTransferPath):
 	print(f'Note: {outputFilesToTransferPath} does not exist, please set it, then retry.')
 	sys.exit()
+
+if not os.path.exists(bitcoinDirectory):
+	print(f'Note: {bitcoinDirectory} does not exist, please set it, then retry.')
+	sys.exit()
+
 prevBlockHeight = None
 prevBlockHash = None
+isInStartupDownload = True
 
 # Send a command to the linux terminal
 def terminal(cmd):
-	return os.popen(cmd).read()
+    process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+    stdout, _ = process.communicate()
+    return stdout.decode('utf-8')
 
 # Send a command to the Bitcoin console
-def bitcoin(cmd):
-	# The following are mock commands to work on the implementation without requiring the node up
-	if cmd == 'getchaintips':
-		return """[
-  {
-	"height": 791846,
-	"hash": "0000000000000000000458e426948dec172ee891fd6684bcd24bb331819cc5a8",
-	"branchlen": 26,
-	"status": "headers-only"
-  },
-  {
-	"height": 791820,
-	"hash": "000000000000000000048809d486e4cd65ba16dccf7be2f2184e86011746b68b",
-	"branchlen": 0,
-	"status": "active"
-  }
-]"""
-	elif cmd == 'getblockchaininfo':
-		return """{
-  "chain": "main",
-  "blocks": 791822,
-  "headers": 791846,
-  "bestblockhash": "00000000000000000003d288db338920ac70cdc18b22680f3433415d8820bcd7",
-  "difficulty": 49549703178592.68,
-  "time": 1685299124,
-  "mediantime": 1685296654,
-  "verificationprogress": 0.9999473676814419,
-  "initialblockdownload": false,
-  "chainwork": "000000000000000000000000000000000000000049e6ee76f6527960df7dbe10",
-  "size_on_disk": 780964179,
-  "pruned": true,
-  "pruneheight": 791456,
-  "automatic_pruning": true,
-  "prune_target_size": 576716800,
-  "warnings": ""
-}"""
-	elif cmd == 'getmininginfo':
-		return """{
-  "blocks": 791846,
-  "difficulty": 49549703178592.68,
-  "networkhashps": 4.062438317971382e+20,
-  "pooledtx": 9794,
-  "chain": "main",
-  "warnings": ""
-}"""
-	elif cmd == 'getnettotals':
-		return """{
-  "totalbytesrecv": 279699994,
-  "totalbytessent": 76273873,
-  "timemillis": 1685311542470,
-  "uploadtarget": {
-	"timeframe": 86400,
-	"target": 0,
-	"target_reached": false,
-	"serve_historical_blocks": true,
-	"bytes_left_in_cycle": 0,
-	"time_left_in_cycle": 0
-  }
-}"""
-	elif cmd == 'getblock 0000000000000000000458e426948dec172ee891fd6684bcd24bb331819cc5a8':
-		return """{
-  "hash": "0000000000000000000458e426948dec172ee891fd6684bcd24bb331819cc5a8",
-  "confirmations": 1,
-  "height": 791846,
-  "version": 1073676288,
-  "versionHex": "3fff0000",
-  "merkleroot": "811bf4bb860bceabcb05a280599b27208b8f6e6e1b697cee978a7c0a8745f2d5",
-  "time": 1685310888,
-  "mediantime": 1685307490,
-  "nonce": 2067043226,
-  "bits": "1705ae3a",
-  "difficulty": 49549703178592.68,
-  "chainwork": "000000000000000000000000000000000000000049eb280bbadd1efbe547a290",
-  "nTx": 3578,
-  "previousblockhash": "000000000000000000038acddc18db9829a8e4517d321cf29b88e89eeee05e50",
-  "strippedsize": 746634,
-  "size": 1753537,
-  "weight": 3993439,
-  "tx": [
-	"ec0dba36a961cf78448b2d4bd5291eed74f3f1ef6e881f770f86cfeebb6dd74b",
-	"356d93bafe9506cbc278b1e5ee78621d16c24c522cafd4f68ce20927757b23f0"
-  ]
-}"""
-	elif cmd == 'gettxout ec0dba36a961cf78448b2d4bd5291eed74f3f1ef6e881f770f86cfeebb6dd74b 0':
-		return """{
-  "bestblock": "00000000000000000000ef263c1a23ba30872e9982352562df5e84115b806050",
-  "confirmations": 3,
-  "value": 6.75362791,
-  "scriptPubKey": {
-	"asm": "OP_HASH160 4b09d828dfc8baaba5d04ee77397e04b1050cc73 OP_EQUAL",
-	"desc": "addr(38XnPvu9PmonFU9WouPXUjYbW91wa5MerL)#ap48vquh",
-	"hex": "a9144b09d828dfc8baaba5d04ee77397e04b1050cc7387",
-	"address": "38XnPvu9PmonFU9WouPXUjYbW91wa5MerL",
-	"type": "scripthash"
-  },
-  "coinbase": true
-}"""
-	elif cmd == 'getblockstats 791846':
-		return """{
-  "avgfee": 14079,
-  "avgfeerate": 50,
-  "avgtxsize": 490,
-  "blockhash": "0000000000000000000458e426948dec172ee891fd6684bcd24bb331819cc5a8",
-  "feerate_percentiles": [
-	28,
-	37,
-	43,
-	53,
-	81
-  ],
-  "height": 791846,
-  "ins": 6005,
-  "maxfee": 797347,
-  "maxfeerate": 1948,
-  "maxtxsize": 45581,
-  "medianfee": 7319,
-  "mediantime": 1685307490,
-  "mediantxsize": 316,
-  "minfee": 1925,
-  "minfeerate": 15,
-  "mintxsize": 150,
-  "outs": 10725,
-  "subsidy": 625000000,
-  "swtotal_size": 1665404,
-  "swtotal_weight": 3641015,
-  "swtxs": 3345,
-  "time": 1685310888,
-  "total_out": 542930816532,
-  "total_size": 1753150,
-  "total_weight": 3991999,
-  "totalfee": 50362791,
-  "txs": 3578,
-  "utxo_increase": 4720,
-  "utxo_size_inc": 366048,
-  "utxo_increase_actual": 4702,
-  "utxo_size_inc_actual": 363937
-}"""
-	elif cmd == 'getchaintxstats 1 "0000000000000000000458e426948dec172ee891fd6684bcd24bb331819cc5a8"':
-			return """{
-  "time": 1685310888,
-  "txcount": 844906653,
-  "window_final_block_hash": "0000000000000000000458e426948dec172ee891fd6684bcd24bb331819cc5a8",
-  "window_final_block_height": 791846,
-  "window_block_count": 1,
-  "window_tx_count": 3578,
-  "window_interval": 745,
-  "txrate": 4.802684563758389
-}"""
-	elif cmd == 'getmempoolinfo':
-		return """{
-  "loaded": true,
-  "size": 12017,
-  "bytes": 26109830,
-  "usage": 80949680,
-  "total_fee": 3.20091376,
-  "maxmempool": 300000000,
-  "mempoolminfee": 0.00001000,
-  "minrelaytxfee": 0.00001000,
-  "incrementalrelayfee": 0.00001000,
-  "unbroadcastcount": 0,
-  "fullrbf": false
-}"""
-	else:
-		return terminal('./src/bitcoin-cli -rpcuser=cybersec -rpcpassword=kZIdeN4HjZ3fp9Lge4iezt0eJrbjSi8kuSuOHeUkEUbQVdf09JZXAAGwF3R5R2qQkPgoLloW91yTFuufo7CYxM2VPT7A5lYeTrodcLWWzMMwIrOKu7ZNiwkrKOQ95KGW8kIuL1slRVFXoFpGsXXTIA55V3iUYLckn8rj8MZHBpmdGQjLxakotkj83ZlSRx1aOJ4BFxdvDNz0WHk1i2OPgXL4nsd56Ph991eKNbXVJHtzqCXUbtDELVf4shFJXame -rpcport=8332 ' + str(cmd))
-
-# 'getblockchaininfo':
-# 		return """{
-#   "chain": "main",
-#   "blocks": 791822,
-#   "headers": 791846,
-#   "bestblockhash": "00000000000000000003d288db338920ac70cdc18b22680f3433415d8820bcd7",
-#   "difficulty": 49549703178592.68,
-#   "time": 1685299124,
-#   "mediantime": 1685296654,
-#   "verificationprogress": 0.9999473676814419,
-#   "initialblockdownload": false,
-#   "chainwork": "000000000000000000000000000000000000000049e6ee76f6527960df7dbe10",
-#   "size_on_disk": 780964179,
-#   "pruned": true,
-#   "pruneheight": 791456,
-#   "automatic_pruning": true,
-#   "prune_target_size": 576716800,
-#   "warnings": ""
-# }"""
-
-# 'getchaintips':
-# 		return """getblock[
-#   {
-# 	"height": 791846,
-# 	"hash": "0000000000000000000458e426948dec172ee891fd6684bcd24bb331819cc5a8",
-# 	"branchlen": 26,
-# 	"status": "headers-only"
-#   },
-#   {
-# 	"height": 791820,
-# 	"hash": "000000000000000000048809d486e4cd65ba16dccf7be2f2184e86011746b68b",
-# 	"branchlen": 0,
-# 	"status": "active"
-#   }
+def bitcoin(cmd, isJSON):
+	response = terminal('./src/bitcoin-cli -rpcuser=cybersec -rpcpassword=kZIdeN4HjZ3fp9Lge4iezt0eJrbjSi8kuSuOHeUkEUbQVdf09JZXAAGwF3R5R2qQkPgoLloW91yTFuufo7CYxM2VPT7A5lYeTrodcLWWzMMwIrOKu7ZNiwkrKOQ95KGW8kIuL1slRVFXoFpGsXXTIA55V3iUYLckn8rj8MZHBpmdGQjLxakotkj83ZlSRx1aOJ4BFxdvDNz0WHk1i2OPgXL4nsd56Ph991eKNbXVJHtzqCXUbtDELVf4shFJXame -rpcport=8332 ' + str(cmd)).strip()
+	if not isJSON: return response
+	return json.loads(response)
 
 # Generate the block information CSV header line
-def makeBlockchainStateHeader():
+def makeBlockStateHeader():
 	line = 'Timestamp,'
 	line += 'Timestamp (UNIX epoch),'
 	line += 'Time Since Last Sample (seconds),'
 	line += 'Block Height,'
 	line += 'Block Status,'
 	line += 'Is Block Stale,'
+	line += 'Fork Length,'
 	line += 'Block Timestamp (UNIX epoch),'
 	line += 'Median Timestamp of Last 11 Blocks (to prevent timestamp manipulation),'
 	line += 'Transaction Rate (tx/second),'
 	line += 'Number of Confirmations,'
 	line += 'Block Hash,'
-	line += 'Previous Block Hash,'
-	line += 'Next Block Hash (if known),'
+	line += 'Previous Block Hash (if known),'
 	line += 'Block Size (bytes),'
 	line += 'Block Size Including Segregated Witnesses (bytes),'
 	line += 'Stripped Size (excluding witness data) (bytes),'
@@ -269,11 +85,6 @@ def makeBlockchainStateHeader():
 	line += 'Weight (BIP 141),'
 	line += 'Version,'
 	line += 'Nonce,'
-	line += 'Coinbase Subsidy Reward Without Fees (satoshi),'
-	line += 'Coinbase Subsidy Reward With Fees (satoshi),'
-	line += 'Coinbase Address (Block Solver),'
-	line += 'Coinbase Transaction Type (),'
-	line += 'Coinbase Transaction Assembly,'
 	line += 'Number of Transactions (Tx),'
 	line += 'Number of Tx Inputs,'
 	line += 'Number of Tx Outputs,'
@@ -298,32 +109,16 @@ def makeBlockchainStateHeader():
 	line += 'Number of Segregated Witness Txs,'
 	line += 'Total Segregated Witness Tx Sizes (bytes),'
 	line += 'Total Segregated Witness Tx Weights (bytes),'
+	line += 'Coinbase Subsidy Reward Without Fees (satoshi),'
+	line += 'Coinbase Subsidy Reward With Fees (satoshi),'
+	line += 'Coinbase Address (Block Solver),'
+	line += 'Coinbase Transaction Type,'
+	line += 'Coinbase Transaction Assembly,'
 	return line
 
 # If any new blocks exist, log them
-def maybeLogBlock(timestamp, directory, getblockchaininfo, getchaintips):
-	global prevBlockHeight, prevBlockHash
-
-#!!!!!!!!!!! put this into the machine state info along with numpeers
-# 		elif cmd == 'getblockchaininfo':
-# 		return """{
-#   "chain": "main",
-#   "blocks": 791822,
-#   "headers": 791846,
-#   "bestblockhash": "00000000000000000003d288db338920ac70cdc18b22680f3433415d8820bcd7",
-#   "difficulty": 49549703178592.68,
-#   "time": 1685299124,
-#   "mediantime": 1685296654,
-#   "verificationprogress": 0.9999473676814419,
-#   "initialblockdownload": false,
-#   "chainwork": "000000000000000000000000000000000000000049e6ee76f6527960df7dbe10",
-#   "size_on_disk": 780964179,
-#   "pruned": true,
-#   "pruneheight": 791456,
-#   "automatic_pruning": true,
-#   "prune_target_size": 576716800,
-#   "warnings": ""
-# }"""
+def maybeLogBlockState(timestamp, directory, getblockchaininfo, getchaintips):
+	global prevBlockHeight, prevBlockHash, isInStartupDownload
 
 	# Quickly check if any new blocks have arrived, if they haven't 
 	if prevBlockHash is not None:
@@ -380,32 +175,72 @@ def maybeLogBlock(timestamp, directory, getblockchaininfo, getchaintips):
 	# Construct an array of all the tips we want to process
 	numBlocks = activeTip['height'] - prevBlockHeight + 1
 	tipsToProcess = []
-	for height in range(prevBlockHeight, activeTip['height'] + 1):
+	for height in range(prevBlockHeight + 1, activeTip['height']):
 		tipsToProcess.append({
 			'height': height,
-			'status': 'active',
+			'hash': '',
+			'status': activeTip['status'],
+			'forkLength': activeTip['branchlen'],
 			'isStale': '0',
 		})
+	tipsToProcess.append({
+		'height': activeTip['height'],
+		'hash': activeTip['hash'],
+		'status': activeTip['status'],
+		'forkLength': activeTip['branchlen'],
+		'isStale': '0',
+	})
 	for tip in getchaintips:
 		tipsToProcess.append({
 			'height': tip['height'],
+			'hash': tip['hash'],
 			'status': tip['status'],
+			'forkLength': tip['branchlen'],
 			'isStale': '1',
 		})
+
+	if len(tipsToProcess) == 1:
+		isInStartupDownload = False
 
 	# Now loop through all the tips and log each one as a separate line in the CSV
 	lines = ''
 	for tip in tipsToProcess:
-
 		height = tip['height']
 		tipStatus = tip['status']
 		tipIsStale = tip['isStale']
+		forkLength = tip['forkLength']
+		blockHash = tip['hash']
+		try:
+			getblockstats = bitcoin(f'getblockstats {height}', True)
+			if blockHash == '': blockHash = getblockstats['blockhash']
+		except:
+			getblockstats = {'avgfee':'','avgfeerate':'','avgtxsize':'','blockhash':'','feerate_percentiles':['','','','',''],'height':'','ins':'','maxfee':'','maxfeerate':'','maxtxsize':'','medianfee':'','mediantime':'','mediantxsize':'','minfee':'','minfeerate':'','mintxsize':'','outs':'','subsidy':'','swtotal_size':'','swtotal_weight':'','swtxs':'','time':'','total_out':'','total_size':'','total_weight':'','totalfee':'','txs':'','utxo_increase':'','utxo_size_inc':'','utxo_increase_actual':'','utxo_size_inc_actual':''}
+		
+		# During initial block download mode, don't log the target header since we don't have that information
+		if blockHash == '' and (allowSkippedBlocks or isInStartupDownload): continue
+		
+		try:
+			getblock = bitcoin(f'getblock {blockHash}', True)
+		except:
+			try:
+				# If the block doesn't work, try the header instead, it just won't have the transaction info
+				getblock = bitcoin(f'getblockheader {blockHash}', True)
+			except:
+				if allowSkippedBlocks or isInStartupDownload: continue
+				getblock = {'hash':'','confirmations':'','height':'','version':'','versionHex':'','merkleroot':'','time':'','mediantime':'','nonce':'','bits':'','difficulty':'','chainwork':'','nTx':'','previousblockhash':'','strippedsize':'','size':'','weight':'','tx':''}
 
-		getblockstats = json.loads(bitcoin(f'getblockstats {height}'))
-		blockHash = getblockstats['blockhash']
-		getblock = json.loads(bitcoin(f'getblock {blockHash}'))
-		coinbaseTransactionHash = getblock['tx'][0]
-		gettxout = json.loads(bitcoin(f'gettxout {coinbaseTransactionHash} 0'))
+		try:
+			coinbaseTransactionHash = getblock['tx'][0]
+			gettxout = bitcoin(f'gettxout {coinbaseTransactionHash} 0', True)
+		except:
+			coinbaseTransactionHash = ''
+			gettxout = {'bestblock':'','confirmations':'','value':'','scriptPubKey':{'asm':'','desc':'','hex':'','address':'','type':''},'coinbase':True}
+
+		try:
+			getchaintxstats = bitcoin(f'getchaintxstats {numBlocks} "{blockHash}"', True)
+		except:
+			getchaintxstats = {'time':'','txcount':'','window_final_block_hash':'','window_final_block_height':'','window_block_count':'','window_tx_count':'','window_interval':'','txrate':''}
+
 
 		# Quick sanity checking just to ensure that this is indeed the coinbase transaction
 		if gettxout['coinbase'] is not True:
@@ -424,14 +259,13 @@ def maybeLogBlock(timestamp, directory, getblockchaininfo, getchaintips):
 				'coinbase': True
 			}
 
-		getchaintxstats = json.loads(bitcoin(f'getchaintxstats {numBlocks} "{blockHash}"'))
-
-		lines = str(timestamp) + ','
+		lines += str(timestamp) + ','
 		lines += str(timestampSeconds) + ','
 		lines += str(timeSinceLastSample) + ','
 		lines += str(height) + ','
 		lines += str(tipStatus) + ','
 		lines += str(tipIsStale) + ','
+		lines += str(forkLength) + ','
 		lines += str(getblock['time']) + ','
 		lines += str(getblock['mediantime']) + ',' # Same as getblockstats['mediantime']
 		if 'txrate' in getchaintxstats: lines += str(getchaintxstats['txrate']) + ','
@@ -439,8 +273,6 @@ def maybeLogBlock(timestamp, directory, getblockchaininfo, getchaintips):
 		lines += str(getblock['confirmations']) + ','
 		lines += str(blockHash) + ','
 		if 'previousblockhash' in getblockstats: lines += str(getblockstats['previousblockhash']) + ','
-		else: lines += ','
-		if 'nextblockhash' in getblockstats: lines += str(getblockstats['nextblockhash']) + ','
 		else: lines += ','
 
 		lines += str(getblock['size']) + ','
@@ -451,13 +283,6 @@ def maybeLogBlock(timestamp, directory, getblockchaininfo, getchaintips):
 		lines += str(getblock['weight']) + ','
 		lines += str(getblock['version']) + ','
 		lines += str(getblock['nonce']) + ','
-		if 'subsidy' in getblockstats: lines += str(getblockstats['subsidy']) + ','
-		else: lines += ','
-		lines += str(gettxout['value'] * 100000000) + ',' # Same as getblockstats['subsidy'] + getblockstats['totalfee']
-		if 'address' in gettxout['scriptPubKey']: lines += str(gettxout['scriptPubKey']['address']) + ','
-		else: lines += ','
-		lines += str(gettxout['scriptPubKey']['type']) + ','
-		lines += str(gettxout['scriptPubKey']['asm']) + ','
 		lines += str(getblock['nTx']) + ',' # Same as getblockstats['txs']
 		if 'ins' in getblockstats: lines += str(getblockstats['ins']) + ','
 		else: lines += ','
@@ -502,14 +327,25 @@ def maybeLogBlock(timestamp, directory, getblockchaininfo, getchaintips):
 		else: lines += ','
 		if 'swtotal_weight' in getblockstats: lines += str(getblockstats['swtotal_weight']) + ','
 		else: lines += ','
+		if 'subsidy' in getblockstats: lines += str(getblockstats['subsidy']) + ','
+		else: lines += ','
+		lines += str(gettxout['value'] * 100000000) + ',' # Same as getblockstats['subsidy'] + getblockstats['totalfee']
+		if 'address' in gettxout['scriptPubKey']: lines += str(gettxout['scriptPubKey']['address']) + ','
+		else: lines += ','
+		lines += str(gettxout['scriptPubKey']['type']) + ','
+		lines += str(gettxout['scriptPubKey']['asm']) + ','
 		lines += '\n'
+		
+		print(f'\tLogged {tipStatus} block at height {height}.')
+		# Update the previous block info
+		if tipStatus == 'active':
+			prevBlockHash = blockHash
+			prevBlockHeight = height
+		timeSinceLastSample = 0
 
 	# Finally, write the blockchain info to the output file
 	file.write(lines)
-
-	# Update the previous block info
-	prevBlockHash = activeTip['hash']
-	prevBlockHeight = activeTip['height']
+	file.close()
 	return
 
 # Check if the Bitcoin Core instance is up
@@ -518,15 +354,21 @@ def bitcoinUp():
 
 # Start the Bitcoin Core instance
 def startBitcoin():
+	global isInStartupDownload
+	if not bitcoinUp():
+		# If Bitcoin crashed for whatever reason before, remove the PID that would prevent it from starting again
+		terminal(f'rm -rf {os.path.join(bitcoinDirectory, "bitcoind.pid")}')
+
 	print('Starting Bitcoin...')
 	subprocess.Popen(['gnome-terminal -t "Bitcoin Core Instance" -- bash ./run.sh'], shell=True)
 	rpcReady = False
 	while rpcReady is False:
 		time.sleep(1)
 		try:
-			blockHeight = int(bitcoin('getblockcount'))
+			blockHeight = int(bitcoin('getblockcount', False))
 			rpcReady = True
 		except: pass
+	isInStartupDownload = True
 	print('Bitcoin is up and ready to go')
 
 # Stop the Bitcoin Core instance
@@ -549,10 +391,12 @@ def stopBitcoin():
 
 # Restart the Bitcoin Core instance
 def restartBitcoin():
+	global isInStartupDownload
 	print('Restarting Bitcoin...')
 	stopBitcoin()
 	while not bitcoinUp():
 		startBitcoin()
+	isInStartupDownload = True
 
 # Generate the machine info CSV header line
 def writeInitialMachineInfo(timestamp, directory):
@@ -565,6 +409,7 @@ def writeInitialMachineInfo(timestamp, directory):
 	contents += '\nNetwork (ifconfig):\n'
 	contents += '\t' + terminal('ifconfig').strip().replace('\n', '\n\t') + '\n'
 	contents += '\nMemory (cat /proc/meminfo):\n'
+	contents += '\tRAM:' + (str(round(psutil.virtual_memory().total / (1024.0 ** 3))) + ' GB').rjust(23) + '\n'
 	contents += '\t' + terminal('cat /proc/meminfo').strip().replace('\n', '\n\t') + '\n'
 	contents += '\nPython (python3 --version):\n'
 	contents += '\t' + terminal('python3 --version').strip().replace('\n', '\n\t') + '\n'
@@ -806,36 +651,6 @@ def makeMainPeerHeader():
 	line += 'Max Time [UNDOCUMENTED] (milliseconds),'
 	return line
 
-# Generate the machine state CSV header line
-def makeMachineStateHeader():
-	line = 'Timestamp,'
-	line += 'Timestamp (UNIX epoch),'
-	line += 'Time Since Last Sample (seconds),'
-	line += 'Platform,'
-	line += 'Processor,'
-	line += 'Processor Cores,'
-	line += 'RAM,'
-	line += 'Network Interface,'
-	line += 'Network Bytes Sent (bytes),'
-	line += 'Network Bytes Received (bytes),'
-	line += 'Network Packets Sent (packets),'
-	line += 'Network Packets Received (packets),'
-	line += 'Current Machine CPU (percent),'
-	line += 'Current Machine CPU Frequency (megahertz),'
-	line += 'Current Machine Virtual Memory (percent),'
-	line += 'Current Machine Virtual Memory (bytes),'
-	line += 'Current Machine Swap Memory (percent),'
-	line += 'Current Machine Swap Memory (bytes),'
-	line += 'Current Machine Disk Usage (percent),'
-	line += 'Current Machine Disk Usage (bytes),'
-	line += 'Bitcoin Process ID,'
-	line += 'Bitcoin Process Virtual Memory (bytes),'
-	line += 'Bitcoin Process Memory (bytes),'
-	line += 'Bitcoin Process Shared Memory (bytes),'
-	line += 'Bitcoin Process Memory (percent),'
-	line += 'Bitcoin Process CPU (percent),'
-	return line
-
 # Given a raw memory string from the linux "top" command, return the number of bytes
 # 1 EiB = 1024 * 1024 * 1024 * 1024 * 1024 * 1024 bytes
 # 1 PiB = 1024 * 1024 * 1024 * 1024 * 1024 bytes
@@ -926,8 +741,52 @@ def splitAddress(address):
 	address = ':'.join(split)
 	return address, port
 
+# Generate the machine state CSV header line
+def makeMachineStateHeader():
+	line = 'Timestamp,'
+	line += 'Timestamp (UNIX epoch),'
+	line += 'Time Since Last Sample (seconds),'
+	line += 'Median Timestamp of Last 11 Blocks (to prevent timestamp manipulation),'
+	line += 'Number of Inbound Peer Connections,'
+	line += 'Number of Outbound Peer Connections,'
+	line += 'Blockchain Warning Message,'
+	line += 'Is Blockchain in Initial Block Download,'
+	line += 'Blockchain Verification Progress (%),'
+	line += 'Blockchain Number of Blocks,'
+	line += 'Blockchain Number of Headers,'
+	line += 'Blockchain Size (bytes),'
+	line += 'Is Blockchain Pruned,'
+	line += 'Maximum Pruned Blockchain Size (bytes),'
+	line += 'Pruned Block Height,'
+	line += 'Is Mempool Fully Loaded,'
+	line += 'Number of Mempool Transactions,'
+	line += 'Mempool Transaction Sizes (BIP 141) (bytes),'
+	line += 'Total Mempool Size (bytes),'
+	line += 'Maximum Total Mempool Size (bytes),'
+	line += 'Minimum Tx Fee to be Accepted (BTC/kilobyte),'
+	line += 'Transactions that Haven\'t Passed the Initial Broadcast,'
+	line += 'Network Bytes Sent (bytes),'
+	line += 'Network Bytes Received (bytes),'
+	line += 'Network Packets Sent (packets),'
+	line += 'Network Packets Received (packets),'
+	line += 'Current Machine CPU (percent),'
+	line += 'Current Machine CPU Frequency (megahertz),'
+	line += 'Current Machine Virtual Memory (percent),'
+	line += 'Current Machine Virtual Memory (bytes),'
+	line += 'Current Machine Swap Memory (percent),'
+	line += 'Current Machine Swap Memory (bytes),'
+	line += 'Current Machine Disk Usage (percent),'
+	line += 'Current Machine Disk Usage (bytes),'
+	line += 'Bitcoin Process ID,'
+	line += 'Bitcoin Process Virtual Memory (bytes),'
+	line += 'Bitcoin Process Memory (bytes),'
+	line += 'Bitcoin Process Shared Memory (bytes),'
+	line += 'Bitcoin Process Memory (percent),'
+	line += 'Bitcoin Process CPU (percent),'
+	return line
+
 # Log the state of the machine to file, returns the sample number
-def logMachineState(timestamp, directory):
+def logMachineState(timestamp, directory, getpeerinfo, getblockchaininfo, getmempoolinfo):
 	filePath = os.path.join(directory, 'machine_state_info.csv')
 	if not os.path.exists(filePath):
 		print(f'Creating machine state file')
@@ -972,14 +831,34 @@ def logMachineState(timestamp, directory):
 	networkData = getNetworkData()
 	individualProcessData = logIndividualProcess('bitcoind')
 
+	numInboundPeers = 0
+	numOutboundPeers = 0
+	for peer in getpeerinfo:
+		if peer['inbound']: numInboundPeers += 1
+		else: numOutboundPeers += 1
+
 	line = str(timestamp) + ','
 	line += str(timestampSeconds) + ','
 	line += str(timeSinceLastSample) + ','
-	line += '"' + str(platform.platform()) + '",'
-	line += '"' + str(platform.processor()) + '",'
-	line += str(psutil.cpu_count()) + ','
-	line += str(round(psutil.virtual_memory().total / (1024.0 ** 3))) + ' GB,'
-	line += '"' + str(networkData['interface']) + '",'
+	line += str(getblockchaininfo['mediantime']) + ','
+	line += str(numInboundPeers) + ','
+	line += str(numOutboundPeers) + ','
+	line += str(getblockchaininfo['warnings']) + ','
+	line += str(1 if getblockchaininfo['initialblockdownload'] else 0) + ','
+	line += str(getblockchaininfo['verificationprogress'] * 100) + ','
+	line += str(getblockchaininfo['blocks']) + ','
+	line += str(getblockchaininfo['headers']) + ','
+	line += str(getblockchaininfo['size_on_disk']) + ','
+	line += str(1 if getblockchaininfo['pruned'] else 0) + ','
+	line += str(getblockchaininfo['prune_target_size']) + ','
+	line += str(getblockchaininfo['pruneheight']) + ','
+	line += str(1 if getmempoolinfo['loaded'] else 0) + ','
+	line += str(getmempoolinfo['size']) + ','
+	line += str(getmempoolinfo['bytes']) + ','
+	line += str(getmempoolinfo['usage']) + ','
+	line += str(getmempoolinfo['maxmempool']) + ','
+	line += str(getmempoolinfo['mempoolminfee']) + ','
+	line += str(getmempoolinfo['unbroadcastcount']) + ','
 	line += str(networkData['bytes_sent']) + ','
 	line += str(networkData['bytes_received']) + ','
 	line += str(networkData['packets_sent']) + ','
@@ -999,6 +878,7 @@ def logMachineState(timestamp, directory):
 	line += str(individualProcessData['memory_percent']) + ','
 	line += str(individualProcessData['cpu_percent']) + ','
 	file.write(line + '\n')
+	file.close()
 	return numPrevLines
 
 # Log the state of the node to file, returns the sample number
@@ -1273,7 +1153,6 @@ def logNode(address, timestamp, directory, updateInfo):
 	line += str(updateInfo['MaxSize_[UNDOCUMENTED] (bytes)']) + ','
 	line += str(updateInfo['Time_[UNDOCUMENTED] (milliseconds)']) + ','
 	line += str(updateInfo['MaxTime_[UNDOCUMENTED] (milliseconds)']) + ','
-
 	file.write(line + '\n')
 	file.close()
 
@@ -1546,7 +1425,7 @@ def log(targetDateTime, previousDirectory):
 		startBitcoin()
 	
 	timestamp = datetime.datetime.now()
-	getblockchaininfo = json.loads(bitcoin('getblockchaininfo'))
+	getblockchaininfo = bitcoin('getblockchaininfo', True)
 
 	# Determine the directory to write the logs to
 	if getblockchaininfo['initialblockdownload']:
@@ -1563,7 +1442,7 @@ def log(targetDateTime, previousDirectory):
 			restartBitcoin()
 			# Reset the target datetime to accomodate for the time just spent finalizing the sample
 			timestamp = targetDateTime = datetime.datetime.now()
-			getblockchaininfo = json.loads(bitcoin('getblockchaininfo'))
+			getblockchaininfo = bitcoin('getblockchaininfo', True)
 
 	if not os.path.exists(directory):
 		print('Creating directory:', directory)
@@ -1571,10 +1450,11 @@ def log(targetDateTime, previousDirectory):
 		writeInitialMachineInfo(timestamp, directory)
 	
 	# Call the Bitcoin Core RPC commands for logging
-	getpeerinfo = json.loads(bitcoin('getpeerinfo'))
-	getpeersmsginfoandclear = json.loads(bitcoin('getpeersmsginfoandclear'))
-	listnewbroadcastsandclear = json.loads(bitcoin('listnewbroadcastsandclear'))
-	getchaintips = json.loads(bitcoin('getchaintips'))
+	getpeerinfo = bitcoin('getpeerinfo', True)
+	getpeersmsginfoandclear = bitcoin('getpeersmsginfoandclear', True)
+	listnewbroadcastsandclear = bitcoin('listnewbroadcastsandclear', True)
+	getchaintips = bitcoin('getchaintips', True)
+	getmempoolinfo = bitcoin('getmempoolinfo', True)
 	peersToUpdate = {}
 
 	for peerEntry in getpeerinfo:
@@ -1641,10 +1521,10 @@ def log(targetDateTime, previousDirectory):
 				peersToUpdate[address][f'Time_{msg} (milliseconds)'] = time
 				peersToUpdate[address][f'MaxTime_{msg} (milliseconds)'] = timeMax
 
-	sampleNumber = logMachineState(timestamp, directory)
+	sampleNumber = logMachineState(timestamp, directory, getpeerinfo, getblockchaininfo, getmempoolinfo)
 	print(f'Adding Sample #{sampleNumber} to {directory}:')
 
-	maybeLogBlock(timestamp, directory, getblockchaininfo, getchaintips)
+	maybeLogBlockState(timestamp, directory, getblockchaininfo, getchaintips)
 
 	for address in peersToUpdate:
 		logNode(address, timestamp, directory, peersToUpdate[address])
