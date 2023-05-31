@@ -1,9 +1,7 @@
 # TODO:
-#	- Make the date look more human readable
 #	- Add consideration for peers connecting and disconnecting between samples
 #		- Then if getpeerinfo[address] doesn't exist, just copy the stats from above, have a dummy template for if it's never received a getpeerinfo entry before
-#	- Add number of peer connections to machine_state
-#		- Also consider adding mempool size, MAYBE bucket info too
+#	- Add MAYBE bucket info too
 
 # Sanity checking to ensure that it behaves properly
 #	getblockfrompeer "blockhash" peer_id
@@ -18,6 +16,8 @@
 from threading import Timer
 import datetime
 import json
+import logging
+import traceback
 import os
 import platform
 import psutil
@@ -28,13 +28,14 @@ import sys
 import time
 
 # The path to copy over the finalized output files (preferably an external storage device)
-outputFilesToTransferPath = '/home/linux/Desktop/Research_Logs'
+outputFilesToTransferPath = '/media/research/BTC/Official_Research_Logs'
 
 # The path where the Bitcoin blockchain is stored
 bitcoinDirectory = '/home/linux/.bitcoin'
 
 #numSecondsPerSample = 60
 numSecondsPerSample = 1
+timePrecision = 1000 # Keep three decimal points for times
 
 outputFilesToTransfer = []
 
@@ -46,15 +47,16 @@ if not os.path.exists(bitcoinDirectory):
 	print(f'Note: {bitcoinDirectory} does not exist, please set it, then retry.')
 	sys.exit()
 
+# Initialize the global Bitcoin-related variables
 prevBlockHeight = None
 prevBlockHash = None
 isInStartupDownload = True
 
 # Send a command to the linux terminal
 def terminal(cmd):
-    process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
-    stdout, _ = process.communicate()
-    return stdout.decode('utf-8')
+	process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+	stdout, _ = process.communicate()
+	return stdout.decode('utf-8')
 
 # Send a command to the Bitcoin console
 def bitcoin(cmd, isJSON):
@@ -132,13 +134,13 @@ def maybeLogBlockState(timestamp, directory, getblockchaininfo, getchaintips):
 	if not os.path.exists(filePath):
 		print(f'Creating blockchain state file')
 		file = open(filePath, 'w')
-		file.write(makeBlockchainStateHeader() + '\n')
+		file.write(makeBlockStateHeader() + '\n')
 		prevLine = ''
 	else:
 		# Read the last line from the file
 		with open(filePath, 'r') as f:
 			prevLines = f.readlines()
-			if len(prevLines) > 1: prevLine = prevLines[-1].split(',')
+			if len(prevLines) > 1: prevLine = splitIndividualCsvLine(prevLines[-1])
 			else: prevLine = ''
 		# Try to open the file for appending, loop until successful
 		attempts = 0
@@ -151,11 +153,13 @@ def maybeLogBlockState(timestamp, directory, getblockchaininfo, getchaintips):
 				print(f'{e}, attempt {attempts}')
 				time.sleep(1)
  
-	timestampSeconds = (timestamp - datetime.datetime(1970, 1, 1)).total_seconds()
+	timestampSeconds = int(timestamp.astimezone(datetime.timezone.utc).timestamp() * timePrecision) / timePrecision
+	# Ignoring timezone: timestampSeconds = (timestamp - datetime.datetime(1970, 1, 1)).total_seconds()
+	
 	if prevLine == '':
 		timeSinceLastSample = ''
 	else: 
-		timeSinceLastSample = timestampSeconds - float(prevLine[1])
+		timeSinceLastSample = int((timestampSeconds - float(prevLine[1])) * timePrecision) / timePrecision
 
 	# If we're in IBD mode, then don't try to iterate through the blocks between samples, otherwise, if more than one block arrives during a sample they'll all be logged
 	allowSkippedBlocks = getblockchaininfo['initialblockdownload']
@@ -222,11 +226,16 @@ def maybeLogBlockState(timestamp, directory, getblockchaininfo, getchaintips):
 		try:
 			getblock = bitcoin(f'getblock {blockHash}', True)
 		except:
+			if allowSkippedBlocks or isInStartupDownload: continue
 			try:
 				# If the block doesn't work, try the header instead, it just won't have the transaction info
 				getblock = bitcoin(f'getblockheader {blockHash}', True)
+				getblockmock = {'hash':'','confirmations':'','height':'','version':'','versionHex':'','merkleroot':'','time':'','mediantime':'','nonce':'','bits':'','difficulty':'','chainwork':'','nTx':'','previousblockhash':'','strippedsize':'','size':'','weight':'','tx':''}
+				for key in getblockmock:
+					# Fill in the missing fields, such as 'size'
+					if key not in getblock:
+						getblock[key] = getblockmock[key]
 			except:
-				if allowSkippedBlocks or isInStartupDownload: continue
 				getblock = {'hash':'','confirmations':'','height':'','version':'','versionHex':'','merkleroot':'','time':'','mediantime':'','nonce':'','bits':'','difficulty':'','chainwork':'','nTx':'','previousblockhash':'','strippedsize':'','size':'','weight':'','tx':''}
 
 		try:
@@ -259,7 +268,7 @@ def maybeLogBlockState(timestamp, directory, getblockchaininfo, getchaintips):
 				'coinbase': True
 			}
 
-		lines += str(timestamp) + ','
+		lines += '"' + timestamp.strftime('%A, %b %d %Y, %-I:%M:%S %p ') + time.tzname[time.localtime().tm_isdst] + '",'
 		lines += str(timestampSeconds) + ','
 		lines += str(timeSinceLastSample) + ','
 		lines += str(height) + ','
@@ -360,9 +369,12 @@ def startBitcoin():
 		terminal(f'rm -rf {os.path.join(bitcoinDirectory, "bitcoind.pid")}')
 
 	print('Starting Bitcoin...')
-	subprocess.Popen(['gnome-terminal -t "Bitcoin Core Instance" -- bash ./run.sh'], shell=True)
 	rpcReady = False
 	while rpcReady is False:
+		if not bitcoinUp():
+			subprocess.Popen(['gnome-terminal -t "Bitcoin Core Instance" -- bash ./run.sh'], shell=True)
+			time.sleep(5)
+
 		time.sleep(1)
 		try:
 			blockHeight = int(bitcoin('getblockcount', False))
@@ -418,13 +430,11 @@ def writeInitialMachineInfo(timestamp, directory):
 	file.close()
 
 # Generate the main peer CSV header line
-def makeMainPeerHeader():
+def makeMainPeerHeader(address):
 	line = 'Timestamp,'
 	line += 'Timestamp (UNIX epoch),'
 	line += 'Time Since Last Sample (seconds),'
-	line += 'Address,'
-	line += 'Port,'
-	line += 'Connection ID,'
+	line += f'Port for {address},'
 	line += 'Connection Count,'
 	line += 'Connection Duration (seconds),'
 	line += 'Number of New Unique Blocks Received,'
@@ -741,6 +751,18 @@ def splitAddress(address):
 	address = ':'.join(split)
 	return address, port
 
+# Split an individual line within a CSV, considering both quoted string tokens and blank cells
+def splitIndividualCsvLine(line):
+	split_pattern = re.compile(r'(?:"([^"]*)"|([^,]*))(?:,|$)')
+	split_tokens = split_pattern.findall(line)
+	tokens = []
+	for token in split_tokens:
+		if token[0] != '':
+			tokens.append(token[0])
+		else:
+			tokens.append(token[1])
+	return tokens
+
 # Generate the machine state CSV header line
 def makeMachineStateHeader():
 	line = 'Timestamp,'
@@ -798,7 +820,7 @@ def logMachineState(timestamp, directory, getpeerinfo, getblockchaininfo, getmem
 		# Read the last line from the file
 		with open(filePath, 'r') as f:
 			prevLines = f.readlines()
-			if len(prevLines) > 1: prevLine = prevLines[-1].split(',')
+			if len(prevLines) > 1: prevLine = splitIndividualCsvLine(prevLines[-1])
 			else: prevLine = ''
 			numPrevLines = len(prevLines)
 		# Try to open the file for appending, loop until successful
@@ -812,11 +834,13 @@ def logMachineState(timestamp, directory, getpeerinfo, getblockchaininfo, getmem
 				print(f'{e}, attempt {attempts}')
 				time.sleep(1)
  
-	timestampSeconds = (timestamp - datetime.datetime(1970, 1, 1)).total_seconds()
+	timestampSeconds = int(timestamp.astimezone(datetime.timezone.utc).timestamp() * timePrecision) / timePrecision
+	# Ignoring timezone: timestampSeconds = (timestamp - datetime.datetime(1970, 1, 1)).total_seconds()
+
 	if prevLine == '':
 		timeSinceLastSample = ''
 	else: 
-		timeSinceLastSample = timestampSeconds - float(prevLine[1])
+		timeSinceLastSample = int((timestampSeconds - float(prevLine[1])) * timePrecision) / timePrecision
 	cpuPercent = psutil.cpu_percent()
 	cpuFrequency = 0
 	try:
@@ -837,7 +861,7 @@ def logMachineState(timestamp, directory, getpeerinfo, getblockchaininfo, getmem
 		if peer['inbound']: numInboundPeers += 1
 		else: numOutboundPeers += 1
 
-	line = str(timestamp) + ','
+	line = '"' + timestamp.strftime('%A, %b %d %Y, %-I:%M:%S %p ') + time.tzname[time.localtime().tm_isdst] + '",'
 	line += str(timestampSeconds) + ','
 	line += str(timeSinceLastSample) + ','
 	line += str(getblockchaininfo['mediantime']) + ','
@@ -890,13 +914,13 @@ def logNode(address, timestamp, directory, updateInfo):
 		numPrevLines = 1
 		print(f'	Logging {address} ({numPrevLines} sample)')
 		file = open(filePath, 'w')
-		file.write(makeMainPeerHeader() + '\n')
+		file.write(makeMainPeerHeader(address) + '\n')
 	else:
 		# Read the last line from the file
 		with open(filePath, 'r') as f:
 			prevLines = f.readlines()
 			# Don't let prevLine contain the header; data only
-			if len(prevLines) > 1: prevLine = prevLines[-1].split(',')
+			if len(prevLines) > 1: prevLine = splitIndividualCsvLine(prevLines[-1])
 			else: prevLine = ''
 			numPrevLines = len(prevLines)
 		print(f'	Logging {address} ({numPrevLines} samples)')
@@ -912,23 +936,23 @@ def logNode(address, timestamp, directory, updateInfo):
 				print(f'{e}, attempt {attempts}')
 				time.sleep(1)
 
-	timestampSeconds = (timestamp - datetime.datetime(1970, 1, 1)).total_seconds()
+	timestampSeconds = int(timestamp.astimezone(datetime.timezone.utc).timestamp() * timePrecision) / timePrecision
+	# Ignoring timezone: timestampSeconds = (timestamp - datetime.datetime(1970, 1, 1)).total_seconds()
+
 	if prevLine == '':
 		timeSinceLastSample = ''
 		connectionCount = 1
 	else: 
-		timeSinceLastSample = timestampSeconds - float(prevLine[1])
-		connectionCount = int(prevLine[5])
+		timeSinceLastSample = int((timestampSeconds - float(prevLine[1])) * timePrecision) / timePrecision
+		connectionCount = int(prevLine[4])
 		# Check if this is the same connection or a new connection
-		if updateInfo['port'] != int(prevLine[4]) or updateInfo['connectionID'] != int(prevLine[5]) or int(updateInfo['connectionDuration']) < int(prevLine[7]):
+		if updateInfo['port'] != int(prevLine[3]) or updateInfo['connectionDuration'] < float(prevLine[5]):
 			connectionCount += 1
 
-	line = str(timestamp) + ','
+	line = '"' + timestamp.strftime('%A, %b %d %Y, %-I:%M:%S %p ') + time.tzname[time.localtime().tm_isdst] + '",'
 	line += str(timestampSeconds) + ','
 	line += str(timeSinceLastSample) + ','
-	line += str(address) + ','
 	line += str(updateInfo['port']) + ','
-	line += str(updateInfo['connectionID']) + ','
 	line += str(connectionCount) + ','
 	line += str(updateInfo['connectionDuration']) + ','
 	line += str(updateInfo['newBlocksReceivedCount']) + ','
@@ -944,7 +968,7 @@ def logNode(address, timestamp, directory, updateInfo):
 	line += str(updateInfo['pingWaitTime']) + ','
 	line += str(updateInfo['addressType']) + ','
 	line += str(updateInfo['prototolVersion']) + ','
-	line += str(updateInfo['softwareVersion']) + ','
+	line += '"' + str(updateInfo['softwareVersion']) + '",'
 	line += str(updateInfo['connectionType']) + ','
 	line += str(updateInfo['isOutboundConnection']) + ','
 	line += str(updateInfo['services']) + ','
@@ -1425,111 +1449,116 @@ def log(targetDateTime, previousDirectory):
 		startBitcoin()
 	
 	timestamp = datetime.datetime.now()
-	getblockchaininfo = bitcoin('getblockchaininfo', True)
+	timestampSeconds = int(timestamp.astimezone(datetime.timezone.utc).timestamp() * timePrecision) / timePrecision
+	# Ignoring timezone: timestampSeconds = (timestamp - datetime.datetime(1970, 1, 1)).total_seconds()
 
-	# Determine the directory to write the logs to
-	if getblockchaininfo['initialblockdownload']:
-		directory = f'Research_Logs/IBD_Research_Log'
-	else:
-		month = timestamp.strftime("%b")
-		#month = timestamp.strftime("%b") + str(int(timestamp.hour)) # Temporary sample every hour
-		#month = timestamp.strftime("%b") + str(int(timestamp.minute / 10) * 10) # Temporary sample every ten minute
-		year = timestamp.year
-		directory = f'Research_Logs/{month}_{year}_Research_Log'
-		# Every month, restart the Bitcoin node to get a new fresh set of peers, along with a fresh new directory
-		if len(previousDirectory) > 0 and previousDirectory != directory:
-			finalizeLogDirectory(previousDirectory)
-			restartBitcoin()
-			# Reset the target datetime to accomodate for the time just spent finalizing the sample
-			timestamp = targetDateTime = datetime.datetime.now()
-			getblockchaininfo = bitcoin('getblockchaininfo', True)
+	try:
+		getblockchaininfo = bitcoin('getblockchaininfo', True)
 
-	if not os.path.exists(directory):
-		print('Creating directory:', directory)
-		os.makedirs(directory)
-		writeInitialMachineInfo(timestamp, directory)
+		# Determine the directory to write the logs to
+		if getblockchaininfo['initialblockdownload']:
+			directory = f'Research_Logs/IBD_Research_Log'
+		else:
+			month = timestamp.strftime("%b")
+			year = timestamp.year
+			directory = f'Research_Logs/{month}_{year}_Research_Log'
+			# Every month, restart the Bitcoin node to get a new fresh set of peers, along with a fresh new directory
+			if len(previousDirectory) > 0 and previousDirectory != directory:
+				finalizeLogDirectory(previousDirectory)
+				restartBitcoin()
+				# Reset the target datetime to accomodate for the time just spent finalizing the sample
+				timestamp = targetDateTime = datetime.datetime.now()
+				getblockchaininfo = bitcoin('getblockchaininfo', True)
+
+		if not os.path.exists(directory):
+			print('Creating directory:', directory)
+			os.makedirs(directory)
+			writeInitialMachineInfo(timestamp, directory)
+		
+		# Call the Bitcoin Core RPC commands for logging
+		getpeerinfo = bitcoin('getpeerinfo', True)
+		getpeersmsginfoandclear = bitcoin('getpeersmsginfoandclear', True)
+		listnewbroadcastsandclear = bitcoin('listnewbroadcastsandclear', True)
+		getchaintips = bitcoin('getchaintips', True)
+		getmempoolinfo = bitcoin('getmempoolinfo', True)
+		peersToUpdate = {}
+
+		for peerEntry in getpeerinfo:
+			address, port = splitAddress(peerEntry['addr'])
+			if address not in peersToUpdate:
+				peersToUpdate[address] = getPeerInfoTemplate()
+
+			if address in listnewbroadcastsandclear['new_block_broadcasts']: peersToUpdate[address]['newBlocksReceivedCount'] = listnewbroadcastsandclear['new_block_broadcasts'][address]
+			if address in listnewbroadcastsandclear['new_transaction_broadcasts']: peersToUpdate[address]['newTransactionsReceivedCount'] = listnewbroadcastsandclear['new_transaction_broadcasts'][address]
+			if address in listnewbroadcastsandclear['new_transaction_fee_broadcasts']: peersToUpdate[address]['newTransactionsReceivedFee'] = listnewbroadcastsandclear['new_transaction_fee_broadcasts'][address]
+			if address in listnewbroadcastsandclear['new_transaction_size_broadcasts']: peersToUpdate[address]['newTransactionsReceivedSize'] = listnewbroadcastsandclear['new_transaction_size_broadcasts'][address]
+
+			bytesSentPerMessage = peerEntry['bytessent_per_msg']
+			bytesReceivedPerMessage = peerEntry['bytesrecv_per_msg']
+			bytesSentPerMessage = dict(sorted(bytesSentPerMessage.items(), key=lambda item: item[1], reverse = True))
+			bytesReceivedPerMessage = dict(sorted(bytesReceivedPerMessage.items(), key=lambda item: item[1], reverse = True))
+
+			# Self-extracted out of Bitcoin Core using this custom network logger instance
+			peersToUpdate[address]['banscore'] = peerEntry['banscore']
+			peersToUpdate[address]['fChance'] = peerEntry['fchance']
+			peersToUpdate[address]['isTerrible'] = peerEntry['isterrible'].replace('true', '1').replace('false', '0')
+
+			peersToUpdate[address]['port'] = int(port)
+			peersToUpdate[address]['connectionID'] = int(peerEntry['id'])
+			peersToUpdate[address]['connectionDuration'] = int((timestampSeconds - peerEntry['conntime']) * timePrecision) / timePrecision
+			peersToUpdate[address]['secondsOffset'] = peerEntry['timeoffset']
+			if 'pingtime' in peerEntry: peersToUpdate[address]['pingRoundTripTime'] = peerEntry['pingtime']
+			if 'minping' in peerEntry: peersToUpdate[address]['pingMinRoundTripTime'] = peerEntry['minping']
+			if 'pingwait' in peerEntry: peersToUpdate[address]['pingWaitTime'] = peerEntry['pingwait']
+			peersToUpdate[address]['addressType'] = peerEntry['network']
+			peersToUpdate[address]['prototolVersion'] = peerEntry['version']
+			peersToUpdate[address]['softwareVersion'] = peerEntry['subver']
+			peersToUpdate[address]['connectionType'] = peerEntry['connection_type']
+			peersToUpdate[address]['isOutboundConnection'] = 0 if peerEntry['inbound'] else 1
+			peersToUpdate[address]['services'] = '"' + json.dumps(peerEntry['servicesnames'], separators=(',', ':')).replace('"', "'") + '"'
+			peersToUpdate[address]['servicesEncodedInt'] = int(peerEntry['services'], 16)
+			peersToUpdate[address]['specialPermissions'] = '"' + json.dumps(peerEntry['permissions'], separators=(',', ':')).replace('"', "'") + '"'
+			peersToUpdate[address]['willRelayTransactions'] = 1 if peerEntry['relaytxes'] else 0
+			peersToUpdate[address]['willRelayAddrs'] = 1 if peerEntry['addr_relay_enabled'] else 0
+			peersToUpdate[address]['numAddrsAccepted'] = peerEntry['addr_processed']
+			peersToUpdate[address]['numAddrsDroppedFromRateLimit'] = peerEntry['addr_rate_limited']
+			peersToUpdate[address]['minTransactionFeeAccepted'] = peerEntry['minfeefilter']
+			peersToUpdate[address]['sendCmpctEnabledToThem'] = 1 if peerEntry['bip152_hb_to'] else 0
+			peersToUpdate[address]['sendCmpctEnabledFromThem'] = 1 if peerEntry['bip152_hb_from'] else 0
+			peersToUpdate[address]['lastSendTime'] = peerEntry['lastsend'] if peerEntry['lastsend'] != 0 else ''
+			peersToUpdate[address]['bytesSent'] = peerEntry['bytessent']
+			peersToUpdate[address]['bytesSentDistribution'] = '"' + json.dumps(bytesSentPerMessage, separators=(',', ':')).replace('"', "'") + '"'
+			peersToUpdate[address]['lastReceiveTime'] = peerEntry['lastrecv'] if peerEntry['lastrecv'] != 0 else ''
+			peersToUpdate[address]['bytesReceived'] = peerEntry['bytesrecv']
+			peersToUpdate[address]['bytesReceivedDistribution'] = '"' + json.dumps(bytesReceivedPerMessage, separators=(',', ':')).replace('"', "'") + '"'
+			peersToUpdate[address]['lastTransactionTime'] = peerEntry['last_transaction'] if peerEntry['last_transaction'] != 0 else ''
+			peersToUpdate[address]['lastBlockTime'] = peerEntry['last_block'] if peerEntry['last_block'] != 0 else ''
+			peersToUpdate[address]['startingBlockHeight'] = peerEntry['startingheight']
+			peersToUpdate[address]['currentBlockHeightInCommon'] = peerEntry['synced_blocks']
+			peersToUpdate[address]['currentHeaderHeightInCommon'] = peerEntry['synced_headers']
+
+			clocksPerSecond = int(getpeersmsginfoandclear['CLOCKS PER SECOND'])
+			if address in getpeersmsginfoandclear:
+				for msg in getpeersmsginfoandclear[address].keys():
+					count, size, sizeMax, time, timeMax = parseGetMsgInfoMessage(getpeersmsginfoandclear[address][msg], clocksPerSecond)
+					peersToUpdate[address][f'New_{msg}s_Received (count)'] = count
+					peersToUpdate[address][f'Size_{msg} (bytes)'] = size
+					peersToUpdate[address][f'MaxSize_{msg} (bytes)'] = sizeMax
+					peersToUpdate[address][f'Time_{msg} (milliseconds)'] = time
+					peersToUpdate[address][f'MaxTime_{msg} (milliseconds)'] = timeMax
+
+		sampleNumber = logMachineState(timestamp, directory, getpeerinfo, getblockchaininfo, getmempoolinfo)
+		print(f'Adding Sample #{sampleNumber} to {directory}:')
+
+		maybeLogBlockState(timestamp, directory, getblockchaininfo, getchaintips)
+
+		for address in peersToUpdate:
+			logNode(address, timestamp, directory, peersToUpdate[address])
+		print(f'	Sample successfully logged.')
 	
-	# Call the Bitcoin Core RPC commands for logging
-	getpeerinfo = bitcoin('getpeerinfo', True)
-	getpeersmsginfoandclear = bitcoin('getpeersmsginfoandclear', True)
-	listnewbroadcastsandclear = bitcoin('listnewbroadcastsandclear', True)
-	getchaintips = bitcoin('getchaintips', True)
-	getmempoolinfo = bitcoin('getmempoolinfo', True)
-	peersToUpdate = {}
+	except Exception as e:
+		logging.error(f"Error: {e}\n{traceback.format_exc()}")
 
-	for peerEntry in getpeerinfo:
-		address, port = splitAddress(peerEntry['addr'])
-		if address not in peersToUpdate:
-			peersToUpdate[address] = getPeerInfoTemplate()
-
-		if address in listnewbroadcastsandclear['new_block_broadcasts']: peersToUpdate[address]['newBlocksReceivedCount'] = listnewbroadcastsandclear['new_block_broadcasts'][address]
-		if address in listnewbroadcastsandclear['new_transaction_broadcasts']: peersToUpdate[address]['newTransactionsReceivedCount'] = listnewbroadcastsandclear['new_transaction_broadcasts'][address]
-		if address in listnewbroadcastsandclear['new_transaction_fee_broadcasts']: peersToUpdate[address]['newTransactionsReceivedFee'] = listnewbroadcastsandclear['new_transaction_fee_broadcasts'][address]
-		if address in listnewbroadcastsandclear['new_transaction_size_broadcasts']: peersToUpdate[address]['newTransactionsReceivedSize'] = listnewbroadcastsandclear['new_transaction_size_broadcasts'][address]
-
-		bytesSentPerMessage = peerEntry['bytessent_per_msg']
-		bytesReceivedPerMessage = peerEntry['bytesrecv_per_msg']
-		bytesSentPerMessage = {k: bytesSentPerMessage[k] for k in sorted(bytesSentPerMessage, reverse = True)}
-		bytesReceivedPerMessage = {k: bytesReceivedPerMessage[k] for k in sorted(bytesReceivedPerMessage, reverse = True)}
-
-		# Self-extracted out of Bitcoin Core using this custom network logger instance
-		peersToUpdate[address]['banscore'] = peerEntry['banscore']
-		peersToUpdate[address]['fChance'] = peerEntry['fchance']
-		peersToUpdate[address]['isTerrible'] = peerEntry['isterrible'].replace('true', '1').replace('false', '0')
-
-		peersToUpdate[address]['port'] = int(port)
-		peersToUpdate[address]['connectionID'] = int(peerEntry['id'])
-		peersToUpdate[address]['connectionDuration'] = peerEntry['conntime']
-		peersToUpdate[address]['secondsOffset'] = peerEntry['timeoffset']
-		if 'pingtime' in peerEntry: peersToUpdate[address]['pingRoundTripTime'] = peerEntry['pingtime']
-		if 'minping' in peerEntry: peersToUpdate[address]['pingMinRoundTripTime'] = peerEntry['minping']
-		if 'pingwait' in peerEntry: peersToUpdate[address]['pingWaitTime'] = peerEntry['pingwait']
-		peersToUpdate[address]['addressType'] = peerEntry['network']
-		peersToUpdate[address]['prototolVersion'] = peerEntry['version']
-		peersToUpdate[address]['softwareVersion'] = peerEntry['subver']
-		peersToUpdate[address]['connectionType'] = peerEntry['connection_type']
-		peersToUpdate[address]['isOutboundConnection'] = 0 if peerEntry['inbound'] else 1
-		peersToUpdate[address]['services'] = '"' + json.dumps(peerEntry['servicesnames'], separators=(',', ':')).replace('"', "'") + '"'
-		peersToUpdate[address]['servicesEncodedInt'] = int(peerEntry['services'], 16)
-		peersToUpdate[address]['specialPermissions'] = '"' + json.dumps(peerEntry['permissions'], separators=(',', ':')).replace('"', "'") + '"'
-		peersToUpdate[address]['willRelayTransactions'] = 1 if peerEntry['relaytxes'] else 0
-		peersToUpdate[address]['willRelayAddrs'] = 1 if peerEntry['addr_relay_enabled'] else 0
-		peersToUpdate[address]['numAddrsAccepted'] = peerEntry['addr_processed']
-		peersToUpdate[address]['numAddrsDroppedFromRateLimit'] = peerEntry['addr_rate_limited']
-		peersToUpdate[address]['minTransactionFeeAccepted'] = peerEntry['minfeefilter']
-		peersToUpdate[address]['sendCmpctEnabledToThem'] = 1 if peerEntry['bip152_hb_to'] else 0
-		peersToUpdate[address]['sendCmpctEnabledFromThem'] = 1 if peerEntry['bip152_hb_from'] else 0
-		peersToUpdate[address]['lastSendTime'] = peerEntry['lastsend'] if peerEntry['lastsend'] != 0 else ''
-		peersToUpdate[address]['bytesSent'] = peerEntry['bytessent']
-		peersToUpdate[address]['bytesSentDistribution'] = '"' + json.dumps(bytesSentPerMessage, separators=(',', ':')).replace('"', "'") + '"'
-		peersToUpdate[address]['lastReceiveTime'] = peerEntry['lastrecv'] if peerEntry['lastrecv'] != 0 else ''
-		peersToUpdate[address]['bytesReceived'] = peerEntry['bytesrecv']
-		peersToUpdate[address]['bytesReceivedDistribution'] = '"' + json.dumps(bytesReceivedPerMessage, separators=(',', ':')).replace('"', "'") + '"'
-		peersToUpdate[address]['lastTransactionTime'] = peerEntry['last_transaction'] if peerEntry['last_transaction'] != 0 else ''
-		peersToUpdate[address]['lastBlockTime'] = peerEntry['last_block'] if peerEntry['last_block'] != 0 else ''
-		peersToUpdate[address]['startingBlockHeight'] = peerEntry['startingheight']
-		peersToUpdate[address]['currentBlockHeightInCommon'] = peerEntry['synced_blocks']
-		peersToUpdate[address]['currentHeaderHeightInCommon'] = peerEntry['synced_headers']
-
-		clocksPerSecond = int(getpeersmsginfoandclear['CLOCKS PER SECOND'])
-		if address in getpeersmsginfoandclear:
-			for msg in getpeersmsginfoandclear[address].keys():
-				count, size, sizeMax, time, timeMax = parseGetMsgInfoMessage(getpeersmsginfoandclear[address][msg], clocksPerSecond)
-				peersToUpdate[address][f'New_{msg}s_Received (count)'] = count
-				peersToUpdate[address][f'Size_{msg} (bytes)'] = size
-				peersToUpdate[address][f'MaxSize_{msg} (bytes)'] = sizeMax
-				peersToUpdate[address][f'Time_{msg} (milliseconds)'] = time
-				peersToUpdate[address][f'MaxTime_{msg} (milliseconds)'] = timeMax
-
-	sampleNumber = logMachineState(timestamp, directory, getpeerinfo, getblockchaininfo, getmempoolinfo)
-	print(f'Adding Sample #{sampleNumber} to {directory}:')
-
-	maybeLogBlockState(timestamp, directory, getblockchaininfo, getchaintips)
-
-	for address in peersToUpdate:
-		logNode(address, timestamp, directory, peersToUpdate[address])
-	print(f'	Sample successfully logged.')
-	
 	# Compute the time until the next sample will run, then schedule the run
 	targetDateTime += datetime.timedelta(seconds = numSecondsPerSample)
 	offset = (targetDateTime - datetime.datetime.now()).total_seconds()
