@@ -27,10 +27,10 @@ import sys
 import time
 
 # The path to copy over the finalized output files (preferably an external storage device)
-outputFilesToTransferPath = '/media/research/BTC/Official_Research_Logs'
+outputFilesToTransferPath = '/home/ubuntu1/Desktop'
 
 # The path where the Bitcoin blockchain is stored
-bitcoinDirectory = '/home/research/BitcoinFullLedger'
+bitcoinDirectory = '/media/ubuntu1/Long040Term040Storage/Bitcoin Full Ledger'
 
 #numSecondsPerSample = 60
 numSecondsPerSample = 10
