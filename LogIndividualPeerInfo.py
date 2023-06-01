@@ -1,16 +1,16 @@
-# TODO:
-# Bucket info?
-# Block propagation time
-#
-# Sanity checking to ensure that it behaves properly
-#	getblockfrompeer "blockhash" peer_id
-# Horizontal line --> make sure good score works properly
+#!/usr/bin/env python
+'''
+This script logs a lot of Bitcoin node information, including the machine
+specification, current machine state, blockchain state, and state of each
+peer connection. For the initial block download, data is written to
+Research_Logs/IBD_Research_Log/, otherwise, every month the logging directory
+changes to Research_Logs/MONTH_YEAR_Research_Log/, and the node restarts.
+'''
 
-# -------------------------------------------------------------------
-
-# Logs a lot of Bitcoin info into the Research_Logs folder
-# 	For the initial block download, data is written to Research_Logs/IBD_Research_Log/
-# 	Otherwise, every month the logging directory changes to Research_Logs/MONTH_YEAR_Research_Log/, and the node restarts
+__author__ = 'Simeon Wuthier'
+__contact__ = 'swuthier@uccs.edu'
+__date__ = '2023/06/01'
+__version__ = '1.0.0'
 
 from threading import Timer
 import datetime
@@ -32,11 +32,11 @@ outputFilesToTransferPath = '/home/ubuntu1/Desktop'
 # The path where the Bitcoin blockchain is stored
 bitcoinDirectory = '/media/ubuntu1/Long040Term040Storage/Bitcoin Full Ledger'
 
-#numSecondsPerSample = 60
+# The logger will take one sample for every numSecondsPerSample interval
 numSecondsPerSample = 10
-timePrecision = 1000 # Keep three decimal points for times
 
-outputFilesToTransfer = []
+# Keep three decimal points for timestamps and time durations
+timePrecision = 1000
 
 if not os.path.exists(outputFilesToTransferPath):
 	print(f'Note: {outputFilesToTransferPath} does not exist, please set it, then retry.')
@@ -50,6 +50,11 @@ if not os.path.exists(bitcoinDirectory):
 prevBlockHeight = None
 prevBlockHash = None
 isInStartupDownload = True
+outputFilesToTransfer = []
+globalNumSamples = 0
+globalNumForksSeen = 0
+globalMaxForkLength = 0
+globalLoggingStartTimestamp = datetime.datetime.now()
 
 # Send a command to the linux terminal
 def terminal(cmd):
@@ -63,11 +68,58 @@ def bitcoin(cmd, isJSON):
 	if not isJSON: return response
 	return json.loads(response)
 
-# Return the size of a directory
-def getDirectorySize(directory):
-	output = terminal(f'du --summarize --bytes {directory}').split()
-	if len(output) == 0: return ''
-	return output[0]
+# Check if the Bitcoin Core instance is up
+def bitcoinUp():
+	return terminal('ps -A | grep bitcoind').strip() != ''
+
+# Start the Bitcoin Core instance
+def startBitcoin():
+	global isInStartupDownload
+	if not bitcoinUp():
+		# If Bitcoin crashed for whatever reason before, remove the PID that would prevent it from starting again
+		terminal(f'rm -rf {os.path.join(bitcoinDirectory, "bitcoind.pid")}')
+
+	print('Starting Bitcoin...')
+	rpcReady = False
+	while rpcReady is False:
+		if not bitcoinUp():
+			subprocess.Popen(['gnome-terminal -t "Bitcoin Core Instance" -- bash ./run.sh'], shell=True)
+			time.sleep(5)
+
+		time.sleep(1)
+		try:
+			blockHeight = int(bitcoin('getblockcount', False))
+			rpcReady = True
+		except: pass
+	isInStartupDownload = True
+	print('Bitcoin is up and ready to go')
+
+# Stop the Bitcoin Core instance
+def stopBitcoin():
+	print('Stopping Bitcoin...')
+	secondCount = 0
+	while bitcoinUp():
+		bitcoin('stop')
+		time.sleep(5)
+		secondCount += 5
+		if secondCount >= 60 * 5: # After five minutes, use a harder stop
+			terminal('pkill -SIGTERM bitcoind')
+			time.sleep(5)
+			secondCount += 5
+
+		if secondCount >= 60 * 10: # After ten minutes, force shutdown
+			terminal('pkill -SIGKILL bitcoind')
+			time.sleep(5)
+			secondCount += 5
+
+# Restart the Bitcoin Core instance
+def restartBitcoin():
+	global isInStartupDownload
+	print('Restarting Bitcoin...')
+	stopBitcoin()
+	while not bitcoinUp():
+		startBitcoin()
+	isInStartupDownload = True
 
 # Generate the block information CSV header line
 def makeBlockStateHeader():
@@ -76,7 +128,7 @@ def makeBlockStateHeader():
 	line += 'Time Since Last Sample (seconds),'
 	line += 'Block Height,'
 	line += 'Block Status,'
-	line += 'Is Block Stale,'
+	line += 'Is Fork,'
 	line += 'Fork Length,'
 	line += 'Block Timestamp (UNIX epoch),'
 	line += 'Median Timestamp of Last 11 Blocks (to prevent timestamp manipulation),'
@@ -128,7 +180,7 @@ def makeBlockStateHeader():
 
 # If any new blocks exist, log them
 def maybeLogBlockState(timestamp, directory, getblockchaininfo, getchaintips, newblockbroadcastsblockinformation):
-	global prevBlockHeight, prevBlockHash, isInStartupDownload
+	global prevBlockHeight, prevBlockHash, isInStartupDownload, globalNumForksSeen, globalMaxForkLength
 
 	# Quickly check if any new blocks have arrived, if they haven't 
 	if prevBlockHash is not None:
@@ -369,6 +421,10 @@ def maybeLogBlockState(timestamp, directory, getblockchaininfo, getchaintips, ne
 		if tipStatus == 'active':
 			prevBlockHash = blockHash
 			prevBlockHeight = height
+		else:
+			globalNumForksSeen += 1
+			if tip['forkLength'] > globalMaxForkLength:
+				globalMaxForkLength = tip['forkLength']
 		timeSinceLastSample = 0
 
 	# Finally, write the blockchain info to the output file
@@ -376,58 +432,11 @@ def maybeLogBlockState(timestamp, directory, getblockchaininfo, getchaintips, ne
 	file.close()
 	return
 
-# Check if the Bitcoin Core instance is up
-def bitcoinUp():
-	return terminal('ps -A | grep bitcoind').strip() != ''
-
-# Start the Bitcoin Core instance
-def startBitcoin():
-	global isInStartupDownload
-	if not bitcoinUp():
-		# If Bitcoin crashed for whatever reason before, remove the PID that would prevent it from starting again
-		terminal(f'rm -rf {os.path.join(bitcoinDirectory, "bitcoind.pid")}')
-
-	print('Starting Bitcoin...')
-	rpcReady = False
-	while rpcReady is False:
-		if not bitcoinUp():
-			subprocess.Popen(['gnome-terminal -t "Bitcoin Core Instance" -- bash ./run.sh'], shell=True)
-			time.sleep(5)
-
-		time.sleep(1)
-		try:
-			blockHeight = int(bitcoin('getblockcount', False))
-			rpcReady = True
-		except: pass
-	isInStartupDownload = True
-	print('Bitcoin is up and ready to go')
-
-# Stop the Bitcoin Core instance
-def stopBitcoin():
-	print('Stopping Bitcoin...')
-	secondCount = 0
-	while bitcoinUp():
-		bitcoin('stop')
-		time.sleep(5)
-		secondCount += 5
-		if secondCount >= 60 * 5: # After five minutes, use a harder stop
-			terminal('pkill -SIGTERM bitcoind')
-			time.sleep(5)
-			secondCount += 5
-
-		if secondCount >= 60 * 10: # After ten minutes, force shutdown
-			terminal('pkill -SIGKILL bitcoind')
-			time.sleep(5)
-			secondCount += 5
-
-# Restart the Bitcoin Core instance
-def restartBitcoin():
-	global isInStartupDownload
-	print('Restarting Bitcoin...')
-	stopBitcoin()
-	while not bitcoinUp():
-		startBitcoin()
-	isInStartupDownload = True
+# Return the size of a directory
+def getDirectorySize(directory):
+	output = terminal(f'du --summarize --bytes {directory}').split()
+	if len(output) == 0: return ''
+	return output[0]
 
 # Generate the machine info CSV header line
 def writeInitialMachineInfo(timestamp, directory):
@@ -1477,7 +1486,7 @@ def finalizeLogDirectory(directory):
 
 
 def log(targetDateTime, previousDirectory):
-	global timerThread
+	global timerThread, globalNumSamples, globalLoggingStartTimestamp, globalNumForksSeen, globalMaxForkLength
 	if not bitcoinUp():
 		startBitcoin()
 	
@@ -1607,12 +1616,15 @@ def log(targetDateTime, previousDirectory):
 
 		sampleNumber = logMachineState(timestamp, directory, getpeerinfo, getblockchaininfo, getmempoolinfo, newblockbroadcastsblockinformation)
 		print(f'Adding Sample #{sampleNumber} to {directory}:')
-
+		
 		maybeLogBlockState(timestamp, directory, getblockchaininfo, getchaintips, newblockbroadcastsblockinformation)
-
 		for address in peersToUpdate:
 			logNode(address, timestamp, directory, peersToUpdate[address])
 		print(f'	Sample successfully logged.')
+		globalNumSamples += 1
+		totalNumDays = (timestamp - globalLoggingStartTimestamp) / 60 / 60 / 24
+		print(f'Total of {globalNumSamples} samples to date, over a logging interval of {totalNumDays} days.')
+		print(f'Total of {globalNumForksSeen} forks with a max length of {globalMaxForkLength} blocks.')
 	
 	except Exception as e:
 		logging.error(f"Error: {e}\n{traceback.format_exc()}")
