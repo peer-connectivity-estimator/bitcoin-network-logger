@@ -121,6 +121,9 @@ def restartBitcoin():
 		startBitcoin()
 	isInStartupDownload = True
 
+def getHumanReadableDateTime(timestamp):
+	return timestamp.strftime('%A, %b %d %Y, %-I:%M:%S %p ') + time.tzname[time.localtime().tm_isdst]
+
 # Generate the block information CSV header line
 def makeBlockStateHeader():
 	line = 'Timestamp,'
@@ -135,10 +138,12 @@ def makeBlockStateHeader():
 	line += 'Transaction Rate (tx/second),'
 	line += 'Number of Confirmations,'
 	line += 'Block Hash,'
-	line += 'Previous Block Hash (if known),'
 	line += 'Block Size (bytes),'
 	line += 'Block Size Including Segregated Witnesses (bytes),'
 	line += 'Stripped Size (excluding witness data) (bytes),'
+	line += 'Propagation Time Duration (using system time) (milliseconds),'
+	line += 'Median Block Propagation Time Duration (using median time of peers including self) (milliseconds),'
+	line += 'Received By,'
 	line += 'Difficulty,'
 	line += 'Chainwork,'
 	line += 'Weight (BIP 141),'
@@ -173,9 +178,6 @@ def makeBlockStateHeader():
 	line += 'Coinbase Address (Block Solver),'
 	line += 'Coinbase Transaction Type,'
 	line += 'Coinbase Transaction Assembly,'
-	line += 'Propagation Time Duration (if available) (using system time) (ms),'
-	line += 'Median Block Propagation Time Duration (if available) (using median time of peers including self) (ms),'
-	line += 'Received By (if available),'
 	return line
 
 # If any new blocks exist, log them
@@ -337,7 +339,7 @@ def maybeLogBlockState(timestamp, directory, getblockchaininfo, getchaintips, ne
 			blockMedPropTime = ''
 			blockReceivedBy = ''
 
-		lines += '"' + timestamp.strftime('%A, %b %d %Y, %-I:%M:%S %p ') + time.tzname[time.localtime().tm_isdst] + '",'
+		lines += '"' + getHumanReadableDateTime(timestamp) + '",'
 		lines += str(timestampSeconds) + ','
 		lines += str(timeSinceLastSample) + ','
 		lines += str(height) + ','
@@ -350,11 +352,12 @@ def maybeLogBlockState(timestamp, directory, getblockchaininfo, getchaintips, ne
 		else: lines += ','
 		lines += str(getblock['confirmations']) + ','
 		lines += str(blockHash) + ','
-		if 'previousblockhash' in getblockstats: lines += str(getblockstats['previousblockhash']) + ','
-		else: lines += ','
 		lines += str(getblock['size']) + ','
 		lines += str(getblockstats['total_size']) + ','
 		lines += str(getblock['strippedsize']) + ','
+		lines += str(blockPropTime) + ','
+		lines += str(blockMedPropTime) + ','
+		lines += str(blockReceivedBy) + ','
 		lines += str(getblock['difficulty']) + ','
 		lines += str(getblock['chainwork']) + ','
 		lines += str(getblock['weight']) + ','
@@ -411,9 +414,6 @@ def maybeLogBlockState(timestamp, directory, getblockchaininfo, getchaintips, ne
 		else: lines += ','
 		lines += str(gettxout['scriptPubKey']['type']) + ','
 		lines += str(gettxout['scriptPubKey']['asm']) + ','
-		lines += str(blockPropTime) + ','
-		lines += str(blockMedPropTime) + ','
-		lines += str(blockReceivedBy) + ','
 		lines += '\n'
 		
 		print(f'\tLogged {tipStatus} block at height {height}.')
@@ -796,11 +796,12 @@ def makeMachineStateHeader():
 	line = 'Timestamp,'
 	line += 'Timestamp (UNIX epoch),'
 	line += 'Time Since Last Sample (seconds),'
+	line += 'Difference from Median Timestamp of Peers (milliseconds) (to prevent timestamp manipulation),'
 	line += 'Median Timestamp of Last 11 Blocks (to prevent timestamp manipulation),'
 	line += 'Number of Inbound Peer Connections,'
 	line += 'Number of Outbound Peer Connections,'
-	line += 'Last Block Propagation Time Duration (using system time) (ms),'
-	line += 'Last Median Block Propagation Time Duration (using median time of peers including self) (ms),'
+	line += 'Last Block Propagation Time Duration (using system time) (milliseconds),'
+	line += 'Last Median Block Propagation Time Duration (using median time of peers including self) (milliseconds),'
 	line += 'Last Block Hash,'
 	line += 'Last Block Received By,'
 	line += 'Blockchain Warning Message,'
@@ -841,7 +842,7 @@ def makeMachineStateHeader():
 	return line
 
 # Log the state of the machine to file, returns the sample number
-def logMachineState(timestamp, directory, getpeerinfo, getblockchaininfo, getmempoolinfo, newblockbroadcastsblockinformation):
+def logMachineState(timestamp, directory, getpeerinfo, getblockchaininfo, getmempoolinfo, newblockbroadcastsblockinformation, timestampMedianDifference):
 	filePath = os.path.join(directory, 'machine_state_info.csv')
 	if not os.path.exists(filePath):
 		print(f'Creating machine state file')
@@ -894,9 +895,10 @@ def logMachineState(timestamp, directory, getpeerinfo, getblockchaininfo, getmem
 		if peer['inbound']: numInboundPeers += 1
 		else: numOutboundPeers += 1
 
-	line = '"' + timestamp.strftime('%A, %b %d %Y, %-I:%M:%S %p ') + time.tzname[time.localtime().tm_isdst] + '",'
+	line = '"' + getHumanReadableDateTime(timestamp) + '",'
 	line += str(timestampSeconds) + ','
 	line += str(timeSinceLastSample) + ','
+	line += str(timestampMedianDifference)
 	line += str(getblockchaininfo['mediantime']) + ','
 	line += str(numInboundPeers) + ','
 	line += str(numOutboundPeers) + ','
@@ -991,7 +993,7 @@ def logNode(address, timestamp, directory, updateInfo):
 		if (prevLine[3] != '' and updateInfo['port'] != int(prevLine[3])) or (prevLine[5] != '' and updateInfo['connectionDuration'] < float(prevLine[5])):
 			connectionCount += 1
 
-	line = '"' + timestamp.strftime('%A, %b %d %Y, %-I:%M:%S %p ') + time.tzname[time.localtime().tm_isdst] + '",'
+	line = '"' + getHumanReadableDateTime(timestamp) + '",'
 	line += str(timestampSeconds) + ','
 	line += str(timeSinceLastSample) + ','
 	line += str(updateInfo['port']) + ','
@@ -1494,6 +1496,7 @@ def log(targetDateTime, previousDirectory):
 	timestampSeconds = int(timestamp.astimezone(datetime.timezone.utc).timestamp() * timePrecision) / timePrecision
 	# Ignoring timezone: timestampSeconds = (timestamp - datetime.datetime(1970, 1, 1)).total_seconds()
 
+	directory = previousDirectory
 	try:
 		getblockchaininfo = bitcoin('getblockchaininfo', True)
 
@@ -1535,6 +1538,9 @@ def log(targetDateTime, previousDirectory):
 					newblockbroadcastsblockinformation['node_received_by'] = ''
 				# Clean up so we can iterate through the peer addresses inside new_block_broadcasts
 				del listnewbroadcastsandclear['new_block_broadcasts']['block_information']
+		timestampMedianDifference = ''
+		if 'timestamps' in listnewbroadcastsandclear:
+			timestampMedianDifference = listnewbroadcastsandclear['timestamps']['timestamp_median'] - listnewbroadcastsandclear['timestamps']['timestamp']
 
 		for peerEntry in getpeerinfo:
 			address, port = splitAddress(peerEntry['addr'])
@@ -1614,20 +1620,37 @@ def log(targetDateTime, previousDirectory):
 			if address in listnewbroadcastsandclear['new_transaction_fee_broadcasts']: peersToUpdate[address]['newTransactionsReceivedFee'] = listnewbroadcastsandclear['new_transaction_fee_broadcasts'][address]
 			if address in listnewbroadcastsandclear['new_transaction_size_broadcasts']: peersToUpdate[address]['newTransactionsReceivedSize'] = listnewbroadcastsandclear['new_transaction_size_broadcasts'][address]
 
-		sampleNumber = logMachineState(timestamp, directory, getpeerinfo, getblockchaininfo, getmempoolinfo, newblockbroadcastsblockinformation)
+		sampleNumber = logMachineState(timestamp, directory, getpeerinfo, getblockchaininfo, getmempoolinfo, newblockbroadcastsblockinformation, timestampMedianDifference)
 		print(f'Adding Sample #{sampleNumber} to {directory}:')
 		
 		maybeLogBlockState(timestamp, directory, getblockchaininfo, getchaintips, newblockbroadcastsblockinformation)
 		for address in peersToUpdate:
 			logNode(address, timestamp, directory, peersToUpdate[address])
-		print(f'	Sample successfully logged.')
+
 		globalNumSamples += 1
-		totalNumDays = (timestamp - globalLoggingStartTimestamp) / 60 / 60 / 24
-		print(f'Total of {globalNumSamples} samples to date, over a logging interval of {totalNumDays} days.')
-		print(f'Total of {globalNumForksSeen} forks with a max length of {globalMaxForkLength} blocks.')
+		totalNumDays = int((timestamp - globalLoggingStartTimestamp).total_seconds() / (60 * 60 * 24) * timePrecision) / timePrecision
+		print(f'	Sample successfully logged. Total of {globalNumSamples} samples to date, logging interval: {totalNumDays} days. Total of {globalNumForksSeen} forks with a max length of {globalMaxForkLength} blocks.')
 	
 	except Exception as e:
-		logging.error(f"Error: {e}\n{traceback.format_exc()}")
+		errorMessage = str(e)
+		errorTraceback = traceback.format_exc()
+		errorFilePath = os.path.join(directory, 'errors.csv')
+		if not os.path.exists(errorFilePath):
+			file = open(errorFilePath, 'w')
+			header = 'Timestamp,'
+			header += 'Timestamp (UNIX epoch),'
+			header += 'Error Message,'
+			header += 'Error Traceback,'
+			file.write(header + '\n')
+		else:
+			file = open(errorFilePath, 'a')
+		line = '"' + getHumanReadableDateTime(timestamp) + '",'
+		line += str(timestampSeconds) + ','
+		line += '"' + str(errorMessage.replace('"', "'")) + '",'
+		line += '"' + str(errorTraceback.replace('"', "'")) + '",'
+		file.write(line + '\n')
+		file.close()
+		logging.error(f'Error: {errorMessage}\n{errorTraceback}, logged to {errorFilePath}.')
 
 	# Compute the time until the next sample will run, then schedule the run
 	targetDateTime += datetime.timedelta(seconds = numSecondsPerSample)
