@@ -21,10 +21,12 @@ echo "Parameters to transfer to Bitcoin: \"$bitcoinParams\""
 if [ ! -d "src" ] ; then
 	cd .. # If located in src or any other level of depth 1, return
 fi
-
+BitcoinFullLedger
 
 pruned=false
-if [ -d /media/$USER/sf_Bitcoin/blocks/ ] && [ ! -f /media/$USER/sf_Bitcoin/bitcoind.pid ] ; then
+if [ -d ~/BitcoinFullLedger ] && [ ! -f ~/BitcoinFullLedger/bitcoind.pid ] ; then
+	dir=~/BitcoinFullLedger
+elif [ -d /media/$USER/sf_Bitcoin/blocks/ ] && [ ! -f /media/$USER/sf_Bitcoin/bitcoind.pid ] ; then
 	dir=/media/$USER/sf_Bitcoin
 elif [ -d /media/$USER/BITCOIN/Bitcoin\ Full\ Ledger/blocks/ ] && [ ! -f /media/$USER/BITCOIN/Bitcoin\ Full\ Ledger/bitcoind.pid ] ; then
 	dir=/media/$USER/BITCOIN/Bitcoin\ Full\ Ledger

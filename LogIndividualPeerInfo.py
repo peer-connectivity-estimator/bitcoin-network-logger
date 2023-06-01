@@ -1,8 +1,7 @@
 # TODO:
-#	- Add consideration for peers connecting and disconnecting between samples
-#		- Then if getpeerinfo[address] doesn't exist, just copy the stats from above, have a dummy template for if it's never received a getpeerinfo entry before
-#	- Add MAYBE bucket info too
-
+# Bucket info?
+# Block propagation time
+#
 # Sanity checking to ensure that it behaves properly
 #	getblockfrompeer "blockhash" peer_id
 # Horizontal line --> make sure good score works properly
@@ -31,10 +30,10 @@ import time
 outputFilesToTransferPath = '/media/research/BTC/Official_Research_Logs'
 
 # The path where the Bitcoin blockchain is stored
-bitcoinDirectory = '/home/linux/.bitcoin'
+bitcoinDirectory = '/home/research/BitcoinFullLedger'
 
 #numSecondsPerSample = 60
-numSecondsPerSample = 1
+numSecondsPerSample = 10
 timePrecision = 1000 # Keep three decimal points for times
 
 outputFilesToTransfer = []
@@ -63,6 +62,12 @@ def bitcoin(cmd, isJSON):
 	response = terminal('./src/bitcoin-cli -rpcuser=cybersec -rpcpassword=kZIdeN4HjZ3fp9Lge4iezt0eJrbjSi8kuSuOHeUkEUbQVdf09JZXAAGwF3R5R2qQkPgoLloW91yTFuufo7CYxM2VPT7A5lYeTrodcLWWzMMwIrOKu7ZNiwkrKOQ95KGW8kIuL1slRVFXoFpGsXXTIA55V3iUYLckn8rj8MZHBpmdGQjLxakotkj83ZlSRx1aOJ4BFxdvDNz0WHk1i2OPgXL4nsd56Ph991eKNbXVJHtzqCXUbtDELVf4shFJXame -rpcport=8332 ' + str(cmd)).strip()
 	if not isJSON: return response
 	return json.loads(response)
+
+# Return the size of a directory
+def getDirectorySize(directory):
+	output = terminal(f'du --summarize --bytes {directory}').split()
+	if len(output) == 0: return ''
+	return output[0]
 
 # Generate the block information CSV header line
 def makeBlockStateHeader():
@@ -116,10 +121,13 @@ def makeBlockStateHeader():
 	line += 'Coinbase Address (Block Solver),'
 	line += 'Coinbase Transaction Type,'
 	line += 'Coinbase Transaction Assembly,'
+	line += 'Propagation Time Duration (if available) (using system time) (ms),'
+	line += 'Median Block Propagation Time Duration (if available) (using median time of peers including self) (ms),'
+	line += 'Received By (if available),'
 	return line
 
 # If any new blocks exist, log them
-def maybeLogBlockState(timestamp, directory, getblockchaininfo, getchaintips):
+def maybeLogBlockState(timestamp, directory, getblockchaininfo, getchaintips, newblockbroadcastsblockinformation):
 	global prevBlockHeight, prevBlockHash, isInStartupDownload
 
 	# Quickly check if any new blocks have arrived, if they haven't 
@@ -250,7 +258,6 @@ def maybeLogBlockState(timestamp, directory, getblockchaininfo, getchaintips):
 		except:
 			getchaintxstats = {'time':'','txcount':'','window_final_block_hash':'','window_final_block_height':'','window_block_count':'','window_tx_count':'','window_interval':'','txrate':''}
 
-
 		# Quick sanity checking just to ensure that this is indeed the coinbase transaction
 		if gettxout['coinbase'] is not True:
 			coinbaseTransactionHash = ''
@@ -268,6 +275,16 @@ def maybeLogBlockState(timestamp, directory, getblockchaininfo, getchaintips):
 				'coinbase': True
 			}
 
+		# If there is a hash match, then include the block propagation time information
+		if blockHash != '' and newblockbroadcastsblockinformation['hash'] == blockHash:
+			blockPropTime = newblockbroadcastsblockinformation['propagation_time']
+			blockMedPropTime = newblockbroadcastsblockinformation['propagation_time_median_of_peers']
+			blockReceivedBy = newblockbroadcastsblockinformation['node_received_by']
+		else:
+			blockPropTime = ''
+			blockMedPropTime = ''
+			blockReceivedBy = ''
+
 		lines += '"' + timestamp.strftime('%A, %b %d %Y, %-I:%M:%S %p ') + time.tzname[time.localtime().tm_isdst] + '",'
 		lines += str(timestampSeconds) + ','
 		lines += str(timeSinceLastSample) + ','
@@ -283,7 +300,6 @@ def maybeLogBlockState(timestamp, directory, getblockchaininfo, getchaintips):
 		lines += str(blockHash) + ','
 		if 'previousblockhash' in getblockstats: lines += str(getblockstats['previousblockhash']) + ','
 		else: lines += ','
-
 		lines += str(getblock['size']) + ','
 		lines += str(getblockstats['total_size']) + ','
 		lines += str(getblock['strippedsize']) + ','
@@ -343,6 +359,9 @@ def maybeLogBlockState(timestamp, directory, getblockchaininfo, getchaintips):
 		else: lines += ','
 		lines += str(gettxout['scriptPubKey']['type']) + ','
 		lines += str(gettxout['scriptPubKey']['asm']) + ','
+		lines += str(blockPropTime) + ','
+		lines += str(blockMedPropTime) + ','
+		lines += str(blockReceivedBy) + ','
 		lines += '\n'
 		
 		print(f'\tLogged {tipStatus} block at height {height}.')
@@ -771,6 +790,10 @@ def makeMachineStateHeader():
 	line += 'Median Timestamp of Last 11 Blocks (to prevent timestamp manipulation),'
 	line += 'Number of Inbound Peer Connections,'
 	line += 'Number of Outbound Peer Connections,'
+	line += 'Last Block Propagation Time Duration (using system time) (ms),'
+	line += 'Last Median Block Propagation Time Duration (using median time of peers including self) (ms),'
+	line += 'Last Block Hash,'
+	line += 'Last Block Received By,'
 	line += 'Blockchain Warning Message,'
 	line += 'Is Blockchain in Initial Block Download,'
 	line += 'Blockchain Verification Progress (%),'
@@ -780,6 +803,7 @@ def makeMachineStateHeader():
 	line += 'Is Blockchain Pruned,'
 	line += 'Maximum Pruned Blockchain Size (bytes),'
 	line += 'Pruned Block Height,'
+	line += 'Bitcoin Direcory Size (bytes),'
 	line += 'Is Mempool Fully Loaded,'
 	line += 'Number of Mempool Transactions,'
 	line += 'Mempool Transaction Sizes (BIP 141) (bytes),'
@@ -808,7 +832,7 @@ def makeMachineStateHeader():
 	return line
 
 # Log the state of the machine to file, returns the sample number
-def logMachineState(timestamp, directory, getpeerinfo, getblockchaininfo, getmempoolinfo):
+def logMachineState(timestamp, directory, getpeerinfo, getblockchaininfo, getmempoolinfo, newblockbroadcastsblockinformation):
 	filePath = os.path.join(directory, 'machine_state_info.csv')
 	if not os.path.exists(filePath):
 		print(f'Creating machine state file')
@@ -867,6 +891,10 @@ def logMachineState(timestamp, directory, getpeerinfo, getblockchaininfo, getmem
 	line += str(getblockchaininfo['mediantime']) + ','
 	line += str(numInboundPeers) + ','
 	line += str(numOutboundPeers) + ','
+	line += str(newblockbroadcastsblockinformation['propagation_time']) + ','
+	line += str(newblockbroadcastsblockinformation['propagation_time_median_of_peers']) + ','
+	line += str(newblockbroadcastsblockinformation['hash']) + ','
+	line += str(newblockbroadcastsblockinformation['node_received_by']) + ','
 	line += str(getblockchaininfo['warnings']) + ','
 	line += str(1 if getblockchaininfo['initialblockdownload'] else 0) + ','
 	line += str(getblockchaininfo['verificationprogress'] * 100) + ','
@@ -874,8 +902,13 @@ def logMachineState(timestamp, directory, getpeerinfo, getblockchaininfo, getmem
 	line += str(getblockchaininfo['headers']) + ','
 	line += str(getblockchaininfo['size_on_disk']) + ','
 	line += str(1 if getblockchaininfo['pruned'] else 0) + ','
-	line += str(getblockchaininfo['prune_target_size']) + ','
-	line += str(getblockchaininfo['pruneheight']) + ','
+	if 'prune_target_size' in getblockchaininfo:
+		line += str(getblockchaininfo['prune_target_size']) + ','
+	else: line += ','
+	if 'pruneheight' in getblockchaininfo:
+		line += str(getblockchaininfo['pruneheight']) + ','
+	else: line += ','
+	line += str(getDirectorySize(bitcoinDirectory)) + ','
 	line += str(1 if getmempoolinfo['loaded'] else 0) + ','
 	line += str(getmempoolinfo['size']) + ','
 	line += str(getmempoolinfo['bytes']) + ','
@@ -946,7 +979,7 @@ def logNode(address, timestamp, directory, updateInfo):
 		timeSinceLastSample = int((timestampSeconds - float(prevLine[1])) * timePrecision) / timePrecision
 		connectionCount = int(prevLine[4])
 		# Check if this is the same connection or a new connection
-		if updateInfo['port'] != int(prevLine[3]) or updateInfo['connectionDuration'] < float(prevLine[5]):
+		if (prevLine[3] != '' and updateInfo['port'] != int(prevLine[3])) or (prevLine[5] != '' and updateInfo['connectionDuration'] < float(prevLine[5])):
 			connectionCount += 1
 
 	line = '"' + timestamp.strftime('%A, %b %d %Y, %-I:%M:%S %p ') + time.tzname[time.localtime().tm_isdst] + '",'
@@ -1483,6 +1516,17 @@ def log(targetDateTime, previousDirectory):
 		getmempoolinfo = bitcoin('getmempoolinfo', True)
 		peersToUpdate = {}
 
+		newblockbroadcastsblockinformation = {'hash': '', 'propagation_time': '', 'propagation_time_median_of_peers': '', 'node_received_by': ''}
+		if 'new_block_broadcasts' in listnewbroadcastsandclear:
+			if 'block_information' in listnewbroadcastsandclear['new_block_broadcasts']:
+				newblockbroadcastsblockinformation = listnewbroadcastsandclear['new_block_broadcasts']['block_information']
+				if newblockbroadcastsblockinformation['hash'] == '':
+					newblockbroadcastsblockinformation['propagation_time'] = ''
+					newblockbroadcastsblockinformation['propagation_time_median_of_peers'] = ''
+					newblockbroadcastsblockinformation['node_received_by'] = ''
+				# Clean up so we can iterate through the peer addresses inside new_block_broadcasts
+				del listnewbroadcastsandclear['new_block_broadcasts']['block_information']
+
 		for peerEntry in getpeerinfo:
 			address, port = splitAddress(peerEntry['addr'])
 			if address not in peersToUpdate:
@@ -1547,10 +1591,24 @@ def log(targetDateTime, previousDirectory):
 					peersToUpdate[address][f'Time_{msg} (milliseconds)'] = time
 					peersToUpdate[address][f'MaxTime_{msg} (milliseconds)'] = timeMax
 
-		sampleNumber = logMachineState(timestamp, directory, getpeerinfo, getblockchaininfo, getmempoolinfo)
+		# If a peer connected then disconnected in between the sample duration, we still want to log it
+		for address in listnewbroadcastsandclear['new_block_broadcasts']:
+			if address in peersToUpdate: continue
+			peersToUpdate[address] = getPeerInfoTemplate()
+			print('Logging incomplete block propagation entry for disconnected peer:', address)
+			peersToUpdate[address]['newBlocksReceivedCount'] = listnewbroadcastsandclear['new_block_broadcasts'][address]
+		for address in listnewbroadcastsandclear['new_transaction_broadcasts']:
+			if address in peersToUpdate: continue
+			peersToUpdate[address] = getPeerInfoTemplate()
+			print('Logging incomplete block propagation entry for disconnected peer:', address)
+			peersToUpdate[address]['newTransactionsReceivedCount'] = listnewbroadcastsandclear['new_transaction_broadcasts'][address]
+			if address in listnewbroadcastsandclear['new_transaction_fee_broadcasts']: peersToUpdate[address]['newTransactionsReceivedFee'] = listnewbroadcastsandclear['new_transaction_fee_broadcasts'][address]
+			if address in listnewbroadcastsandclear['new_transaction_size_broadcasts']: peersToUpdate[address]['newTransactionsReceivedSize'] = listnewbroadcastsandclear['new_transaction_size_broadcasts'][address]
+
+		sampleNumber = logMachineState(timestamp, directory, getpeerinfo, getblockchaininfo, getmempoolinfo, newblockbroadcastsblockinformation)
 		print(f'Adding Sample #{sampleNumber} to {directory}:')
 
-		maybeLogBlockState(timestamp, directory, getblockchaininfo, getchaintips)
+		maybeLogBlockState(timestamp, directory, getblockchaininfo, getchaintips, newblockbroadcastsblockinformation)
 
 		for address in peersToUpdate:
 			logNode(address, timestamp, directory, peersToUpdate[address])
