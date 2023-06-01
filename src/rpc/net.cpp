@@ -1217,6 +1217,13 @@ static RPCHelpMan listnewbroadcasts()
         for (std::map<std::string, int>::iterator it = connman.newBlockBroadcasts.begin(); it != connman.newBlockBroadcasts.end(); ++it) {
             subresult1.pushKV(it->first, it->second);
         }
+        UniValue subsubresult1(UniValue::VOBJ);
+        subsubresult1.pushKV("hash", connman.blockPropagationHash);
+        subsubresult1.pushKV("propagation_time", connman.blockPropagationTime);
+        subsubresult1.pushKV("propagation_time_median_of_peers", connman.blockPropagationTimeMedian);
+        subsubresult1.pushKV("node_received_by", connman.blockPropagationNodeReceivedBy);
+        subresult1.pushKV("block_information", subsubresult1);
+
         result.pushKV("new_block_broadcasts", subresult1);
     }
     {
@@ -1233,6 +1240,7 @@ static RPCHelpMan listnewbroadcasts()
         for (std::map<std::string, int>::iterator it = connman.newTxSizeBroadcasts.begin(); it != connman.newTxSizeBroadcasts.end(); ++it) {
             subresult4.pushKV(it->first, it->second);
         }
+
         result.pushKV("new_transaction_broadcasts", subresult2);
         result.pushKV("new_transaction_fee_broadcasts", subresult3);
         result.pushKV("new_transaction_size_broadcasts", subresult4);
@@ -1264,6 +1272,13 @@ static RPCHelpMan listnewbroadcastsandclear()
         for (std::map<std::string, int>::iterator it = connman.newBlockBroadcasts.begin(); it != connman.newBlockBroadcasts.end(); ++it) {
             subresult1.pushKV(it->first, it->second);
         }
+        UniValue subsubresult1(UniValue::VOBJ);
+        subsubresult1.pushKV("hash", connman.blockPropagationHash);
+        subsubresult1.pushKV("propagation_time", connman.blockPropagationTime);
+        subsubresult1.pushKV("propagation_time_median_of_peers", connman.blockPropagationTimeMedian);
+        subsubresult1.pushKV("node_received_by", connman.blockPropagationNodeReceivedBy);
+        subresult1.pushKV("block_information", subsubresult1);
+
         result.pushKV("new_block_broadcasts", subresult1);
     }
     {

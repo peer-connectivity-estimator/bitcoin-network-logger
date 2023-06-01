@@ -103,9 +103,6 @@ const std::vector<std::string> CHECKLEVEL_DOC {
     "each level includes the checks of the previous levels",
 };
 
-// Cybersecurity Lab: The time difference from when the block was mined, to when it was received
-//int64_t blockPropagationTime = INT_MIN;
-
 /** The number of blocks to keep below the deepest prune lock.
  *  There is nothing special about this number. It is higher than what we
  *  expect to see in regular mainnet reorgs, but not so high that it would
@@ -2659,14 +2656,6 @@ void Chainstate::UpdateTip(const CBlockIndex* pindexNew)
         // Only log every so often so that we don't bury log messages at the tip.
         constexpr int BACKGROUND_LOG_INTERVAL = 2000;
         if (pindexNew->nHeight % BACKGROUND_LOG_INTERVAL == 0) {
-
-            // Cybersecurity Lab: Update the block time offset
-            //blockPropagationTime = std::chrono::time_point_cast<std::chrono::milliseconds>(GetAdjustedTime()).time_since_epoch().count() - count_milliseconds(std::chrono::milliseconds{pindexNew->GetBlockTime()});
-            //blockPropagationTime = std::chrono::duration_cast<std::chrono::milliseconds>(GetAdjustedTime().time_since_epoch()).count() - (int64_t)pindexNew->GetBlockTime() * 1000;
-            //blockPropagationTime = 0;
-            //LogPrint(BCLog::RESEARCHER, "\nBlock propagation time delay was %lld milliseconds", blockPropagationTime); // Cybersecurity Lab
-
-
             UpdateTipLog(coins_tip, pindexNew, params, __func__, "[background validation] ", "");
         }
         return;

@@ -3192,6 +3192,10 @@ void PeerManagerImpl::ProcessBlock(CNode& node, const std::shared_ptr<const CBlo
     m_chainman.ProcessNewBlock(block, force_processing, min_pow_checked, &new_block);
     if (new_block) {
         node.m_last_block_time = GetTime<std::chrono::seconds>();
+        // Cybersecurity Lab: Fetch the current time
+        int64_t now = GetTimeMillis(); //std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+        auto now_median_chrono = GetAdjustedTime();
+        int64_t now_median = std::chrono::duration_cast<std::chrono::milliseconds>(now_median_chrono.time_since_epoch()).count();
         
         // Cybersecurity Lab: Increment the unique block dissemination counter
         std::string address = node.addr.ToStringAddr();
@@ -3203,6 +3207,14 @@ void PeerManagerImpl::ProcessBlock(CNode& node, const std::shared_ptr<const CBlo
         } else {
             (m_connman.newBlockBroadcasts)[address]++;
         }
+
+        // Cybersecurity Lab: Compute the block time offset
+        m_connman.blockPropagationHash = block->GetHash().ToString();
+        m_connman.blockPropagationNodeReceivedBy = address;
+        int64_t blockTime = static_cast<int64_t>(block->GetBlockTime()) * 1000;
+        // "Never go to sea with two chronometers; take one or three." (timedata.cpp)
+        m_connman.blockPropagationTime = now - blockTime;
+        m_connman.blockPropagationTimeMedian = now_median - blockTime;
         
         // In case this block came from a different peer than we requested
         // from, we can erase the block request now anyway (as we just stored

@@ -96,9 +96,6 @@ extern uint256 g_best_block;
 /** Documentation for argument 'checklevel'. */
 extern const std::vector<std::string> CHECKLEVEL_DOC;
 
-// Cybersecurity Lab: Define extern blockPropagationTime
-//extern int64_t blockPropagationTime;
-
 /** Run instances of script checking worker threads */
 void StartScriptCheckWorkerThreads(int threads_num);
 /** Stop all of the script checking worker threads */
