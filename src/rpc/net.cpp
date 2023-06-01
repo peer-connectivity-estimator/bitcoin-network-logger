@@ -1240,10 +1240,18 @@ static RPCHelpMan listnewbroadcasts()
         for (std::map<std::string, int>::iterator it = connman.newTxSizeBroadcasts.begin(); it != connman.newTxSizeBroadcasts.end(); ++it) {
             subresult4.pushKV(it->first, it->second);
         }
+        UniValue subresult5(UniValue::VOBJ);
+        int64_t now = GetTimeMillis();
+        auto now_median_chrono = GetAdjustedTime();
+        int64_t now_median = std::chrono::duration_cast<std::chrono::milliseconds>(now_median_chrono.time_since_epoch()).count();
+
+        subresult5.pushKV("timestamp", now);
+        subresult5.pushKV("timestamp_median", now_median);
 
         result.pushKV("new_transaction_broadcasts", subresult2);
         result.pushKV("new_transaction_fee_broadcasts", subresult3);
         result.pushKV("new_transaction_size_broadcasts", subresult4);
+        result.pushKV("timestamps", subresult5);
     }
     return result;
 },
@@ -1295,9 +1303,18 @@ static RPCHelpMan listnewbroadcastsandclear()
         for (std::map<std::string, int>::iterator it = connman.newTxSizeBroadcasts.begin(); it != connman.newTxSizeBroadcasts.end(); ++it) {
             subresult4.pushKV(it->first, it->second);
         }
+        UniValue subresult5(UniValue::VOBJ);
+        int64_t now = GetTimeMillis();
+        auto now_median_chrono = GetAdjustedTime();
+        int64_t now_median = std::chrono::duration_cast<std::chrono::milliseconds>(now_median_chrono.time_since_epoch()).count();
+
+        subresult5.pushKV("timestamp", now);
+        subresult5.pushKV("timestamp_median", now_median);
+
         result.pushKV("new_transaction_broadcasts", subresult2);
         result.pushKV("new_transaction_fee_broadcasts", subresult3);
         result.pushKV("new_transaction_size_broadcasts", subresult4);
+        result.pushKV("timestamps", subresult5);
     }
     connman.newBlockBroadcasts.clear();
     connman.newTxBroadcasts.clear();
