@@ -28,7 +28,6 @@ elif os.path.exists(f'/media/{os.getlogin()}/Long Term Storage/Bitcoin/blocks'):
 def bitcoin(cmd):
 	return os.popen(f'src/bitcoin-cli{datadir} {cmd}').read()
 
-
 def console(width):
 	os.system('clear')
 	print('-' * width)

@@ -21,12 +21,10 @@ echo "Parameters to transfer to Bitcoin: \"$bitcoinParams\""
 if [ ! -d "src" ] ; then
 	cd .. # If located in src or any other level of depth 1, return
 fi
-BitcoinFullLedger
+
 
 pruned=false
-if [ -d ~/BitcoinFullLedger ] && [ ! -f ~/BitcoinFullLedger/bitcoind.pid ] ; then
-	dir=~/BitcoinFullLedger
-elif [ -d /media/$USER/sf_Bitcoin/blocks/ ] && [ ! -f /media/$USER/sf_Bitcoin/bitcoind.pid ] ; then
+if [ -d /media/$USER/sf_Bitcoin/blocks/ ] && [ ! -f /media/$USER/sf_Bitcoin/bitcoind.pid ] ; then
 	dir=/media/$USER/sf_Bitcoin
 elif [ -d /media/$USER/BITCOIN/Bitcoin\ Full\ Ledger/blocks/ ] && [ ! -f /media/$USER/BITCOIN/Bitcoin\ Full\ Ledger/bitcoind.pid ] ; then
 	dir=/media/$USER/BITCOIN/Bitcoin\ Full\ Ledger
@@ -136,16 +134,16 @@ if [[ " ${otherParams[*]} " =~ " gui " ]]; then
 else
 
 	# Only open the console if not already open
-	if ! wmctrl -l | grep -q "Custom Bitcoin Core Instance" ; then
-		# Find the right terminal
-		if [ -x "$(command -v mate-terminal)" ] ; then
-			mate-terminal -t "Custom Bitcoin Core Instance" -- python3 bitcoin_console.py
-		elif [ -x "$(command -v xfce4-terminal)" ] ; then
-			xfce4-terminal -t "Custom Bitcoin Core Instance" -- python3 bitcoin_console.py
-		else
-			gnome-terminal -t "Custom Bitcoin Core Instance" -- python3 bitcoin_console.py
-		fi
-	fi
+	# if ! wmctrl -l | grep -q "Bitcoin Core Console Instance" ; then
+	# 	# Find the right terminal
+	# 	if [ -x "$(command -v mate-terminal)" ] ; then
+	# 		mate-terminal -t "Bitcoin Core Console Instance" -- python3 bitcoin_console.py
+	# 	elif [ -x "$(command -v xfce4-terminal)" ] ; then
+	# 		xfce4-terminal -t "Bitcoin Core Console Instance" -- python3 bitcoin_console.py
+	# 	else
+	# 		gnome-terminal -t "Bitcoin Core Console Instance" -- python3 bitcoin_console.py
+	# 	fi
+	# fi
 
 	if [ "$pruned" == "true" ] ; then
 		echo "Pruned mode activated, only keeping 550 block transactions"

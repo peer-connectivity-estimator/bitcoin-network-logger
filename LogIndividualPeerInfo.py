@@ -33,13 +33,14 @@ outputFilesToTransferPath = '/media/research/BTC/Official_Research_Logs'
 bitcoinDirectory = '/home/research/BitcoinFullLedger'
 
 # The path to copy over the finalized output files (preferably an external storage device)
-#outputFilesToTransferPath = '/home/ubuntu1/Desktop'
+outputFilesToTransferPath = '/home/ubuntu1/Desktop'
 
 # The path where the Bitcoin blockchain is stored
-#bitcoinDirectory = '/media/ubuntu1/Long040Term040Storage/Bitcoin Full Ledger'
+bitcoinDirectory = '/media/ubuntu1/Long040Term040Storage/Bitcoin Full Ledger'
 
 # The logger will take one sample for every numSecondsPerSample interval
-numSecondsPerSample = 10
+numSecondsPerSample = 1
+numSamplesPerDirectory = 1000
 
 # Keep three decimal points for timestamps and time durations
 timePrecision = 1000
@@ -69,7 +70,7 @@ def terminal(cmd):
 	return stdout.decode('utf-8')
 
 # Send a command to the Bitcoin console
-def bitcoin(cmd, isJSON):
+def bitcoin(cmd, isJSON = False):
 	response = terminal('./src/bitcoin-cli -rpcuser=cybersec -rpcpassword=kZIdeN4HjZ3fp9Lge4iezt0eJrbjSi8kuSuOHeUkEUbQVdf09JZXAAGwF3R5R2qQkPgoLloW91yTFuufo7CYxM2VPT7A5lYeTrodcLWWzMMwIrOKu7ZNiwkrKOQ95KGW8kIuL1slRVFXoFpGsXXTIA55V3iUYLckn8rj8MZHBpmdGQjLxakotkj83ZlSRx1aOJ4BFxdvDNz0WHk1i2OPgXL4nsd56Ph991eKNbXVJHtzqCXUbtDELVf4shFJXame -rpcport=8332 ' + str(cmd)).strip()
 	if not isJSON: return response
 	return json.loads(response)
@@ -121,7 +122,6 @@ def stopBitcoin():
 # Restart the Bitcoin Core instance
 def restartBitcoin():
 	global isInStartupDownload
-	print('Restarting Bitcoin...')
 	stopBitcoin()
 	while not bitcoinUp():
 		startBitcoin()
@@ -140,22 +140,21 @@ def makeBlockStateHeader():
 	line += 'Is Fork,'
 	line += 'Fork Length,'
 	line += 'Block Timestamp (UNIX epoch),'
-	line += 'Median Timestamp of Last 11 Blocks (to prevent timestamp manipulation),'
-	line += 'Transaction Rate (tx/second),'
 	line += 'Number of Confirmations,'
 	line += 'Block Hash,'
 	line += 'Block Size (bytes),'
 	line += 'Block Size Including Segregated Witnesses (bytes),'
 	line += 'Stripped Size (excluding witness data) (bytes),'
 	line += 'Propagation Time Duration (using system time) (milliseconds),'
-	line += 'Median Block Propagation Time Duration (using median time of peers including self) (milliseconds),'
+	line += 'Network Adjusted Block Propagation Time Duration (milliseconds),'
 	line += 'Received By,'
 	line += 'Difficulty,'
 	line += 'Chainwork,'
 	line += 'Weight (BIP 141),'
 	line += 'Version,'
 	line += 'Nonce,'
-	line += 'Number of Transactions (Tx),'
+	line += 'Number of Transactions (tx),'
+	line += 'Tx Rate (tx/second),'
 	line += 'Number of Tx Inputs,'
 	line += 'Number of Tx Outputs,'
 	line += 'Total Output Value (satoshi),'
@@ -241,11 +240,16 @@ def maybeLogBlockState(timestamp, directory, getblockchaininfo, getchaintips, ne
 			break
 
 	# If we don't want to iterate through the change in blocks, then reset the previous block height
-	if prevBlockHeight is None or allowSkippedBlocks:
+	if prevBlockHeight is None or allowSkippedBlocks or isInStartupDownload:
 		prevBlockHeight = activeTip['height']
 
 	# Construct an array of all the tips we want to process
 	numBlocks = activeTip['height'] - prevBlockHeight + 1
+	# maxNumPreviousBlocksToProcess = 12 # If we're more than this many blocks behind, we only download the most recent ones
+	# if numBlocks > maxNumPreviousBlocksToProcess:
+	# 	prevBlockHeight = activeTip['height'] - maxNumPreviousBlocksToProcess + 1
+	# 	numBlocks = maxNumPreviousBlocksToProcess
+
 	tipsToProcess = []
 	for height in range(prevBlockHeight + 1, activeTip['height']):
 		tipsToProcess.append({
@@ -353,9 +357,6 @@ def maybeLogBlockState(timestamp, directory, getblockchaininfo, getchaintips, ne
 		lines += str(tipIsStale) + ','
 		lines += str(forkLength) + ','
 		lines += str(getblock['time']) + ','
-		lines += str(getblock['mediantime']) + ',' # Same as getblockstats['mediantime']
-		if 'txrate' in getchaintxstats: lines += str(getchaintxstats['txrate']) + ','
-		else: lines += ','
 		lines += str(getblock['confirmations']) + ','
 		lines += str(blockHash) + ','
 		lines += str(getblock['size']) + ','
@@ -370,6 +371,9 @@ def maybeLogBlockState(timestamp, directory, getblockchaininfo, getchaintips, ne
 		lines += str(getblock['version']) + ','
 		lines += str(getblock['nonce']) + ','
 		lines += str(getblock['nTx']) + ',' # Same as getblockstats['txs']
+		if 'txrate' in getchaintxstats: lines += str(getchaintxstats['txrate']) + ','
+		else: lines += ','
+
 		if 'ins' in getblockstats: lines += str(getblockstats['ins']) + ','
 		else: lines += ','
 		if 'outs' in getblockstats: lines += str(getblockstats['outs']) + ','
@@ -499,10 +503,10 @@ def makeMainPeerHeader(address):
 	line += 'Is SendCMPCT Enabled From Them,'
 	line += 'Last Message Send Time (UNIX epoch),'
 	line += 'Number of Bytes Sent,'
-	line += 'Distribution of Bytes Sent,'
-	line += 'Last Message Receive Time (UNIX epoch),'
 	line += 'Number of Bytes Received,'
+	line += 'Distribution of Bytes Sent,'
 	line += 'Distribution of Bytes Received,'
+	line += 'Last Message Receive Time (UNIX epoch),'
 	line += 'Last Valid Transaction Received Time (UNIX epoch),'
 	line += 'Last Valid Block Received Time (UNIX epoch),'
 	line += 'Starting Block Height,'
@@ -802,24 +806,23 @@ def makeMachineStateHeader():
 	line = 'Timestamp,'
 	line += 'Timestamp (UNIX epoch),'
 	line += 'Time Since Last Sample (seconds),'
-	line += 'Difference from Median Timestamp of Peers (milliseconds) (to prevent timestamp manipulation),'
-	line += 'Median Timestamp of Last 11 Blocks (to prevent timestamp manipulation),'
+	line += 'Difference from Network Adjusted Timestamp (milliseconds),'
 	line += 'Number of Inbound Peer Connections,'
 	line += 'Number of Outbound Peer Connections,'
 	line += 'Last Block Propagation Time Duration (using system time) (milliseconds),'
-	line += 'Last Median Block Propagation Time Duration (using median time of peers including self) (milliseconds),'
+	line += 'Last Network Adjusted Block Propagation Time Duration (milliseconds),'
 	line += 'Last Block Hash,'
 	line += 'Last Block Received By,'
 	line += 'Blockchain Warning Message,'
 	line += 'Is Blockchain in Initial Block Download,'
-	line += 'Blockchain Verification Progress (%),'
+	line += 'Blockchain Verification Progress (percent),'
 	line += 'Blockchain Number of Blocks,'
 	line += 'Blockchain Number of Headers,'
 	line += 'Blockchain Size (bytes),'
 	line += 'Is Blockchain Pruned,'
 	line += 'Maximum Pruned Blockchain Size (bytes),'
 	line += 'Pruned Block Height,'
-	line += 'Bitcoin Direcory Size (bytes),'
+	line += 'Bitcoin Directory Size (bytes),'
 	line += 'Is Mempool Fully Loaded,'
 	line += 'Number of Mempool Transactions,'
 	line += 'Mempool Transaction Sizes (BIP 141) (bytes),'
@@ -904,8 +907,7 @@ def logMachineState(timestamp, directory, getpeerinfo, getblockchaininfo, getmem
 	line = '"' + getHumanReadableDateTime(timestamp) + '",'
 	line += str(timestampSeconds) + ','
 	line += str(timeSinceLastSample) + ','
-	line += str(timestampMedianDifference)
-	line += str(getblockchaininfo['mediantime']) + ','
+	line += str(timestampMedianDifference) + ','
 	line += str(numInboundPeers) + ','
 	line += str(numOutboundPeers) + ','
 	line += str(newblockbroadcastsblockinformation['propagation_time']) + ','
@@ -1493,7 +1495,7 @@ def finalizeLogDirectory(directory):
 
 
 
-def log(targetDateTime, previousDirectory):
+def log(targetDateTime, previousDirectory, isTimeForNewDirectory):
 	global timerThread, globalNumSamples, globalLoggingStartTimestamp, globalNumForksSeen, globalMaxForkLength
 	if not bitcoinUp():
 		startBitcoin()
@@ -1506,22 +1508,41 @@ def log(targetDateTime, previousDirectory):
 	try:
 		getblockchaininfo = bitcoin('getblockchaininfo', True)
 
-		# Determine the directory to write the logs to
-		if getblockchaininfo['initialblockdownload']:
-			directory = f'Research_Logs/IBD_Research_Log'
-		else:
-			month = timestamp.strftime("%b")
-			year = timestamp.year
-			directory = f'Research_Logs/{month}_{year}_Research_Log'
-			# Every month, restart the Bitcoin node to get a new fresh set of peers, along with a fresh new directory
-			if len(previousDirectory) > 0 and previousDirectory != directory:
+		isLastDirectoryIBD = '_IBD_' in previousDirectory
+		if isLastDirectoryIBD != getblockchaininfo['initialblockdownload']:
+			isTimeForNewDirectory = True
+
+		if isTimeForNewDirectory:
+			# Restart the Bitcoin node to get a new fresh set of peers
+			if len(previousDirectory) > 0:
 				finalizeLogDirectory(previousDirectory)
 				restartBitcoin()
 				# Reset the target datetime to accomodate for the time just spent finalizing the sample
 				timestamp = targetDateTime = datetime.datetime.now()
+				timestampSeconds = int(timestamp.astimezone(datetime.timezone.utc).timestamp() * timePrecision) / timePrecision
 				getblockchaininfo = bitcoin('getblockchaininfo', True)
 
+			sampleNumber = 1
+			compressedDirectoryExists = True
+			directoryNumber = 0
+			while compressedDirectoryExists:
+				directoryNumber += 1
+				if getblockchaininfo['initialblockdownload']:
+					directory = f'Research_Logs/Bitcoin_IBD_Log_{directoryNumber}'
+				else:
+					directory = f'Research_Logs/Bitcoin_Log_{directoryNumber}'
+				compressedDirectoryExists = os.path.exists(directory + '.tar.xz')
+
+			# If a sample terminates prematurely, then it is still uncompressed.
+			# Rather than deleting it (like the code below), we let the sample live and get finalized
+			# uncompressedDirectoryExists = os.path.exists(directory)
+			# if uncompressedDirectoryExists:
+			# 	print(f'Detected an incomplete sample directory: {directory}, removing...')
+			# 	terminal('rm -rf ' + directory)
+			isTimeForNewDirectory = False
+
 		if not os.path.exists(directory):
+			# After the node has restarted and is up and running, create the directory
 			print('Creating directory:', directory)
 			os.makedirs(directory)
 			writeInitialMachineInfo(timestamp, directory)
@@ -1592,10 +1613,10 @@ def log(targetDateTime, previousDirectory):
 			peersToUpdate[address]['sendCmpctEnabledFromThem'] = 1 if peerEntry['bip152_hb_from'] else 0
 			peersToUpdate[address]['lastSendTime'] = peerEntry['lastsend'] if peerEntry['lastsend'] != 0 else ''
 			peersToUpdate[address]['bytesSent'] = peerEntry['bytessent']
-			peersToUpdate[address]['bytesSentDistribution'] = '"' + json.dumps(bytesSentPerMessage, separators=(',', ':')).replace('"', "'") + '"'
-			peersToUpdate[address]['lastReceiveTime'] = peerEntry['lastrecv'] if peerEntry['lastrecv'] != 0 else ''
 			peersToUpdate[address]['bytesReceived'] = peerEntry['bytesrecv']
+			peersToUpdate[address]['bytesSentDistribution'] = '"' + json.dumps(bytesSentPerMessage, separators=(',', ':')).replace('"', "'") + '"'
 			peersToUpdate[address]['bytesReceivedDistribution'] = '"' + json.dumps(bytesReceivedPerMessage, separators=(',', ':')).replace('"', "'") + '"'
+			peersToUpdate[address]['lastReceiveTime'] = peerEntry['lastrecv'] if peerEntry['lastrecv'] != 0 else ''
 			peersToUpdate[address]['lastTransactionTime'] = peerEntry['last_transaction'] if peerEntry['last_transaction'] != 0 else ''
 			peersToUpdate[address]['lastBlockTime'] = peerEntry['last_block'] if peerEntry['last_block'] != 0 else ''
 			peersToUpdate[address]['startingBlockHeight'] = peerEntry['startingheight']
@@ -1636,7 +1657,8 @@ def log(targetDateTime, previousDirectory):
 		globalNumSamples += 1
 		totalNumDays = int((timestamp - globalLoggingStartTimestamp).total_seconds() / (60 * 60 * 24) * timePrecision) / timePrecision
 		print(f'	Sample successfully logged. Total of {globalNumSamples} samples to date, logging interval: {totalNumDays} days. Total of {globalNumForksSeen} forks with a max length of {globalMaxForkLength} blocks.')
-	
+		isTimeForNewDirectory = (sampleNumber >= numSamplesPerDirectory)
+
 	except Exception as e:
 		errorMessage = str(e)
 		errorTraceback = traceback.format_exc()
@@ -1661,7 +1683,7 @@ def log(targetDateTime, previousDirectory):
 	# Compute the time until the next sample will run, then schedule the run
 	targetDateTime += datetime.timedelta(seconds = numSecondsPerSample)
 	offset = (targetDateTime - datetime.datetime.now()).total_seconds()
-	timerThread = Timer(offset, log, [targetDateTime, directory])
+	timerThread = Timer(offset, log, [targetDateTime, directory, isTimeForNewDirectory])
 	timerThread.daemon = True
 	timerThread.start()
 
@@ -1670,7 +1692,7 @@ if __name__ == '__main__':
 
 	# Begin the timer
 	targetDateTime = datetime.datetime.now()
-	log(targetDateTime, '')
+	log(targetDateTime, '', True)
 
 	while True:
 		try:
