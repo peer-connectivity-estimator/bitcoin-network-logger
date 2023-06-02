@@ -10,7 +10,6 @@ changes to Research_Logs/MONTH_YEAR_Research_Log/, and the node restarts.
 __author__ = 'Simeon Wuthier'
 __contact__ = 'swuthier@uccs.edu'
 __date__ = '2023/06/01'
-__version__ = '1.0.0'
 
 from threading import Timer
 import datetime
@@ -32,15 +31,9 @@ outputFilesToTransferPath = '/media/research/BTC/Official_Research_Logs'
 # The path where the Bitcoin blockchain is stored
 bitcoinDirectory = '/home/research/BitcoinFullLedger'
 
-# The path to copy over the finalized output files (preferably an external storage device)
-outputFilesToTransferPath = '/home/ubuntu1/Desktop'
-
-# The path where the Bitcoin blockchain is stored
-bitcoinDirectory = '/media/ubuntu1/Long040Term040Storage/Bitcoin Full Ledger'
-
 # The logger will take one sample for every numSecondsPerSample interval
-numSecondsPerSample = 1
-numSamplesPerDirectory = 1000
+numSecondsPerSample = 10
+numSamplesPerDirectory = 10000
 
 # Keep three decimal points for timestamps and time durations
 timePrecision = 1000
