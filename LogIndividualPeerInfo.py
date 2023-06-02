@@ -84,7 +84,7 @@ def startBitcoin():
 	rpcReady = False
 	while rpcReady is False:
 		if not bitcoinUp():
-			subprocess.Popen(['gnome-terminal -t "Bitcoin Core Instance" -- bash ./run.sh'], shell=True)
+			subprocess.Popen(['gnome-terminal -t "Bitcoin Core Instance" -- bash ./run.sh noconsole'], shell=True)
 			time.sleep(5)
 
 		time.sleep(1)

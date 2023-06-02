@@ -45,6 +45,9 @@
 
 #include <shared_mutex>
 
+// Cybersecurity Lab: Used to transfer RPC data
+#include <univalue.h>
+
 class AddrMan;
 class BanMan;
 class CNode;
@@ -784,6 +787,9 @@ public:
     // Cybersecurity Lab: Initialize node tracking info
     std::vector<int> getMessageInfoData{std::vector<int>(37 * 5)}; // Alternating variables
     std::map<std::string, std::vector<int>> getPeersMessageInfoData;
+
+    // Cybersecurity Lab: Initialize bucket list logging info
+    void getBucketInfoForRPC(UniValue &result);
 
     mutable std::shared_mutex m_newBlockBroadcastsMutex;
     mutable std::shared_mutex m_newTxBroadcastsMutex;

@@ -85,7 +85,7 @@ struct AddressPosition {
  */
 class AddrMan
 {
-protected:
+public: // protected: // Cybersecurity Lab
     const std::unique_ptr<AddrManImpl> m_impl;
 
 public:

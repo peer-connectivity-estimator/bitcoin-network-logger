@@ -59,6 +59,9 @@
 
 #include <math.h>
 
+#include <addrman_impl.h> // Cybersecurity Lab: for LOCK(cs)
+//#include <sync.h> // Cybersecurity Lab: for LOCK(cs_main)
+
 /** Maximum number of block-relay-only anchor connections */
 static constexpr size_t MAX_BLOCK_RELAY_ONLY_ANCHORS = 2;
 static_assert (MAX_BLOCK_RELAY_ONLY_ANCHORS <= static_cast<size_t>(MAX_BLOCK_RELAY_ONLY_CONNECTIONS), "MAX_BLOCK_RELAY_ONLY_ANCHORS must not exceed MAX_BLOCK_RELAY_ONLY_CONNECTIONS.");
@@ -2959,3 +2962,120 @@ std::function<void(const CAddress& addr,
                    Span<const unsigned char> data,
                    bool is_incoming)>
     CaptureMessage = CaptureMessageToFile;
+
+// Cybersecurity Lab: Initialize bucket list logging info
+void CConnman::getBucketInfoForRPC(UniValue &result) {
+    LOCK(addrman.m_impl->cs); // This data is guarded by CS
+
+    // Cybersecurity Lab: Simply copied from the top of addrman.cpp, since they are difficult to export
+/** Over how many buckets entries with tried addresses from a single group (/16 for IPv4) are spread */
+static constexpr uint32_t ADDRMAN_TRIED_BUCKETS_PER_GROUP{8};
+/** Over how many buckets entries with new addresses originating from a single group are spread */
+static constexpr uint32_t ADDRMAN_NEW_BUCKETS_PER_SOURCE_GROUP{64};
+/** Maximum number of times an address can occur in the new table */
+static constexpr int32_t ADDRMAN_NEW_BUCKETS_PER_ADDRESS{8};
+/** How old addresses can maximally be */
+static constexpr auto ADDRMAN_HORIZON{30 * 24h};
+/** After how many failed attempts we give up on a new node */
+static constexpr int32_t ADDRMAN_RETRIES{3};
+/** How many successive failures are allowed ... */
+static constexpr int32_t ADDRMAN_MAX_FAILURES{10};
+/** ... in at least this duration */
+static constexpr auto ADDRMAN_MIN_FAIL{7 * 24h};
+/** How recent a successful connection should be before we allow an address to be evicted from tried */
+static constexpr auto ADDRMAN_REPLACEMENT{4h};
+/** The maximum number of tried addr collisions to store */
+static constexpr size_t ADDRMAN_SET_TRIED_COLLISION_SIZE{10};
+/** The maximum time we'll spend trying to resolve a tried table collision */
+static constexpr auto ADDRMAN_TEST_WINDOW{40min};
+
+    result.pushKV("Secret key to randomize bucket select", addrman.m_impl->nKey.GetHex());
+    result.pushKV("Number of buckets", ADDRMAN_NEW_BUCKET_COUNT);
+    result.pushKV("Entries per bucket", ADDRMAN_BUCKET_SIZE);
+    result.pushKV("Number of tried entries", addrman.m_impl->nTried);
+    result.pushKV("Number of (unique) new entries", addrman.m_impl->nNew);
+    result.pushKV("Number of total addresses", addrman.Size());
+    result.pushKV("Number of IPv4 new addresses", addrman.Size(NET_IPV4, true));
+    result.pushKV("Number of IPv4 tried addresses", addrman.Size(NET_IPV4, false));
+    result.pushKV("Number of IPv6 new addresses", addrman.Size(NET_IPV6, true));
+    result.pushKV("Number of IPv6 tried addresses", addrman.Size(NET_IPV6, false));
+    result.pushKV("Number of TOR (v2 or v3) new addresses", addrman.Size(NET_ONION, true));
+    result.pushKV("Number of TOR (v2 or v3) tried addresses", addrman.Size(NET_ONION, false));
+    result.pushKV("Number of I2P new addresses", addrman.Size(NET_I2P, true));
+    result.pushKV("Number of I2P tried addresses", addrman.Size(NET_I2P, false));
+    result.pushKV("Number of CJDNS new addresses", addrman.Size(NET_CJDNS, true));
+    result.pushKV("Number of CJDNS tried addresses", addrman.Size(NET_CJDNS, false));
+    result.pushKV("Number of internal new addresses", addrman.Size(NET_INTERNAL, true));
+    result.pushKV("Number of internal tried addresses", addrman.Size(NET_INTERNAL, false));
+    result.pushKV("Number of unrouteable new addresses", addrman.Size(NET_UNROUTABLE, true));
+    result.pushKV("Number of unrouteable tried addresses", addrman.Size(NET_UNROUTABLE, false));
+    result.pushKV("Number of unknown new addresses", addrman.Size(NET_MAX, true));
+    result.pushKV("Number of unknown tried addresses", addrman.Size(NET_MAX, false));
+    // result.pushKV("Number of Teredo new addresses", addrman.Size(NET_TEREDO, true));
+    // result.pushKV("Number of Teredo tried addresses", addrman.Size(NET_TEREDO, false));
+
+    // Over how many buckets entries with tried addresses from a single group (/16 for IPv4) are spread
+    result.pushKV("Tried Group Bucket Spread", ADDRMAN_TRIED_BUCKETS_PER_GROUP);
+    // Over how many buckets entries with new addresses originating from a single group are spread
+    result.pushKV("New Source Group Bucket Spread", ADDRMAN_NEW_BUCKETS_PER_SOURCE_GROUP);
+    // Maximum number of times an address can occur in the new table
+    result.pushKV("New Address Bucket Limit", ADDRMAN_NEW_BUCKETS_PER_ADDRESS);
+    // How old addresses can maximally be
+    int64_t ADDRMAN_HORIZON_hours = std::chrono::duration_cast<std::chrono::hours>(ADDRMAN_HORIZON).count();
+    result.pushKV("Address Age Limit (hours)", ADDRMAN_HORIZON_hours);
+    // After how many failed attempts we give up on a new node
+    result.pushKV("New Node Retry Limit", ADDRMAN_RETRIES);
+    // How many successive failures are allowed ...
+    result.pushKV("Max Successive Failures", ADDRMAN_MAX_FAILURES);
+    // ... in at least this duration
+    int64_t ADDRMAN_MIN_FAIL_hours = std::chrono::duration_cast<std::chrono::hours>(ADDRMAN_MIN_FAIL).count();
+    result.pushKV("Failure Duration Threshold (hours)", ADDRMAN_MIN_FAIL_hours);
+    // How recent a successful connection should be before we allow an address to be evicted from tried
+    int64_t ADDRMAN_REPLACEMENT_hours = std::chrono::duration_cast<std::chrono::hours>(ADDRMAN_REPLACEMENT).count();
+    result.pushKV("Successful Connection Freshness (hours)", ADDRMAN_REPLACEMENT_hours);
+    // The maximum number of tried addr collisions to store
+    result.pushKV("Tried Collision Storage Limit", ADDRMAN_SET_TRIED_COLLISION_SIZE);
+    // The maximum time we'll spend trying to resolve a tried table collision
+    int64_t ADDRMAN_TEST_WINDOW_minutes = std::chrono::duration_cast<std::chrono::minutes>(ADDRMAN_TEST_WINDOW).count();
+    result.pushKV("Collision Resolution Time Limit (minutes)", ADDRMAN_TEST_WINDOW_minutes);
+
+
+
+    // This just freezes the node:
+    // // Convert the time_point to a system_clock::time_point
+    // auto system_time_point = std::chrono::system_clock::time_point(addrman.m_impl->m_last_good.time_since_epoch());
+    // // Then convert it to a time_t
+    // std::time_t time_t_timestamp = std::chrono::system_clock::to_time_t(system_time_point);
+    // // Finally, construct a UniValue from the timestamp
+    // result.pushKV("Last time Good was called", (uint64_t)time_t_timestamp);
+}
+
+
+
+
+
+// void bucketlist(UniValue &result, std::string bucketType) {
+//   LOCK(cs); // This data is guarded by CS
+//   if(bucketType == "new" || bucketType == "all") {
+//     for (int n = 0; n < ADDRMAN_NEW_BUCKET_COUNT; n++) {
+//         for (int i = 0; i < ADDRMAN_BUCKET_SIZE; i++) {
+//             if(addrman.vvNew[n][i] == -1) continue;
+//             int addressID = addrman.vvNew[n][i];
+//             CAddrInfo address = addrman.mapInfo[addressID];
+//             double changeOfConnecting = address.GetChance();
+//             result.pushKV("New, Bucket " + std::to_string(n + 1) + ", Entry " + std::to_string(i + 1) + ", ID " + std::to_string(addressID) + ", Chance " + std::to_string(changeOfConnecting), address.ToString());
+//         }
+//     }
+//   }
+//   if(bucketType == "tried" || bucketType == "all") {
+//     for (int n = 0; n < ADDRMAN_TRIED_BUCKET_COUNT; n++) {
+//         for (int i = 0; i < ADDRMAN_BUCKET_SIZE; i++) {
+//             if(addrman.vvTried[n][i] == -1) continue;
+//             int addressID = addrman.vvTried[n][i];
+//             CAddrInfo address = addrman.mapInfo[addressID];
+//             double changeOfConnecting = address.GetChance();
+//             result.pushKV("Tried, Bucket " + std::to_string(n + 1) + ", Entry " + std::to_string(i + 1) + ", ID " + std::to_string(addressID) + ", Chance " + std::to_string(changeOfConnecting), address.ToString());
+//         }
+//     }
+//   }
+// }

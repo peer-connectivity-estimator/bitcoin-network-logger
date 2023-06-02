@@ -1,8 +1,9 @@
 #!/bin/bash
 # ./run.sh
-# ./run.sh gui
+# ./run.sh -debug=researcher noconsole
 # ./run.sh -debug=researcher gui
-# ./run.sh -debug=researcher gui gdb
+# ./run.sh -debug=researcher gdb
+# ./run.sh gui noconsole gdb
 
 bitcoinParams=""
 otherParams=""
@@ -134,16 +135,18 @@ if [[ " ${otherParams[*]} " =~ " gui " ]]; then
 else
 
 	# Only open the console if not already open
-	# if ! wmctrl -l | grep -q "Bitcoin Core Console Instance" ; then
-	# 	# Find the right terminal
-	# 	if [ -x "$(command -v mate-terminal)" ] ; then
-	# 		mate-terminal -t "Bitcoin Core Console Instance" -- python3 bitcoin_console.py
-	# 	elif [ -x "$(command -v xfce4-terminal)" ] ; then
-	# 		xfce4-terminal -t "Bitcoin Core Console Instance" -- python3 bitcoin_console.py
-	# 	else
-	# 		gnome-terminal -t "Bitcoin Core Console Instance" -- python3 bitcoin_console.py
-	# 	fi
-	# fi
+	if [[ ! " ${otherParams[*]} " =~ " noconsole " ]]; then
+		if ! wmctrl -l | grep -q "Bitcoin Core Console Instance" ; then
+			# Find the right terminal
+			if [ -x "$(command -v mate-terminal)" ] ; then
+				mate-terminal -t "Bitcoin Core Console Instance" -- python3 bitcoin_console.py
+			elif [ -x "$(command -v xfce4-terminal)" ] ; then
+				xfce4-terminal -t "Bitcoin Core Console Instance" -- python3 bitcoin_console.py
+			else
+				gnome-terminal -t "Bitcoin Core Console Instance" -- python3 bitcoin_console.py
+			fi
+		fi
+	fi
 
 	if [ "$pruned" == "true" ] ; then
 		echo "Pruned mode activated, only keeping 550 block transactions"

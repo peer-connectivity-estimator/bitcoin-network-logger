@@ -1,4 +1,4 @@
-sudo add-apt-repository ppa:bitcoin/bitcoin
+sudo add-apt-repository -y ppa:bitcoin/bitcoin
 sudo apt-get -y update
 
 # Bitcoin dependencies

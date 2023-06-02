@@ -1329,6 +1329,35 @@ static RPCHelpMan listnewbroadcastsandclear()
     };
 }
 
+
+// Cybersecurity Lab: listnewbroadcastsandclear RPC definition
+static RPCHelpMan getbucketinfo()
+{
+    return RPCHelpMan{"getbucketinfo",
+                "\nGet the address manager bucket information.\n",
+                {},
+                RPCResults{},
+                RPCExamples{
+                    HelpExampleCli("getbucketinfo", "")
+            + HelpExampleRpc("getbucketinfo", "")
+                },
+        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+{
+    NodeContext& node = EnsureAnyNodeContext(request.context);
+    //const CConnman& connman = EnsureConnman(node);
+    UniValue result(UniValue::VOBJ);
+    // Access to the non-const CConnman instance
+    node.connman->getBucketInfoForRPC(result);
+
+    // result.pushKV("new_transaction_broadcasts", subresult2);
+    // result.pushKV("new_transaction_fee_broadcasts", subresult3);
+    // result.pushKV("new_transaction_size_broadcasts", subresult4);
+    // result.pushKV("timestamps", subresult5);
+    return result;
+},
+    };
+}
+
 void RegisterNetRPCCommands(CRPCTable& t)
 {
     static const CRPCCommand commands[]{
@@ -1352,6 +1381,7 @@ void RegisterNetRPCCommands(CRPCTable& t)
         {"researcher", &getpeersmsginfoandclear},
         {"researcher", &listnewbroadcasts},
         {"researcher", &listnewbroadcastsandclear},
+        {"researcher", &getbucketinfo},
     };
     for (const auto& c : commands) {
         t.appendCommand(c.name, &c);

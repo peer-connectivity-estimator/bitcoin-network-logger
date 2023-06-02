@@ -144,11 +144,8 @@ public:
 
     friend class AddrManDeterministic;
 
-    // Cybersecurity Lab: Moved Find to public
-    //! Find an entry.
-    AddrInfo* Find(const CService& addr, int* pnId = nullptr) EXCLUSIVE_LOCKS_REQUIRED(cs);
-
-private:
+// Cybersecurity Lab: Allow RPC to access (not advised for production)
+//private:
     //! A mutex to protect the inner data structures.
     mutable Mutex cs;
 
@@ -227,7 +224,8 @@ private:
     /** Number of entries in addrman per network and new/tried table. */
     std::unordered_map<Network, NewTriedCount> m_network_counts GUARDED_BY(cs);
 
-    // Cybersecurity Lab: Moving AddrInfo* Find(const CService& addr, int* pnId = nullptr) EXCLUSIVE_LOCKS_REQUIRED(cs) to public
+    //! Find an entry.
+    AddrInfo* Find(const CService& addr, int* pnId = nullptr) EXCLUSIVE_LOCKS_REQUIRED(cs);
 
     //! Create a new entry and add it to the internal data structures mapInfo, mapAddr and vRandom.
     AddrInfo* Create(const CAddress& addr, const CNetAddr& addrSource, int* pnId = nullptr) EXCLUSIVE_LOCKS_REQUIRED(cs);

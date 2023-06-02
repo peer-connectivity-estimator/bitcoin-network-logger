@@ -1313,8 +1313,6 @@ std::optional<AddressPosition> AddrMan::FindAddressEntry(const CAddress& addr)
     return m_impl->FindAddressEntry(addr);
 }
 
-//AddrInfo* AddrManImpl::Find(const CService& addr, int* pnId)
-
 // Cybersecurity Lab: Add interace to retrieve the fChhance reputation score
 std::pair<double, bool> AddrMan::GetChanceScore(const CService& addr_service) {
     AddrInfo* pinfo = m_impl->Find(addr_service);
