@@ -3,8 +3,9 @@
 This script logs a lot of Bitcoin node information, including the machine
 specification, current machine state, blockchain state, and state of each
 peer connection. For the initial block download, data is written to
-Research_Logs/IBD_Research_Log/, otherwise, every month the logging directory
-changes to Research_Logs/MONTH_YEAR_Research_Log/, and the node restarts.
+Research_Logs/Bitcoin_IBD_Log_#/, otherwise, the logging directory is
+Research_Logs/Bitcoin_Log_#/, where # counts the number of directories.
+Every 10 seconds a sample is created, and every directory has 10000 samples.
 '''
 
 __author__ = 'Simeon Wuthier'
@@ -56,7 +57,7 @@ globalNumForksSeen = 0
 globalMaxForkLength = 0
 globalLoggingStartTimestamp = datetime.datetime.now()
 
-# Send a command to the linux terminal
+# Send a command to the Linux terminal
 def terminal(cmd):
 	process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
 	stdout, _ = process.communicate()
@@ -129,7 +130,7 @@ def makeBlockStateHeader():
 	line += 'Timestamp (UNIX epoch),'
 	line += 'Time Since Last Sample (seconds),'
 	line += 'Block Height,'
-	line += 'Block Status,'
+	line += '"Block Status (active, headers-only, valid-fork, valid-headers, valid-headers-fork, checkpoint, assume-valid)",'
 	line += 'Is Fork,'
 	line += 'Fork Length,'
 	line += 'Block Timestamp (UNIX epoch),'
@@ -249,23 +250,23 @@ def maybeLogBlockState(timestamp, directory, getblockchaininfo, getchaintips, ne
 			'height': height,
 			'hash': '',
 			'status': activeTip['status'],
+			'isFork': '1' if 'fork' in activeTip['status'] else '0',
 			'forkLength': activeTip['branchlen'],
-			'isStale': '0',
 		})
 	tipsToProcess.append({
 		'height': activeTip['height'],
 		'hash': activeTip['hash'],
 		'status': activeTip['status'],
+		'isFork': '1' if 'fork' in activeTip['status'] else '0',
 		'forkLength': activeTip['branchlen'],
-		'isStale': '0',
 	})
 	for tip in getchaintips:
 		tipsToProcess.append({
 			'height': tip['height'],
 			'hash': tip['hash'],
 			'status': tip['status'],
+			'isFork': '1' if 'fork' in tip['status'] else '0',
 			'forkLength': tip['branchlen'],
-			'isStale': '1',
 		})
 
 	if len(tipsToProcess) == 1:
@@ -276,7 +277,7 @@ def maybeLogBlockState(timestamp, directory, getblockchaininfo, getchaintips, ne
 	for tip in tipsToProcess:
 		height = tip['height']
 		tipStatus = tip['status']
-		tipIsStale = tip['isStale']
+		tipIsFork = tip['isFork']
 		forkLength = tip['forkLength']
 		blockHash = tip['hash']
 		try:
@@ -347,7 +348,7 @@ def maybeLogBlockState(timestamp, directory, getblockchaininfo, getchaintips, ne
 		lines += str(timeSinceLastSample) + ','
 		lines += str(height) + ','
 		lines += str(tipStatus) + ','
-		lines += str(tipIsStale) + ','
+		lines += str(tipIsFork) + ','
 		lines += str(forkLength) + ','
 		lines += str(getblock['time']) + ','
 		lines += str(getblock['confirmations']) + ','
@@ -460,6 +461,264 @@ def writeInitialMachineInfo(timestamp, directory):
 	file.write(contents)
 	file.close()
 
+# Given a raw memory string from the Linux "top" command, return the number of bytes
+# 1 EiB = 1024 * 1024 * 1024 * 1024 * 1024 * 1024 bytes
+# 1 PiB = 1024 * 1024 * 1024 * 1024 * 1024 bytes
+# 1 GiB = 1024 * 1024 * 1024 * 1024 bytes
+# 1 MiB = 1024 * 1024 * 1024 bytes
+# 1 KiB = 1024 * 1024 bytes
+def topMemToBytes(mem):
+	if mem.endswith('e'): return float(mem[:-1]) * 1024 * 1024 * 1024 * 1024 * 1024 * 1024 # exbibytes to bytes
+	elif mem.endswith('p'): return float(mem[:-1]) * 1024 * 1024 * 1024 * 1024 * 1024 # gibibytes to bytes
+	elif mem.endswith('t'): return float(mem[:-1]) * 1024 * 1024 * 1024 * 1024 # tebibytes to bytes
+	elif mem.endswith('g'): return float(mem[:-1]) * 1024 * 1024 * 1024 # gibabytes to bytes
+	elif mem.endswith('m'): return float(mem[:-1]) * 1024 * 1024 # mebibytes to bytes
+	else: return float(mem) * 1024 # kibibytes to bytes
+
+# Given a process name, return the specs for the process
+def logIndividualProcess(process_id):
+	raw = terminal('top -b -n 1 |grep ' + process_id).strip().split()
+	while len(raw) < 12: raw.append('0') # Fill in with zeros for any missing values
+	output = {
+	'process_ID': raw[0],
+	'user': raw[1],
+	'priority': raw[2],
+	'nice_value': raw[3],
+	'virtual_memory': str(topMemToBytes(raw[4])),
+	'memory': str(topMemToBytes(raw[5])),
+	'shared_memory': str(topMemToBytes(raw[6])),
+	'state': raw[7],
+	'cpu_percent': raw[8],
+	'memory_percent': raw[9],
+	'time': raw[10],
+	'process_name': raw[11],
+	}
+	return output
+
+# Reads /proc/net/dev to get networking bytes/packets sent/received
+def getNetworkData():
+	raw = terminal('awk \'/:/ { print($1, $2, $3, $10, $11) }\' < /proc/net/dev -').strip().split('\n')
+	selected_interface = ''
+	for interface in raw:
+		if not interface.startswith('lo:'):
+			selected_interface = interface
+			break
+	data = selected_interface.strip().split()
+	if selected_interface != '' and len(data) == 5:
+		if data[0].endswith(':'): data[0] = data[0][:-1]
+		# Differentiate between error and no error
+		if data[0] == '': data[0] == ' '
+		try:
+			return {
+			'interface': data[0],
+			'bytes_sent': int(data[3]),
+			'bytes_received': int(data[1]),
+			'packets_sent': int(data[4]),
+			'packets_received': int(data[2]),
+			}
+		except:
+			pass
+	return {
+		'interface': '',
+		'bytes_sent': '',
+		'bytes_received': '',
+		'packets_sent': '',
+		'packets_received': '',
+	}
+
+# Processes the syntax of the RPC command: getmsginfo
+def parseGetMsgInfoMessage(rawString, clocksPerSecond):
+	# rawString is in the format "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts"
+	count = int(re.findall(r'([0-9\.]+) msgs', rawString)[0])
+	matches = re.findall(r'\[[0-9\., ]+\]', rawString)
+	clocksMatch = json.loads(matches[0])
+	# clocks / clocksPerSecond * 1000 --> milliseconds
+	clocksSum = int(clocksMatch[0]) / clocksPerSecond * 1000
+	if count != 0: clocksAvg = clocksSum / count
+	else: clocksAvg = 0
+	clocksMax = int(clocksMatch[2]) / clocksPerSecond * 1000
+	bytesMatch = json.loads(matches[1])
+	bytesSum = int(bytesMatch[0])
+	if count != 0: bytesAvg = bytesSum / count
+	else: bytesAvg = 0
+	bytesMax = int(bytesMatch[2])
+	return count, bytesAvg, bytesMax, clocksAvg, clocksMax
+
+# Given a combined address and port, return the individual address and port 
+def splitAddress(address):
+	split = address.split(':')
+	port = split.pop()
+	address = ':'.join(split)
+	return address, port
+
+# Split an individual line within a CSV, considering both quoted string tokens and blank cells
+def splitIndividualCsvLine(line):
+	split_pattern = re.compile(r'(?:"([^"]*)"|([^,]*))(?:,|$)')
+	split_tokens = split_pattern.findall(line)
+	tokens = []
+	for token in split_tokens:
+		if token[0] != '':
+			tokens.append(token[0])
+		else:
+			tokens.append(token[1])
+	return tokens
+
+# Generate the machine state CSV header line
+def makeMachineStateHeader():
+	line = 'Timestamp,'
+	line += 'Timestamp (UNIX epoch),'
+	line += 'Time Since Last Sample (seconds),'
+	line += 'Difference from Network Adjusted Timestamp (milliseconds),'
+	line += 'Number of Inbound Peer Connections,'
+	line += 'Number of Outbound Peer Connections,'
+	line += 'Last Block Propagation Time Duration (using system time) (milliseconds),'
+	line += 'Last Network Adjusted Block Propagation Time Duration (milliseconds),'
+	line += 'Last Block Hash,'
+	line += 'Last Block Received By,'
+	line += 'Blockchain Warning Message,'
+	line += 'Is Blockchain in Initial Block Download,'
+	line += 'Blockchain Verification Progress (percent),'
+	line += 'Blockchain Number of Blocks,'
+	line += 'Blockchain Number of Headers,'
+	line += 'Blockchain Size (bytes),'
+	line += 'Is Blockchain Pruned,'
+	line += 'Maximum Pruned Blockchain Size (bytes),'
+	line += 'Pruned Block Height,'
+	line += 'Bitcoin Directory Size (bytes),'
+	line += 'Is Mempool Fully Loaded,'
+	line += 'Number of Mempool Transactions,'
+	line += 'Mempool Transaction Sizes (BIP 141) (bytes),'
+	line += 'Total Mempool Size (bytes),'
+	line += 'Maximum Total Mempool Size (bytes),'
+	line += 'Minimum Tx Fee to be Accepted (satoshi/byte),'
+	line += 'Transactions that Haven\'t Passed the Initial Broadcast,'
+	line += 'Network Bytes Sent (bytes),'
+	line += 'Network Bytes Received (bytes),'
+	line += 'Network Packets Sent (packets),'
+	line += 'Network Packets Received (packets),'
+	line += 'Current Machine CPU (percent),'
+	line += 'Current Machine CPU Frequency (megahertz),'
+	line += 'Current Machine Virtual Memory (percent),'
+	line += 'Current Machine Virtual Memory (bytes),'
+	line += 'Current Machine Swap Memory (percent),'
+	line += 'Current Machine Swap Memory (bytes),'
+	line += 'Current Machine Disk Usage (percent),'
+	line += 'Current Machine Disk Usage (bytes),'
+	line += 'Bitcoin Process ID,'
+	line += 'Bitcoin Process Virtual Memory (bytes),'
+	line += 'Bitcoin Process Memory (bytes),'
+	line += 'Bitcoin Process Shared Memory (bytes),'
+	line += 'Bitcoin Process Memory (percent),'
+	line += 'Bitcoin Process CPU (percent),'
+	return line
+
+# Log the state of the machine to file, returns the sample number
+def logMachineState(timestamp, directory, getpeerinfo, getblockchaininfo, getmempoolinfo, newblockbroadcastsblockinformation, timestampMedianDifference):
+	filePath = os.path.join(directory, 'machine_state_info.csv')
+	if not os.path.exists(filePath):
+		print(f'Creating machine state file')
+		file = open(filePath, 'w')
+		file.write(makeMachineStateHeader() + '\n')
+		prevLine = ''
+		numPrevLines = 1
+	else:
+		# Read the last line from the file
+		with open(filePath, 'r') as f:
+			prevLines = f.readlines()
+			if len(prevLines) > 1: prevLine = splitIndividualCsvLine(prevLines[-1])
+			else: prevLine = ''
+			numPrevLines = len(prevLines)
+		# Try to open the file for appending, loop until successful
+		attempts = 0
+		file = None
+		while file is None:
+			try:
+				attempts += 1
+				file = open(filePath, 'a')
+			except PermissionError as e:
+				print(f'{e}, attempt {attempts}')
+				time.sleep(1)
+ 
+	timestampSeconds = int(timestamp.astimezone(datetime.timezone.utc).timestamp() * timePrecision) / timePrecision
+	# Ignoring timezone: timestampSeconds = (timestamp - datetime.datetime(1970, 1, 1)).total_seconds()
+
+	if prevLine == '':
+		timeSinceLastSample = ''
+	else: 
+		timeSinceLastSample = int((timestampSeconds - float(prevLine[1])) * timePrecision) / timePrecision
+	cpuPercent = psutil.cpu_percent()
+	cpuFrequency = 0
+	try:
+		cpuFrequency = psutil.cpu_freq().current
+	except: pass
+	virtualMemoryPercent = psutil.virtual_memory().percent
+	virtualMemory = psutil.virtual_memory().used
+	swapMemoryPercent = psutil.swap_memory().percent
+	swapMemory = psutil.swap_memory().used
+	diskUsagePercent = psutil.disk_usage('/').percent
+	diskUsage = psutil.disk_usage('/').used
+	networkData = getNetworkData()
+	individualProcessData = logIndividualProcess('bitcoind')
+
+	numInboundPeers = 0
+	numOutboundPeers = 0
+	for peer in getpeerinfo:
+		if peer['inbound']: numInboundPeers += 1
+		else: numOutboundPeers += 1
+
+	line = '"' + getHumanReadableDateTime(timestamp) + '",'
+	line += str(timestampSeconds) + ','
+	line += str(timeSinceLastSample) + ','
+	line += str(timestampMedianDifference) + ','
+	line += str(numInboundPeers) + ','
+	line += str(numOutboundPeers) + ','
+	line += str(newblockbroadcastsblockinformation['propagation_time']) + ','
+	line += str(newblockbroadcastsblockinformation['propagation_time_median_of_peers']) + ','
+	line += str(newblockbroadcastsblockinformation['hash']) + ','
+	line += str(newblockbroadcastsblockinformation['node_received_by']) + ','
+	line += str(getblockchaininfo['warnings']) + ','
+	line += str(1 if getblockchaininfo['initialblockdownload'] else 0) + ','
+	line += str(getblockchaininfo['verificationprogress'] * 100) + ','
+	line += str(getblockchaininfo['blocks']) + ','
+	line += str(getblockchaininfo['headers']) + ','
+	line += str(getblockchaininfo['size_on_disk']) + ','
+	line += str(1 if getblockchaininfo['pruned'] else 0) + ','
+	if 'prune_target_size' in getblockchaininfo:
+		line += str(getblockchaininfo['prune_target_size']) + ','
+	else: line += ','
+	if 'pruneheight' in getblockchaininfo:
+		line += str(getblockchaininfo['pruneheight']) + ','
+	else: line += ','
+	line += str(getDirectorySize(bitcoinDirectory)) + ','
+	line += str(1 if getmempoolinfo['loaded'] else 0) + ','
+	line += str(getmempoolinfo['size']) + ','
+	line += str(getmempoolinfo['bytes']) + ','
+	line += str(getmempoolinfo['usage']) + ','
+	line += str(getmempoolinfo['maxmempool']) + ','
+	line += str(getmempoolinfo['mempoolminfee'] * 100000000/1024) + ',' # Converts from BTC/kilobyte to satoshi/byte
+	line += str(getmempoolinfo['unbroadcastcount']) + ','
+	line += str(networkData['bytes_sent']) + ','
+	line += str(networkData['bytes_received']) + ','
+	line += str(networkData['packets_sent']) + ','
+	line += str(networkData['packets_received']) + ','
+	line += str(cpuPercent) + ','
+	line += str(cpuFrequency) + ','
+	line += str(virtualMemoryPercent) + ','
+	line += str(virtualMemory) + ','
+	line += str(swapMemoryPercent) + ','
+	line += str(swapMemory) + ','
+	line += str(diskUsagePercent) + ','
+	line += str(diskUsage) + ','
+	line += str(individualProcessData['process_ID']) + ','
+	line += str(individualProcessData['virtual_memory']) + ','
+	line += str(individualProcessData['memory']) + ','
+	line += str(individualProcessData['shared_memory']) + ','
+	line += str(individualProcessData['memory_percent']) + ','
+	line += str(individualProcessData['cpu_percent']) + ','
+	file.write(line + '\n')
+	file.close()
+	return numPrevLines
+
 # Generate the main peer CSV header line
 def makeMainPeerHeader(address):
 	line = 'Timestamp,'
@@ -475,7 +734,7 @@ def makeMainPeerHeader(address):
 	line += 'Peer Banscore (accumulated misbehavior score for this peer),'
 	line += 'Addrman fChance Score (the relative chance that this entry should be given when selecting nodes to connect to),'
 	line += 'Addrman isTerrible Rating (if the statistics about this entry are bad enough that it can just be deleted),'
-	line += 'Node Time Offset (seconds),'
+	line += 'Node Time Offset (milliseconds),'
 	line += 'Ping Round Trip Time (milliseconds),'
 	line += 'Minimum Ping Round Trip Time (milliseconds),'
 	line += 'Ping Wait Time for an Outstanding Ping (milliseconds),'
@@ -491,7 +750,7 @@ def makeMainPeerHeader(address):
 	line += 'Is Address Relay Enabled,'
 	line += 'Number of Addresses Accepted,'
 	line += 'Number of Addresses Dropped From Rate-limiting,'
-	line += 'Minimum Accepted Transaction Fee (BIP 133) (satoshi/kilobyte),'
+	line += 'Minimum Accepted Transaction Fee (BIP 133) (satoshi/byte),'
 	line += 'Is SendCMPCT Enabled To Them,'
 	line += 'Is SendCMPCT Enabled From Them,'
 	line += 'Last Message Send Time (UNIX epoch),'
@@ -692,264 +951,6 @@ def makeMainPeerHeader(address):
 	line += 'Max Time [UNDOCUMENTED] (milliseconds),'
 	return line
 
-# Given a raw memory string from the linux "top" command, return the number of bytes
-# 1 EiB = 1024 * 1024 * 1024 * 1024 * 1024 * 1024 bytes
-# 1 PiB = 1024 * 1024 * 1024 * 1024 * 1024 bytes
-# 1 GiB = 1024 * 1024 * 1024 * 1024 bytes
-# 1 MiB = 1024 * 1024 * 1024 bytes
-# 1 KiB = 1024 * 1024 bytes
-def topMemToBytes(mem):
-	if mem.endswith('e'): return float(mem[:-1]) * 1024 * 1024 * 1024 * 1024 * 1024 * 1024 # exbibytes to bytes
-	elif mem.endswith('p'): return float(mem[:-1]) * 1024 * 1024 * 1024 * 1024 * 1024 # gibibytes to bytes
-	elif mem.endswith('t'): return float(mem[:-1]) * 1024 * 1024 * 1024 * 1024 # tebibytes to bytes
-	elif mem.endswith('g'): return float(mem[:-1]) * 1024 * 1024 * 1024 # gibabytes to bytes
-	elif mem.endswith('m'): return float(mem[:-1]) * 1024 * 1024 # mebibytes to bytes
-	else: return float(mem) * 1024 # kibibytes to bytes
-
-# Given a process name, return the specs for the process
-def logIndividualProcess(process_id):
-	raw = terminal('top -b -n 1 |grep ' + process_id).strip().split()
-	while len(raw) < 12: raw.append('0') # Fill in with zeros for any missing values
-	output = {
-	'process_ID': raw[0],
-	'user': raw[1],
-	'priority': raw[2],
-	'nice_value': raw[3],
-	'virtual_memory': str(topMemToBytes(raw[4])),
-	'memory': str(topMemToBytes(raw[5])),
-	'shared_memory': str(topMemToBytes(raw[6])),
-	'state': raw[7],
-	'cpu_percent': raw[8],
-	'memory_percent': raw[9],
-	'time': raw[10],
-	'process_name': raw[11],
-	}
-	return output
-
-# Reads /proc/net/dev to get networking bytes/packets sent/received
-def getNetworkData():
-	raw = terminal('awk \'/:/ { print($1, $2, $3, $10, $11) }\' < /proc/net/dev -').strip().split('\n')
-	selected_interface = ''
-	for interface in raw:
-		if not interface.startswith('lo:'):
-			selected_interface = interface
-			break
-	data = selected_interface.strip().split()
-	if selected_interface != '' and len(data) == 5:
-		if data[0].endswith(':'): data[0] = data[0][:-1]
-		# Differentiate between error and no error
-		if data[0] == '': data[0] == ' '
-		try:
-			return {
-			'interface': data[0],
-			'bytes_sent': int(data[3]),
-			'bytes_received': int(data[1]),
-			'packets_sent': int(data[4]),
-			'packets_received': int(data[2]),
-			}
-		except:
-			pass
-	return {
-		'interface': '',
-		'bytes_sent': '',
-		'bytes_received': '',
-		'packets_sent': '',
-		'packets_received': '',
-	}
-
-# Processes the syntax of the RPC command: getmsginfo
-def parseGetMsgInfoMessage(rawString, clocksPerSecond):
-	# rawString is in the format "0 msgs => ([0, 0.000000, 0] clcs, [0, 0.000000, 0] byts"
-	count = int(re.findall(r'([0-9\.]+) msgs', rawString)[0])
-	matches = re.findall(r'\[[0-9\., ]+\]', rawString)
-	clocksMatch = json.loads(matches[0])
-	# clocks / clocksPerSecond * 1000 --> milliseconds
-	clocksSum = int(clocksMatch[0]) / clocksPerSecond * 1000
-	if count != 0: clocksAvg = clocksSum / count
-	else: clocksAvg = 0
-	clocksMax = int(clocksMatch[2]) / clocksPerSecond * 1000
-	bytesMatch = json.loads(matches[1])
-	bytesSum = int(bytesMatch[0])
-	if count != 0: bytesAvg = bytesSum / count
-	else: bytesAvg = 0
-	bytesMax = int(bytesMatch[2])
-	return count, bytesAvg, bytesMax, clocksAvg, clocksMax
-
-# Given a combined address and port, return the individual address and port 
-def splitAddress(address):
-	split = address.split(':')
-	port = split.pop()
-	address = ':'.join(split)
-	return address, port
-
-# Split an individual line within a CSV, considering both quoted string tokens and blank cells
-def splitIndividualCsvLine(line):
-	split_pattern = re.compile(r'(?:"([^"]*)"|([^,]*))(?:,|$)')
-	split_tokens = split_pattern.findall(line)
-	tokens = []
-	for token in split_tokens:
-		if token[0] != '':
-			tokens.append(token[0])
-		else:
-			tokens.append(token[1])
-	return tokens
-
-# Generate the machine state CSV header line
-def makeMachineStateHeader():
-	line = 'Timestamp,'
-	line += 'Timestamp (UNIX epoch),'
-	line += 'Time Since Last Sample (seconds),'
-	line += 'Difference from Network Adjusted Timestamp (milliseconds),'
-	line += 'Number of Inbound Peer Connections,'
-	line += 'Number of Outbound Peer Connections,'
-	line += 'Last Block Propagation Time Duration (using system time) (milliseconds),'
-	line += 'Last Network Adjusted Block Propagation Time Duration (milliseconds),'
-	line += 'Last Block Hash,'
-	line += 'Last Block Received By,'
-	line += 'Blockchain Warning Message,'
-	line += 'Is Blockchain in Initial Block Download,'
-	line += 'Blockchain Verification Progress (percent),'
-	line += 'Blockchain Number of Blocks,'
-	line += 'Blockchain Number of Headers,'
-	line += 'Blockchain Size (bytes),'
-	line += 'Is Blockchain Pruned,'
-	line += 'Maximum Pruned Blockchain Size (bytes),'
-	line += 'Pruned Block Height,'
-	line += 'Bitcoin Directory Size (bytes),'
-	line += 'Is Mempool Fully Loaded,'
-	line += 'Number of Mempool Transactions,'
-	line += 'Mempool Transaction Sizes (BIP 141) (bytes),'
-	line += 'Total Mempool Size (bytes),'
-	line += 'Maximum Total Mempool Size (bytes),'
-	line += 'Minimum Tx Fee to be Accepted (BTC/kilobyte),'
-	line += 'Transactions that Haven\'t Passed the Initial Broadcast,'
-	line += 'Network Bytes Sent (bytes),'
-	line += 'Network Bytes Received (bytes),'
-	line += 'Network Packets Sent (packets),'
-	line += 'Network Packets Received (packets),'
-	line += 'Current Machine CPU (percent),'
-	line += 'Current Machine CPU Frequency (megahertz),'
-	line += 'Current Machine Virtual Memory (percent),'
-	line += 'Current Machine Virtual Memory (bytes),'
-	line += 'Current Machine Swap Memory (percent),'
-	line += 'Current Machine Swap Memory (bytes),'
-	line += 'Current Machine Disk Usage (percent),'
-	line += 'Current Machine Disk Usage (bytes),'
-	line += 'Bitcoin Process ID,'
-	line += 'Bitcoin Process Virtual Memory (bytes),'
-	line += 'Bitcoin Process Memory (bytes),'
-	line += 'Bitcoin Process Shared Memory (bytes),'
-	line += 'Bitcoin Process Memory (percent),'
-	line += 'Bitcoin Process CPU (percent),'
-	return line
-
-# Log the state of the machine to file, returns the sample number
-def logMachineState(timestamp, directory, getpeerinfo, getblockchaininfo, getmempoolinfo, newblockbroadcastsblockinformation, timestampMedianDifference):
-	filePath = os.path.join(directory, 'machine_state_info.csv')
-	if not os.path.exists(filePath):
-		print(f'Creating machine state file')
-		file = open(filePath, 'w')
-		file.write(makeMachineStateHeader() + '\n')
-		prevLine = ''
-		numPrevLines = 1
-	else:
-		# Read the last line from the file
-		with open(filePath, 'r') as f:
-			prevLines = f.readlines()
-			if len(prevLines) > 1: prevLine = splitIndividualCsvLine(prevLines[-1])
-			else: prevLine = ''
-			numPrevLines = len(prevLines)
-		# Try to open the file for appending, loop until successful
-		attempts = 0
-		file = None
-		while file is None:
-			try:
-				attempts += 1
-				file = open(filePath, 'a')
-			except PermissionError as e:
-				print(f'{e}, attempt {attempts}')
-				time.sleep(1)
- 
-	timestampSeconds = int(timestamp.astimezone(datetime.timezone.utc).timestamp() * timePrecision) / timePrecision
-	# Ignoring timezone: timestampSeconds = (timestamp - datetime.datetime(1970, 1, 1)).total_seconds()
-
-	if prevLine == '':
-		timeSinceLastSample = ''
-	else: 
-		timeSinceLastSample = int((timestampSeconds - float(prevLine[1])) * timePrecision) / timePrecision
-	cpuPercent = psutil.cpu_percent()
-	cpuFrequency = 0
-	try:
-		cpuFrequency = psutil.cpu_freq().current
-	except: pass
-	virtualMemoryPercent = psutil.virtual_memory().percent
-	virtualMemory = psutil.virtual_memory().used
-	swapMemoryPercent = psutil.swap_memory().percent
-	swapMemory = psutil.swap_memory().used
-	diskUsagePercent = psutil.disk_usage('/').percent
-	diskUsage = psutil.disk_usage('/').used
-	networkData = getNetworkData()
-	individualProcessData = logIndividualProcess('bitcoind')
-
-	numInboundPeers = 0
-	numOutboundPeers = 0
-	for peer in getpeerinfo:
-		if peer['inbound']: numInboundPeers += 1
-		else: numOutboundPeers += 1
-
-	line = '"' + getHumanReadableDateTime(timestamp) + '",'
-	line += str(timestampSeconds) + ','
-	line += str(timeSinceLastSample) + ','
-	line += str(timestampMedianDifference) + ','
-	line += str(numInboundPeers) + ','
-	line += str(numOutboundPeers) + ','
-	line += str(newblockbroadcastsblockinformation['propagation_time']) + ','
-	line += str(newblockbroadcastsblockinformation['propagation_time_median_of_peers']) + ','
-	line += str(newblockbroadcastsblockinformation['hash']) + ','
-	line += str(newblockbroadcastsblockinformation['node_received_by']) + ','
-	line += str(getblockchaininfo['warnings']) + ','
-	line += str(1 if getblockchaininfo['initialblockdownload'] else 0) + ','
-	line += str(getblockchaininfo['verificationprogress'] * 100) + ','
-	line += str(getblockchaininfo['blocks']) + ','
-	line += str(getblockchaininfo['headers']) + ','
-	line += str(getblockchaininfo['size_on_disk']) + ','
-	line += str(1 if getblockchaininfo['pruned'] else 0) + ','
-	if 'prune_target_size' in getblockchaininfo:
-		line += str(getblockchaininfo['prune_target_size']) + ','
-	else: line += ','
-	if 'pruneheight' in getblockchaininfo:
-		line += str(getblockchaininfo['pruneheight']) + ','
-	else: line += ','
-	line += str(getDirectorySize(bitcoinDirectory)) + ','
-	line += str(1 if getmempoolinfo['loaded'] else 0) + ','
-	line += str(getmempoolinfo['size']) + ','
-	line += str(getmempoolinfo['bytes']) + ','
-	line += str(getmempoolinfo['usage']) + ','
-	line += str(getmempoolinfo['maxmempool']) + ','
-	line += str(getmempoolinfo['mempoolminfee']) + ','
-	line += str(getmempoolinfo['unbroadcastcount']) + ','
-	line += str(networkData['bytes_sent']) + ','
-	line += str(networkData['bytes_received']) + ','
-	line += str(networkData['packets_sent']) + ','
-	line += str(networkData['packets_received']) + ','
-	line += str(cpuPercent) + ','
-	line += str(cpuFrequency) + ','
-	line += str(virtualMemoryPercent) + ','
-	line += str(virtualMemory) + ','
-	line += str(swapMemoryPercent) + ','
-	line += str(swapMemory) + ','
-	line += str(diskUsagePercent) + ','
-	line += str(diskUsage) + ','
-	line += str(individualProcessData['process_ID']) + ','
-	line += str(individualProcessData['virtual_memory']) + ','
-	line += str(individualProcessData['memory']) + ','
-	line += str(individualProcessData['shared_memory']) + ','
-	line += str(individualProcessData['memory_percent']) + ','
-	line += str(individualProcessData['cpu_percent']) + ','
-	file.write(line + '\n')
-	file.close()
-	return numPrevLines
-
 # Log the state of the node to file, returns the sample number
 def logNode(address, timestamp, directory, updateInfo):
 	filePath = os.path.join(directory, re.sub('[^A-Za-z0-9\.]', '-', address)) + '.csv'
@@ -1007,7 +1008,7 @@ def logNode(address, timestamp, directory, updateInfo):
 	line += str(updateInfo['banscore']) + ','
 	line += str(updateInfo['fChance']) + ','
 	line += str(updateInfo['isTerrible']) + ','
-	line += str(updateInfo['secondsOffset']) + ','
+	line += str(updateInfo['secondsOffset'] * 1000) + ',' # Convert from seconds to milliseconds
 	line += str(updateInfo['pingRoundTripTime']) + ','
 	line += str(updateInfo['pingMinRoundTripTime']) + ','
 	line += str(updateInfo['pingWaitTime']) + ','
@@ -1023,15 +1024,15 @@ def logNode(address, timestamp, directory, updateInfo):
 	line += str(updateInfo['willRelayAddrs']) + ','
 	line += str(updateInfo['numAddrsAccepted']) + ','
 	line += str(updateInfo['numAddrsDroppedFromRateLimit']) + ','
-	line += str(updateInfo['minTransactionFeeAccepted']) + ','
+	line += str(updateInfo['minTransactionFeeAccepted'] / 1024) + ',' # Convert from satoshi/kilobyte to satoshi/byte
 	line += str(updateInfo['sendCmpctEnabledToThem']) + ','
 	line += str(updateInfo['sendCmpctEnabledFromThem']) + ','
 	line += str(updateInfo['lastSendTime']) + ','
 	line += str(updateInfo['bytesSent']) + ','
-	line += str(updateInfo['bytesSentDistribution']) + ','
-	line += str(updateInfo['lastReceiveTime']) + ','
 	line += str(updateInfo['bytesReceived']) + ','
+	line += str(updateInfo['bytesSentDistribution']) + ','
 	line += str(updateInfo['bytesReceivedDistribution']) + ','
+	line += str(updateInfo['lastReceiveTime']) + ','
 	line += str(updateInfo['lastTransactionTime']) + ','
 	line += str(updateInfo['lastBlockTime']) + ','
 	line += str(updateInfo['startingBlockHeight']) + ','
@@ -1510,7 +1511,7 @@ def log(targetDateTime, previousDirectory, isTimeForNewDirectory):
 			if len(previousDirectory) > 0:
 				finalizeLogDirectory(previousDirectory)
 				restartBitcoin()
-				# Reset the target datetime to accomodate for the time just spent finalizing the sample
+				# Reset the target datetime to accommodate for the time just spent finalizing the sample
 				timestamp = targetDateTime = datetime.datetime.now()
 				timestampSeconds = int(timestamp.astimezone(datetime.timezone.utc).timestamp() * timePrecision) / timePrecision
 				getblockchaininfo = bitcoin('getblockchaininfo', True)
@@ -1560,7 +1561,7 @@ def log(targetDateTime, previousDirectory, isTimeForNewDirectory):
 				del listnewbroadcastsandclear['new_block_broadcasts']['block_information']
 		timestampMedianDifference = ''
 		if 'timestamps' in listnewbroadcastsandclear:
-			timestampMedianDifference = listnewbroadcastsandclear['timestamps']['timestamp_median'] - listnewbroadcastsandclear['timestamps']['timestamp']
+			timestampMedianDifference = listnewbroadcastsandclear['timestamps']['timestamp'] - listnewbroadcastsandclear['timestamps']['timestamp_median']
 
 		for peerEntry in getpeerinfo:
 			address, port = splitAddress(peerEntry['addr'])
@@ -1689,7 +1690,8 @@ if __name__ == '__main__':
 
 	while True:
 		try:
-			time.sleep(86400) # Every day
+			# Loop once every day just to ensure that the threads are active and running
+			time.sleep(86400)
 		except KeyboardInterrupt as e:
 			print(e)
 			timerThread.cancel()

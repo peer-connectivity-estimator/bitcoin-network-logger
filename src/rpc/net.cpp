@@ -1320,6 +1320,10 @@ static RPCHelpMan listnewbroadcastsandclear()
     connman.newTxBroadcasts.clear();
     connman.newTxFeeBroadcasts.clear();
     connman.newTxSizeBroadcasts.clear();
+    connman.blockPropagationTime = 0;
+    connman.blockPropagationTimeMedian = 0;
+    connman.blockPropagationHash = "";
+    connman.blockPropagationNodeReceivedBy = "";
     return result;
 },
     };
