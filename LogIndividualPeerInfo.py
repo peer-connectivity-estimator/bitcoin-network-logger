@@ -191,7 +191,7 @@ def maybeLogBlockState(timestamp, directory, getblockchaininfo, getchaintips, ne
 				if prevBlockHash == tip['hash']: return
 				break
 
-	filePath = os.path.join(directory, 'blockchain_state.csv')
+	filePath = os.path.join(directory, 'blockchain_state_info.csv')
 	if not os.path.exists(filePath):
 		print(f'Creating blockchain state file')
 		file = open(filePath, 'w')
