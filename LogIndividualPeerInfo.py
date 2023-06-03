@@ -1,11 +1,12 @@
 #!/usr/bin/env python
 '''
 This script logs a lot of Bitcoin node information, including the machine
-specification, current machine state, blockchain state, and state of each
-peer connection. For the initial block download, data is written to
-Research_Logs/Bitcoin_IBD_Log_#/, otherwise, the logging directory is
-Research_Logs/Bitcoin_Log_#/, where # counts the number of directories.
-Every 10 seconds a sample is created, and every directory has 10000 samples.
+specification, current machine state, blockchain state, state of each peer
+connection, and state of the address manager buckets. For the initial block
+download, data is written to Research_Logs/Bitcoin_IBD_Log_#/, otherwise,
+the logging directory is Research_Logs/Bitcoin_Log_#/, where # counts the
+number of directories. Every 10 seconds a sample is created, and every
+directory has 10000 samples. The bucket logger makes a row every 100 samples.
 '''
 
 __author__ = 'Simeon Wuthier'
@@ -28,13 +29,16 @@ import time
 
 # The path to copy over the finalized output files (preferably an external storage device)
 outputFilesToTransferPath = '/media/research/BTC/Official_Research_Logs'
+# outputFilesToTransferPath = '/home/ubuntu1/Desktop/Official_Research_Logs'
 
 # The path where the Bitcoin blockchain is stored
 bitcoinDirectory = '/home/research/BitcoinFullLedger'
+# bitcoinDirectory = '/home/ubuntu1/.bitcoin'
 
 # The logger will take one sample for every numSecondsPerSample interval
 numSecondsPerSample = 10
 numSamplesPerDirectory = 10000
+numSamplesPerAddressManagerBucketLog = 100
 
 # Keep three decimal points for timestamps and time durations
 timePrecision = 1000
@@ -56,6 +60,8 @@ globalNumSamples = 0
 globalNumForksSeen = 0
 globalMaxForkLength = 0
 globalLoggingStartTimestamp = datetime.datetime.now()
+globalPrevNewBuckets = {}
+globalPrevTriedBuckets = {}
 
 # Send a command to the Linux terminal
 def terminal(cmd):
@@ -215,8 +221,6 @@ def maybeLogBlockState(timestamp, directory, getblockchaininfo, getchaintips, ne
 				time.sleep(1)
  
 	timestampSeconds = int(timestamp.astimezone(datetime.timezone.utc).timestamp() * timePrecision) / timePrecision
-	# Ignoring timezone: timestampSeconds = (timestamp - datetime.datetime(1970, 1, 1)).total_seconds()
-	
 	if prevLine == '':
 		timeSinceLastSample = ''
 	else: 
@@ -640,8 +644,6 @@ def logMachineState(timestamp, directory, getpeerinfo, getblockchaininfo, getmem
 				time.sleep(1)
  
 	timestampSeconds = int(timestamp.astimezone(datetime.timezone.utc).timestamp() * timePrecision) / timePrecision
-	# Ignoring timezone: timestampSeconds = (timestamp - datetime.datetime(1970, 1, 1)).total_seconds()
-
 	if prevLine == '':
 		timeSinceLastSample = ''
 	else: 
@@ -718,6 +720,187 @@ def logMachineState(timestamp, directory, getpeerinfo, getblockchaininfo, getmem
 	file.write(line + '\n')
 	file.close()
 	return numPrevLines
+
+# Generate the address manager bucket info CSV header line
+def makeAddressManagerBucketStateHeader(numNewBuckets, numTriedBuckets):
+	line = 'Timestamp,'
+	line += 'Timestamp (UNIX epoch),'
+	line += 'Time Since Last Sample (seconds),'
+	line += 'Number of Total Addresses,'
+	line += 'Number of Tried Addresses,'
+	line += 'Number of Unique New Addresses,'
+	line += 'IPv4 New Addresses (count),'
+	line += 'IPv4 Tried Addresses (count),'
+	line += 'IPv6 New Addresses (count),'
+	line += 'IPv6 Tried Addresses (count),'
+	line += 'TOR (v2 or v3) New Addresses (count),'
+	line += 'TOR (v2 or v3) Tried Addresses (count),'
+	line += 'I2P New Addresses (count),'
+	line += 'I2P Tried Addresses (count),'
+	line += 'CJDNS New Addresses (count),'
+	line += 'CJDNS Tried Addresses (count),'
+	line += 'Internal New Addresses (count),'
+	line += 'Internal Tried Addresses (count),'
+	line += 'Unrouteable New Addresses (count),'
+	line += 'Unrouteable Tried Addresses (count),'
+	line += 'Unknown New Addresses (count),'
+	line += 'Unknown Tried Addresses (count),'
+	line += 'Timestamp of Last Good Call,'
+	line += 'Tried Group Bucket Spread,'
+	line += 'New Source Group Bucket Spread,'
+	line += 'New Address Bucket Limit,'
+	line += 'Address Age Limit (hours),'
+	line += 'New Node Retry Limit,'
+	line += 'Max Successive Failures,'
+	line += 'Failure Duration Threshold (hours),'
+	line += 'Successful Connection Freshness (hours),'
+	line += 'Tried Collision Storage Limit,'
+	line += 'Collision Resolution Time Limit (minutes),'
+	line += 'Number of New Buckets,'
+	line += 'Number of Tried Buckets,'
+	line += 'Number New Bucket Changes,'
+	line += 'Number Tried Bucket Changes,'
+	for i in range(numNewBuckets):
+		if i == 0:
+			line += f'"New Bucket {i + 1} Changes (JSON: [fChance, isTerrible, lastTriedTime, nAttempts, lastAttemptTime, lastSuccessTime, sourceIP])",'
+		else:
+			line += f'New Bucket {i + 1} Changes (JSON),'
+	for i in range(numTriedBuckets):
+		if i == 0:
+			line += f'"Tried Bucket {i + 1} Changes (JSON: [fChance, isTerrible, lastTriedTime, nAttempts, lastAttemptTime, lastSuccessTime, sourceIP])",'
+		else:
+			line += f'Tried Bucket {i + 1} Changes (JSON),'
+	return line
+
+# Log the bucket info, which is a time consuming process so it is ran every numSamplesPerAddressManagerBucketLog samples
+def logAddressManagerBucketInfo(timestamp, directory):
+	global globalPrevNewBuckets, globalPrevTriedBuckets
+	print('\tLogging address manager bucket information...')
+	getbucketinfo = bitcoin('getbucketinfo', True)
+	numNewBuckets = len(getbucketinfo['New buckets'])
+	numTriedBuckets = len(getbucketinfo['Tried buckets'])
+
+	filePath = os.path.join(directory, 'address_manager_bucket_info.csv')
+	if not os.path.exists(filePath):
+		print(f'\t\tCreating address manager bucket info file')
+		file = open(filePath, 'w')
+		file.write(makeAddressManagerBucketStateHeader(numNewBuckets, numTriedBuckets) + '\n')
+		prevLine = ''
+		numPrevLines = 1
+	else:
+		# Read the last line from the file
+		with open(filePath, 'r') as f:
+			prevLines = f.readlines()
+			if len(prevLines) > 1: prevLine = splitIndividualCsvLine(prevLines[-1])
+			else: prevLine = ''
+			numPrevLines = len(prevLines)
+		# Try to open the file for appending, loop until successful
+		attempts = 0
+		file = None
+		while file is None:
+			try:
+				attempts += 1
+				file = open(filePath, 'a')
+			except PermissionError as e:
+				print(f'{e}, attempt {attempts}')
+				time.sleep(1)
+ 
+	timestampSeconds = int(timestamp.astimezone(datetime.timezone.utc).timestamp() * timePrecision) / timePrecision
+	if prevLine == '':
+		timeSinceLastSample = ''
+	else: 
+		timeSinceLastSample = int((timestampSeconds - float(prevLine[1])) * timePrecision) / timePrecision
+
+	line = '"' + getHumanReadableDateTime(timestamp) + '",'
+	line += str(timestampSeconds) + ','
+	line += str(timeSinceLastSample) + ','
+	line += str(getbucketinfo['Number of total addresses']) + ','
+	line += str(getbucketinfo['Number of tried entries']) + ','
+	line += str(getbucketinfo['Number of (unique) new entries']) + ','
+	line += str(getbucketinfo['Number of IPv4 new addresses']) + ','
+	line += str(getbucketinfo['Number of IPv4 tried addresses']) + ','
+	line += str(getbucketinfo['Number of IPv6 new addresses']) + ','
+	line += str(getbucketinfo['Number of IPv6 tried addresses']) + ','
+	line += str(getbucketinfo['Number of TOR (v2 or v3) new addresses']) + ','
+	line += str(getbucketinfo['Number of TOR (v2 or v3) tried addresses']) + ','
+	line += str(getbucketinfo['Number of I2P new addresses']) + ','
+	line += str(getbucketinfo['Number of I2P tried addresses']) + ','
+	line += str(getbucketinfo['Number of CJDNS new addresses']) + ','
+	line += str(getbucketinfo['Number of CJDNS tried addresses']) + ','
+	line += str(getbucketinfo['Number of internal new addresses']) + ','
+	line += str(getbucketinfo['Number of internal tried addresses']) + ','
+	line += str(getbucketinfo['Number of unrouteable new addresses']) + ','
+	line += str(getbucketinfo['Number of unrouteable tried addresses']) + ','
+	if 'Number of unknown new addresses' in getbucketinfo:
+		line += str(getbucketinfo['Number of unknown new addresses']) + ','
+		line += str(getbucketinfo['Number of unknown tried addresses']) + ','
+	else: line += ',,'
+	if 'Last time Good was called' in getbucketinfo:
+		line += str(getbucketinfo['Last time Good was called']) + ','
+	else: line += ','
+	line += str(getbucketinfo['Tried Group Bucket Spread']) + ','
+	line += str(getbucketinfo['New Source Group Bucket Spread']) + ','
+	line += str(getbucketinfo['New Address Bucket Limit']) + ','
+	line += str(getbucketinfo['Address Age Limit (hours)']) + ','
+	line += str(getbucketinfo['New Node Retry Limit']) + ','
+	line += str(getbucketinfo['Max Successive Failures']) + ','
+	line += str(getbucketinfo['Failure Duration Threshold (hours)']) + ','
+	line += str(getbucketinfo['Successful Connection Freshness (hours)']) + ','
+	line += str(getbucketinfo['Tried Collision Storage Limit']) + ','
+	line += str(getbucketinfo['Collision Resolution Time Limit (minutes)']) + ','
+	line += str(numNewBuckets) + ','
+	line += str(numTriedBuckets) + ','
+	newBucketsColumns = ''
+	triedBucketsColumns = ''
+	for i in getbucketinfo['New buckets']:
+		indexOffset = 27
+		numNewChanges = 0
+		changedNewBucketEntries = {}
+		# Remove all the address entries that have not changed, that way we only see those that have changed
+		for address in getbucketinfo['New buckets'][i]:
+			addressHasChanged = False
+			if i in globalPrevNewBuckets and address in globalPrevNewBuckets[i]:
+				for j in range(7): # [fChance, isTerrible, lastTriedTime, nAttempts, lastAttemptTime, lastSuccessTime, sourceIP]
+					if globalPrevNewBuckets[i][address][j] != getbucketinfo['New buckets'][i][address][j]:
+						addressHasChanged = True
+						break
+			else:
+				addressHasChanged = True
+			if addressHasChanged:
+				#print(f'\tUpdating {address} in new bucket #{i + 1}')
+				changedNewBucketEntries[address] = getbucketinfo['New buckets'][i][address]
+				numNewChanges += 1
+		newBucketsColumns += '"' + json.dumps(changedNewBucketEntries, separators=(',', ':')).replace('"', "'") + '",'
+	for i in getbucketinfo['Tried buckets']:
+		indexOffset = 27 + numNewBuckets
+		numTriedChanges = 0
+		changedTriedBucketEntries = {}
+		# Remove all the address entries that have not changed, that way we only see those that have changed
+		for address in getbucketinfo['Tried buckets'][i]:
+			addressHasChanged = False
+			if i in globalPrevTriedBuckets and address in globalPrevTriedBuckets[i]:
+				for j in range(7): # [fChance, isTerrible, lastTriedTime, nAttempts, lastAttemptTime, lastSuccessTime, sourceIP]
+					if globalPrevTriedBuckets[i][address][j] != getbucketinfo['Tried buckets'][i][address][j]:
+						addressHasChanged = True
+						break
+			else:
+				addressHasChanged = True
+			if addressHasChanged:
+				#print(f'\tUpdating {address} in tried bucket #{i + 1}')
+				changedTriedBucketEntries[address] = getbucketinfo['Tried buckets'][i][address]
+				numTriedChanges += 1
+		triedBucketsColumns += '"' + json.dumps(changedTriedBucketEntries, separators=(',', ':')).replace('"', "'") + '",'
+	
+	line += str(numNewChanges) + ','
+	line += str(numTriedChanges) + ','
+	line += str(newBucketsColumns) # Already has a comma
+	line += str(triedBucketsColumns) # Already has a comma
+	file.write(line + '\n')
+	file.close()
+
+	# Save the bucket info for the next time that we sample it
+	globalPrevNewBuckets = getbucketinfo['New buckets']
+	globalPrevTriedBuckets = getbucketinfo['Tried buckets']
 
 # Generate the main peer CSV header line
 def makeMainPeerHeader(address):
@@ -983,8 +1166,6 @@ def logNode(address, timestamp, directory, updateInfo):
 				time.sleep(1)
 
 	timestampSeconds = int(timestamp.astimezone(datetime.timezone.utc).timestamp() * timePrecision) / timePrecision
-	# Ignoring timezone: timestampSeconds = (timestamp - datetime.datetime(1970, 1, 1)).total_seconds()
-
 	if prevLine == '':
 		timeSinceLastSample = ''
 		connectionCount = 1
@@ -1481,7 +1662,7 @@ def finalizeLogDirectory(directory):
 	if os.path.exists(outputFilesToTransferPath):
 		for source in outputFilesToTransfer:
 			terminal(f'cp -r "{source}" "{outputFilesToTransferPath}"')
-			print(f'\tExported {source} to {outputFilesToTransferPath}.')
+			print(f'\tExported {source} to {outputFilesToTransferPath}')
 		del outputFilesToTransfer[:]
 	else:
 		for source in outputFilesToTransfer:
@@ -1496,8 +1677,6 @@ def log(targetDateTime, previousDirectory, isTimeForNewDirectory):
 	
 	timestamp = datetime.datetime.now()
 	timestampSeconds = int(timestamp.astimezone(datetime.timezone.utc).timestamp() * timePrecision) / timePrecision
-	# Ignoring timezone: timestampSeconds = (timestamp - datetime.datetime(1970, 1, 1)).total_seconds()
-
 	directory = previousDirectory
 	try:
 		getblockchaininfo = bitcoin('getblockchaininfo', True)
@@ -1509,8 +1688,12 @@ def log(targetDateTime, previousDirectory, isTimeForNewDirectory):
 		if isTimeForNewDirectory:
 			# Restart the Bitcoin node to get a new fresh set of peers
 			if len(previousDirectory) > 0:
+				stopBitcoin()
+				terminal(f'mv {os.path.join(bitcoinDirectory, "debug.log")} {previousDirectory}')
 				finalizeLogDirectory(previousDirectory)
-				restartBitcoin()
+				while not bitcoinUp():
+					startBitcoin()
+
 				# Reset the target datetime to accommodate for the time just spent finalizing the sample
 				timestamp = targetDateTime = datetime.datetime.now()
 				timestampSeconds = int(timestamp.astimezone(datetime.timezone.utc).timestamp() * timePrecision) / timePrecision
@@ -1648,6 +1831,9 @@ def log(targetDateTime, previousDirectory, isTimeForNewDirectory):
 		for address in peersToUpdate:
 			logNode(address, timestamp, directory, peersToUpdate[address])
 
+		if sampleNumber % numSamplesPerAddressManagerBucketLog == 0:
+			logAddressManagerBucketInfo(timestamp, directory)
+
 		globalNumSamples += 1
 		totalNumDays = int((timestamp - globalLoggingStartTimestamp).total_seconds() / (60 * 60 * 24) * timePrecision) / timePrecision
 		print(f'	Sample successfully logged. Total of {globalNumSamples} samples to date, logging interval: {totalNumDays} days. Total of {globalNumForksSeen} forks with a max length of {globalMaxForkLength} blocks.')
@@ -1682,6 +1868,10 @@ def log(targetDateTime, previousDirectory, isTimeForNewDirectory):
 	timerThread.start()
 
 if __name__ == '__main__':
+	if os.path.exists(os.path.join(bitcoinDirectory, 'debug.log')):
+		print('Removing debug.log from previous session...')
+		terminal(f'rm -rf {os.path.join(bitcoinDirectory, "debug.log")}')
+
 	if not bitcoinUp(): startBitcoin()
 
 	# Begin the timer
