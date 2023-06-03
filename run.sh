@@ -76,7 +76,6 @@ fi
 
 echo "datadir = $dir"
 
-exit 0
 if [[ " ${bitcoinParams[*]} " =~ " -regtest " ]]; then
 	rpcport=18444
 	port=18445
