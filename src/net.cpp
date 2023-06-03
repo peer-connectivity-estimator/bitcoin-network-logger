@@ -3071,6 +3071,7 @@ void CConnman::getBucketInfoForRPC(UniValue &result) {
                 // addrInfo.pushKV("Last try by us", std::chrono::duration_cast<std::chrono::seconds>(entry.m_last_try.time_since_epoch()).count());
                 // addrInfo.pushKV("Last success by us", std::chrono::duration_cast<std::chrono::seconds>(entry.m_last_success.time_since_epoch()).count());
                 // addrInfo.pushKV("Last attempt", std::chrono::duration_cast<std::chrono::seconds>(entry.m_last_count_attempt.time_since_epoch()).count());
+                // addrInfo.pushKV("Source", entry.source.ToStringAddrPort()).count());
                 // bucketInfo.pushKV(entry.ToStringAddr(), addrInfo);
                 const auto &entry = addrman.m_impl->mapInfo[addrman.m_impl->vvTried[bucket][i]];
                 UniValue entryInfo(UniValue::VARR);
@@ -3080,6 +3081,7 @@ void CConnman::getBucketInfoForRPC(UniValue &result) {
                 entryInfo.push_back(entry.nAttempts);
                 entryInfo.push_back(std::chrono::duration_cast<std::chrono::seconds>(entry.m_last_count_attempt.time_since_epoch()).count());
                 entryInfo.push_back(std::chrono::duration_cast<std::chrono::seconds>(entry.m_last_success.time_since_epoch()).count());
+                entryInfo.push_back(entry.source.ToStringAddr());
                 bucketInfo.pushKV(entry.ToStringAddr(), entryInfo);
             }
         }

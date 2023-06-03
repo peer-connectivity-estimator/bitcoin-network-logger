@@ -760,12 +760,12 @@ def makeAddressManagerBucketStateHeader(numNewBuckets, numTriedBuckets):
 	line += 'Number of New Bucket Changes,'
 	for i in range(numTriedBuckets):
 		if i == 0:
-			line += f'"Tried Bucket {i + 1} Changes (JSON: [fChance, isTerrible, lastTriedTime, nAttempts, lastAttemptTime, lastSuccessTime, sourceIP])",'
+			line += f'"Tried Bucket {i + 1} Changes (JSON: [fChance, isTerrible, lastTriedTime, nAttempts, lastAttemptTime, lastSuccessTime, sourceAddress])",'
 		else:
 			line += f'Tried Bucket {i + 1} Changes (JSON),'
 	for i in range(numNewBuckets):
 		if i == 0:
-			line += f'"New Bucket {i + 1} Changes (JSON: [fChance, isTerrible, lastTriedTime, nAttempts, lastAttemptTime, lastSuccessTime, sourceIP])",'
+			line += f'"New Bucket {i + 1} Changes (JSON: [fChance, isTerrible, lastTriedTime, nAttempts, lastAttemptTime, lastSuccessTime, sourceAddress])",'
 		else:
 			line += f'New Bucket {i + 1} Changes (JSON),'
 	return line
@@ -855,7 +855,7 @@ def logAddressManagerBucketInfo(timestamp, directory):
 		for address in getbucketinfo['New buckets'][i]:
 			addressHasChanged = False
 			if i in globalPrevNewBuckets and address in globalPrevNewBuckets[i]:
-				for j in range(7): # [fChance, isTerrible, lastTriedTime, nAttempts, lastAttemptTime, lastSuccessTime, sourceIP]
+				for j in range(7): # [fChance, isTerrible, lastTriedTime, nAttempts, lastAttemptTime, lastSuccessTime, sourceAddress]
 					if globalPrevNewBuckets[i][address][j] != getbucketinfo['New buckets'][i][address][j]:
 						addressHasChanged = True
 						break
@@ -873,7 +873,7 @@ def logAddressManagerBucketInfo(timestamp, directory):
 		for address in getbucketinfo['Tried buckets'][i]:
 			addressHasChanged = False
 			if i in globalPrevTriedBuckets and address in globalPrevTriedBuckets[i]:
-				for j in range(7): # [fChance, isTerrible, lastTriedTime, nAttempts, lastAttemptTime, lastSuccessTime, sourceIP]
+				for j in range(7): # [fChance, isTerrible, lastTriedTime, nAttempts, lastAttemptTime, lastSuccessTime, sourceAddress]
 					if globalPrevTriedBuckets[i][address][j] != getbucketinfo['Tried buckets'][i][address][j]:
 						addressHasChanged = True
 						break
