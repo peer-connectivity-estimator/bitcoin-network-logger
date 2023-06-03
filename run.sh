@@ -25,7 +25,9 @@ fi
 
 
 pruned=false
-if [ -d /media/$USER/sf_Bitcoin/blocks/ ] && [ ! -f /media/$USER/sf_Bitcoin/bitcoind.pid ] ; then
+if [ -d /home/$USER/BitcoinFullLedger/ ] && [ ! -f /home/$USER/BitcoinFullLedger/bitcoind.pid ] ; then
+	dir=/home/$USER/BitcoinFullLedger
+elif [ -d /media/$USER/sf_Bitcoin/blocks/ ] && [ ! -f /media/$USER/sf_Bitcoin/bitcoind.pid ] ; then
 	dir=/media/$USER/sf_Bitcoin
 elif [ -d /media/$USER/BITCOIN/Bitcoin\ Full\ Ledger/blocks/ ] && [ ! -f /media/$USER/BITCOIN/Bitcoin\ Full\ Ledger/bitcoind.pid ] ; then
 	dir=/media/$USER/BITCOIN/Bitcoin\ Full\ Ledger
@@ -74,6 +76,7 @@ fi
 
 echo "datadir = $dir"
 
+exit 0
 if [[ " ${bitcoinParams[*]} " =~ " -regtest " ]]; then
 	rpcport=18444
 	port=18445
