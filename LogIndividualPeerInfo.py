@@ -29,11 +29,11 @@ import time
 
 # The path to copy over the finalized output files (preferably an external storage device)
 outputFilesToTransferPath = '/media/research/BTC/Official_Research_Logs'
-# outputFilesToTransferPath = '/home/ubuntu1/Desktop/Official_Research_Logs'
+outputFilesToTransferPath = '/home/ubuntu1/Desktop/Official_Research_Logs'
 
 # The path where the Bitcoin blockchain is stored
 bitcoinDirectory = '/home/research/BitcoinFullLedger'
-# bitcoinDirectory = '/home/ubuntu1/.bitcoin'
+bitcoinDirectory = '/home/ubuntu1/.bitcoin'
 
 # The logger will take one sample for every numSecondsPerSample interval
 numSecondsPerSample = 10
@@ -743,8 +743,6 @@ def makeAddressManagerBucketStateHeader(numNewBuckets, numTriedBuckets):
 	line += 'Internal Tried Addresses (count),'
 	line += 'Unrouteable New Addresses (count),'
 	line += 'Unrouteable Tried Addresses (count),'
-	line += 'Unknown New Addresses (count),'
-	line += 'Unknown Tried Addresses (count),'
 	line += 'Timestamp of Last Good Call,'
 	line += 'Tried Group Bucket Spread,'
 	line += 'New Source Group Bucket Spread,'
@@ -756,20 +754,20 @@ def makeAddressManagerBucketStateHeader(numNewBuckets, numTriedBuckets):
 	line += 'Successful Connection Freshness (hours),'
 	line += 'Tried Collision Storage Limit,'
 	line += 'Collision Resolution Time Limit (minutes),'
-	line += 'Number of New Buckets,'
 	line += 'Number of Tried Buckets,'
-	line += 'Number New Bucket Changes,'
-	line += 'Number Tried Bucket Changes,'
-	for i in range(numNewBuckets):
-		if i == 0:
-			line += f'"New Bucket {i + 1} Changes (JSON: [fChance, isTerrible, lastTriedTime, nAttempts, lastAttemptTime, lastSuccessTime, sourceIP])",'
-		else:
-			line += f'New Bucket {i + 1} Changes (JSON),'
+	line += 'Number of New Buckets,'
+	line += 'Number of Tried Bucket Changes,'
+	line += 'Number of New Bucket Changes,'
 	for i in range(numTriedBuckets):
 		if i == 0:
 			line += f'"Tried Bucket {i + 1} Changes (JSON: [fChance, isTerrible, lastTriedTime, nAttempts, lastAttemptTime, lastSuccessTime, sourceIP])",'
 		else:
 			line += f'Tried Bucket {i + 1} Changes (JSON),'
+	for i in range(numNewBuckets):
+		if i == 0:
+			line += f'"New Bucket {i + 1} Changes (JSON: [fChance, isTerrible, lastTriedTime, nAttempts, lastAttemptTime, lastSuccessTime, sourceIP])",'
+		else:
+			line += f'New Bucket {i + 1} Changes (JSON),'
 	return line
 
 # Log the bucket info, which is a time consuming process so it is ran every numSamplesPerAddressManagerBucketLog samples
@@ -831,10 +829,6 @@ def logAddressManagerBucketInfo(timestamp, directory):
 	line += str(getbucketinfo['Number of internal tried addresses']) + ','
 	line += str(getbucketinfo['Number of unrouteable new addresses']) + ','
 	line += str(getbucketinfo['Number of unrouteable tried addresses']) + ','
-	if 'Number of unknown new addresses' in getbucketinfo:
-		line += str(getbucketinfo['Number of unknown new addresses']) + ','
-		line += str(getbucketinfo['Number of unknown tried addresses']) + ','
-	else: line += ',,'
 	if 'Last time Good was called' in getbucketinfo:
 		line += str(getbucketinfo['Last time Good was called']) + ','
 	else: line += ','
@@ -848,13 +842,14 @@ def logAddressManagerBucketInfo(timestamp, directory):
 	line += str(getbucketinfo['Successful Connection Freshness (hours)']) + ','
 	line += str(getbucketinfo['Tried Collision Storage Limit']) + ','
 	line += str(getbucketinfo['Collision Resolution Time Limit (minutes)']) + ','
-	line += str(numNewBuckets) + ','
 	line += str(numTriedBuckets) + ','
+	line += str(numNewBuckets) + ','
 	newBucketsColumns = ''
 	triedBucketsColumns = ''
+	numNewChanges = 0
+	numTriedChanges = 0
 	for i in getbucketinfo['New buckets']:
 		indexOffset = 27
-		numNewChanges = 0
 		changedNewBucketEntries = {}
 		# Remove all the address entries that have not changed, that way we only see those that have changed
 		for address in getbucketinfo['New buckets'][i]:
@@ -873,7 +868,6 @@ def logAddressManagerBucketInfo(timestamp, directory):
 		newBucketsColumns += '"' + json.dumps(changedNewBucketEntries, separators=(',', ':')).replace('"', "'") + '",'
 	for i in getbucketinfo['Tried buckets']:
 		indexOffset = 27 + numNewBuckets
-		numTriedChanges = 0
 		changedTriedBucketEntries = {}
 		# Remove all the address entries that have not changed, that way we only see those that have changed
 		for address in getbucketinfo['Tried buckets'][i]:
@@ -891,10 +885,10 @@ def logAddressManagerBucketInfo(timestamp, directory):
 				numTriedChanges += 1
 		triedBucketsColumns += '"' + json.dumps(changedTriedBucketEntries, separators=(',', ':')).replace('"', "'") + '",'
 	
-	line += str(numNewChanges) + ','
 	line += str(numTriedChanges) + ','
-	line += str(newBucketsColumns) # Already has a comma
+	line += str(numNewChanges) + ','
 	line += str(triedBucketsColumns) # Already has a comma
+	line += str(newBucketsColumns) # Already has a comma
 	file.write(line + '\n')
 	file.close()
 
@@ -1831,7 +1825,7 @@ def log(targetDateTime, previousDirectory, isTimeForNewDirectory):
 		for address in peersToUpdate:
 			logNode(address, timestamp, directory, peersToUpdate[address])
 
-		if sampleNumber % numSamplesPerAddressManagerBucketLog == 0:
+		if (sampleNumber - 1) % numSamplesPerAddressManagerBucketLog == 0:
 			logAddressManagerBucketInfo(timestamp, directory)
 
 		globalNumSamples += 1
