@@ -1199,9 +1199,9 @@ def logNode(address, timestamp, directory, updateInfo):
 	line += str(updateInfo['willRelayAddrs']) + ','
 	line += str(updateInfo['numAddrsAccepted']) + ','
 	line += str(updateInfo['numAddrsDroppedFromRateLimit']) + ','
-	if 'minTransactionFeeAccepted' in updateInfo:
+	try:
 		line += str(float(updateInfo['minTransactionFeeAccepted']) / 1024) + ',' # Convert from satoshi/kilobyte to satoshi/byte
-	else: line += ','
+	except: line += ','
 	line += str(updateInfo['sendCmpctEnabledToThem']) + ','
 	line += str(updateInfo['sendCmpctEnabledFromThem']) + ','
 	line += str(updateInfo['lastSendTime']) + ','
