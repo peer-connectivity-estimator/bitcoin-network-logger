@@ -1200,7 +1200,7 @@ def logNode(address, timestamp, directory, updateInfo):
 	line += str(updateInfo['numAddrsAccepted']) + ','
 	line += str(updateInfo['numAddrsDroppedFromRateLimit']) + ','
 	if 'minTransactionFeeAccepted' in updateInfo:
-		line += str(updateInfo['minTransactionFeeAccepted'] / 1024) + ',' # Convert from satoshi/kilobyte to satoshi/byte
+		line += str(float(updateInfo['minTransactionFeeAccepted']) / 1024) + ',' # Convert from satoshi/kilobyte to satoshi/byte
 	else: line += ','
 	line += str(updateInfo['sendCmpctEnabledToThem']) + ','
 	line += str(updateInfo['sendCmpctEnabledFromThem']) + ','
