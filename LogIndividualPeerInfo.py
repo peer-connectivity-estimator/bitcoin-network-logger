@@ -134,7 +134,6 @@ def getHumanReadableDateTime(timestamp):
 def makeBlockStateHeader():
 	line = 'Timestamp,'
 	line += 'Timestamp (UNIX epoch),'
-	line += 'Time Since Last Sample (seconds),'
 	line += 'Block Height,'
 	line += '"Block Status (active, headers-only, valid-fork, valid-headers, valid-headers-fork, checkpoint, assume-valid)",'
 	line += 'Is Fork,'
@@ -220,11 +219,17 @@ def maybeLogBlockState(timestamp, directory, getblockchaininfo, getchaintips, ne
 				print(f'{e}, attempt {attempts}')
 				time.sleep(1)
  
+	# If the logger has restarted, restore the previous values and check for changes
+	if prevBlockHash is None and len(prevLine) > 0:
+		prevBlockHeight = prevLine[2]
+		prevBlockHash = prevLine[8]
+		for i, tip in enumerate(getchaintips):
+			if tip['status'] == 'active':
+				# No new block has been received, return
+				if prevBlockHash == tip['hash']: return
+				break
+
 	timestampSeconds = int(timestamp.astimezone(datetime.timezone.utc).timestamp() * timePrecision) / timePrecision
-	if prevLine == '':
-		timeSinceLastSample = ''
-	else: 
-		timeSinceLastSample = int((timestampSeconds - float(prevLine[1])) * timePrecision) / timePrecision
 
 	# If we're in IBD mode, then don't try to iterate through the blocks between samples, otherwise, if more than one block arrives during a sample they'll all be logged
 	allowSkippedBlocks = getblockchaininfo['initialblockdownload']
@@ -349,7 +354,6 @@ def maybeLogBlockState(timestamp, directory, getblockchaininfo, getchaintips, ne
 
 		lines += '"' + getHumanReadableDateTime(timestamp) + '",'
 		lines += str(timestampSeconds) + ','
-		lines += str(timeSinceLastSample) + ','
 		lines += str(height) + ','
 		lines += str(tipStatus) + ','
 		lines += str(tipIsFork) + ','
@@ -429,11 +433,11 @@ def maybeLogBlockState(timestamp, directory, getblockchaininfo, getchaintips, ne
 		if tipStatus == 'active':
 			prevBlockHash = blockHash
 			prevBlockHeight = height
-		else:
+		
+		if tip['isFork']:
 			globalNumForksSeen += 1
 			if tip['forkLength'] > globalMaxForkLength:
 				globalMaxForkLength = tip['forkLength']
-		timeSinceLastSample = 0
 
 	# Finally, write the blockchain info to the output file
 	file.write(lines)
@@ -448,8 +452,10 @@ def getDirectorySize(directory):
 
 # Generate the machine info CSV header line
 def writeInitialMachineInfo(timestamp, directory):
-	contents = 'Directory Creation Time (date):\n'
-	contents += '\t' + str(timestamp) + '\n'
+	contents = 'Bitcoin Core Version (./src/bitcoind --version):\n'
+	contents += '\t' + terminal('./src/bitcoin-cli --version').strip().replace('\n', '\n\t') + '\n'
+	contents += '\nPython (python3 --version):\n'
+	contents += '\t' + terminal('python3 --version').strip().replace('\n', '\n\t') + '\n'
 	contents += '\nOperating System (lsb_release -idrc):\n'
 	contents += '\t' + terminal('lsb_release -idrc').strip().replace('\n', '\n\t') + '\n'
 	contents += '\nProcessor (lscpu):\n'
@@ -459,8 +465,8 @@ def writeInitialMachineInfo(timestamp, directory):
 	contents += '\nMemory (cat /proc/meminfo):\n'
 	contents += '\tRAM:' + (str(round(psutil.virtual_memory().total / (1024.0 ** 3))) + ' GB').rjust(23) + '\n'
 	contents += '\t' + terminal('cat /proc/meminfo').strip().replace('\n', '\n\t') + '\n'
-	contents += '\nPython (python3 --version):\n'
-	contents += '\t' + terminal('python3 --version').strip().replace('\n', '\n\t') + '\n'
+	contents += '\nDirectory Creation Time (date):\n'
+	contents += '\t' + str(timestamp) + '\n'
 	file = open(os.path.join(directory, 'machine_info.txt'), 'w')
 	file.write(contents)
 	file.close()
@@ -571,12 +577,11 @@ def splitIndividualCsvLine(line):
 def makeMachineStateHeader():
 	line = 'Timestamp,'
 	line += 'Timestamp (UNIX epoch),'
-	line += 'Time Since Last Sample (seconds),'
 	line += 'Difference from Network Adjusted Timestamp (milliseconds),'
 	line += 'Number of Inbound Peer Connections,'
 	line += 'Number of Outbound Peer Connections,'
-	line += 'Last Block Propagation Time Duration (using system time) (milliseconds),'
-	line += 'Last Network Adjusted Block Propagation Time Duration (milliseconds),'
+	line += 'Block Propagation Time Duration (using system time) (milliseconds),'
+	line += 'Block Propagation Time Duration (using network adjusted time) (milliseconds),'
 	line += 'Last Block Hash,'
 	line += 'Last Block Received By,'
 	line += 'Blockchain Warning Message,'
@@ -595,29 +600,37 @@ def makeMachineStateHeader():
 	line += 'Total Mempool Size (bytes),'
 	line += 'Maximum Total Mempool Size (bytes),'
 	line += 'Minimum Tx Fee to be Accepted (satoshi/byte),'
-	line += 'Transactions that Haven\'t Passed the Initial Broadcast,'
 	line += 'Network Bytes Sent (bytes),'
 	line += 'Network Bytes Received (bytes),'
 	line += 'Network Packets Sent (packets),'
 	line += 'Network Packets Received (packets),'
-	line += 'Current Machine CPU (percent),'
-	line += 'Current Machine CPU Frequency (megahertz),'
-	line += 'Current Machine Virtual Memory (percent),'
-	line += 'Current Machine Virtual Memory (bytes),'
-	line += 'Current Machine Swap Memory (percent),'
-	line += 'Current Machine Swap Memory (bytes),'
-	line += 'Current Machine Disk Usage (percent),'
-	line += 'Current Machine Disk Usage (bytes),'
 	line += 'Bitcoin Process ID,'
 	line += 'Bitcoin Process Virtual Memory (bytes),'
 	line += 'Bitcoin Process Memory (bytes),'
 	line += 'Bitcoin Process Shared Memory (bytes),'
 	line += 'Bitcoin Process Memory (percent),'
 	line += 'Bitcoin Process CPU (percent),'
+	line += 'Machine CPU (percent),'
+	line += 'Machine CPU Frequency (megahertz),'
+	line += 'Machine Virtual Memory (percent),'
+	line += 'Machine Virtual Memory (bytes),'
+	line += 'Machine Swap Memory (percent),'
+	line += 'Machine Swap Memory (bytes),'
+	line += 'Machine Disk Usage (percent),'
+	line += 'Machine Disk Usage (bytes),'
 	return line
 
-# Log the state of the machine to file, returns the sample number
+# Convert a datetime object to a UNIX epoch
+def getTimestampEpoch(datetimeObject):
+	return datetimeObject.astimezone(datetime.timezone.utc).timestamp()
+
+# Convert a UNIX epoch to a datetime object
+def getDatetimeFromEpoch(timestampSeconds):
+    return datetime.datetime.fromtimestamp(timestampSeconds)
+
+# Log the state of the machine to file, returns the sample number, or -1 to terminate the sample
 def logMachineState(timestamp, directory, getpeerinfo, getblockchaininfo, getmempoolinfo, newblockbroadcastsblockinformation, timestampMedianDifference):
+	global targetDateTime
 	filePath = os.path.join(directory, 'machine_state_info.csv')
 	if not os.path.exists(filePath):
 		print(f'Creating machine state file')
@@ -644,10 +657,6 @@ def logMachineState(timestamp, directory, getpeerinfo, getblockchaininfo, getmem
 				time.sleep(1)
  
 	timestampSeconds = int(timestamp.astimezone(datetime.timezone.utc).timestamp() * timePrecision) / timePrecision
-	if prevLine == '':
-		timeSinceLastSample = ''
-	else: 
-		timeSinceLastSample = int((timestampSeconds - float(prevLine[1])) * timePrecision) / timePrecision
 	cpuPercent = psutil.cpu_percent()
 	cpuFrequency = 0
 	try:
@@ -670,7 +679,6 @@ def logMachineState(timestamp, directory, getpeerinfo, getblockchaininfo, getmem
 
 	line = '"' + getHumanReadableDateTime(timestamp) + '",'
 	line += str(timestampSeconds) + ','
-	line += str(timeSinceLastSample) + ','
 	line += str(timestampMedianDifference) + ','
 	line += str(numInboundPeers) + ','
 	line += str(numOutboundPeers) + ','
@@ -698,11 +706,16 @@ def logMachineState(timestamp, directory, getpeerinfo, getblockchaininfo, getmem
 	line += str(getmempoolinfo['usage']) + ','
 	line += str(getmempoolinfo['maxmempool']) + ','
 	line += str(getmempoolinfo['mempoolminfee'] * 100000000/1024) + ',' # Converts from BTC/kilobyte to satoshi/byte
-	line += str(getmempoolinfo['unbroadcastcount']) + ','
 	line += str(networkData['bytes_sent']) + ','
 	line += str(networkData['bytes_received']) + ','
 	line += str(networkData['packets_sent']) + ','
 	line += str(networkData['packets_received']) + ','
+	line += str(individualProcessData['process_ID']) + ','
+	line += str(individualProcessData['virtual_memory']) + ','
+	line += str(individualProcessData['memory']) + ','
+	line += str(individualProcessData['shared_memory']) + ','
+	line += str(individualProcessData['memory_percent']) + ','
+	line += str(individualProcessData['cpu_percent']) + ','
 	line += str(cpuPercent) + ','
 	line += str(cpuFrequency) + ','
 	line += str(virtualMemoryPercent) + ','
@@ -711,12 +724,6 @@ def logMachineState(timestamp, directory, getpeerinfo, getblockchaininfo, getmem
 	line += str(swapMemory) + ','
 	line += str(diskUsagePercent) + ','
 	line += str(diskUsage) + ','
-	line += str(individualProcessData['process_ID']) + ','
-	line += str(individualProcessData['virtual_memory']) + ','
-	line += str(individualProcessData['memory']) + ','
-	line += str(individualProcessData['shared_memory']) + ','
-	line += str(individualProcessData['memory_percent']) + ','
-	line += str(individualProcessData['cpu_percent']) + ','
 	file.write(line + '\n')
 	file.close()
 	return numPrevLines
@@ -725,7 +732,6 @@ def logMachineState(timestamp, directory, getpeerinfo, getblockchaininfo, getmem
 def makeAddressManagerBucketStateHeader(numNewBuckets, numTriedBuckets):
 	line = 'Timestamp,'
 	line += 'Timestamp (UNIX epoch),'
-	line += 'Time Since Last Sample (seconds),'
 	line += 'Number of Total Addresses,'
 	line += 'Number of Tried Addresses,'
 	line += 'Number of Unique New Addresses,'
@@ -744,20 +750,14 @@ def makeAddressManagerBucketStateHeader(numNewBuckets, numTriedBuckets):
 	line += 'Unrouteable New Addresses (count),'
 	line += 'Unrouteable Tried Addresses (count),'
 	line += 'Timestamp of Last Good Call,'
-	line += 'Tried Group Bucket Spread,'
-	line += 'New Source Group Bucket Spread,'
-	line += 'New Address Bucket Limit,'
-	line += 'Address Age Limit (hours),'
-	line += 'New Node Retry Limit,'
-	line += 'Max Successive Failures,'
-	line += 'Failure Duration Threshold (hours),'
-	line += 'Successful Connection Freshness (hours),'
-	line += 'Tried Collision Storage Limit,'
-	line += 'Collision Resolution Time Limit (minutes),'
 	line += 'Number of Tried Buckets,'
 	line += 'Number of New Buckets,'
-	line += 'Number of Tried Bucket Changes,'
-	line += 'Number of New Bucket Changes,'
+	line += 'Number of Tried Added Entries,'
+	line += 'Number of Tried Removed Entries (addresses prefixed with \'removed_\'),'
+	line += 'Number of Tried Entry Updates,'
+	line += 'Number of New Added Entries,'
+	line += 'Number of New Removed Entries (addresses prefixed with \'removed_\'),'
+	line += 'Number of New Entry Updates,'
 	for i in range(numTriedBuckets):
 		if i == 0:
 			line += f'"Tried Bucket {i + 1} Changes (JSON: [fChance, isTerrible, lastTriedTime, nAttempts, lastAttemptTime, lastSuccessTime, sourceAddress])",'
@@ -802,16 +802,16 @@ def logAddressManagerBucketInfo(timestamp, directory):
 			except PermissionError as e:
 				print(f'{e}, attempt {attempts}')
 				time.sleep(1)
+
+	# On a logger restart, rather than re-exporting the entire bucket list, assume that no changes have been made
+	if len(prevLine) > 0 and globalPrevNewBuckets == {} and globalPrevTriedBuckets == {}:
+		globalPrevNewBuckets = getbucketinfo['New buckets']
+		globalPrevTriedBuckets = getbucketinfo['Tried buckets']
  
 	timestampSeconds = int(timestamp.astimezone(datetime.timezone.utc).timestamp() * timePrecision) / timePrecision
-	if prevLine == '':
-		timeSinceLastSample = ''
-	else: 
-		timeSinceLastSample = int((timestampSeconds - float(prevLine[1])) * timePrecision) / timePrecision
 
 	line = '"' + getHumanReadableDateTime(timestamp) + '",'
 	line += str(timestampSeconds) + ','
-	line += str(timeSinceLastSample) + ','
 	line += str(getbucketinfo['Number of total addresses']) + ','
 	line += str(getbucketinfo['Number of tried entries']) + ','
 	line += str(getbucketinfo['Number of (unique) new entries']) + ','
@@ -832,24 +832,18 @@ def logAddressManagerBucketInfo(timestamp, directory):
 	if 'Last time Good was called' in getbucketinfo:
 		line += str(getbucketinfo['Last time Good was called']) + ','
 	else: line += ','
-	line += str(getbucketinfo['Tried Group Bucket Spread']) + ','
-	line += str(getbucketinfo['New Source Group Bucket Spread']) + ','
-	line += str(getbucketinfo['New Address Bucket Limit']) + ','
-	line += str(getbucketinfo['Address Age Limit (hours)']) + ','
-	line += str(getbucketinfo['New Node Retry Limit']) + ','
-	line += str(getbucketinfo['Max Successive Failures']) + ','
-	line += str(getbucketinfo['Failure Duration Threshold (hours)']) + ','
-	line += str(getbucketinfo['Successful Connection Freshness (hours)']) + ','
-	line += str(getbucketinfo['Tried Collision Storage Limit']) + ','
-	line += str(getbucketinfo['Collision Resolution Time Limit (minutes)']) + ','
 	line += str(numTriedBuckets) + ','
 	line += str(numNewBuckets) + ','
 	newBucketsColumns = ''
 	triedBucketsColumns = ''
-	numNewChanges = 0
-	numTriedChanges = 0
+	numAddedNewEntries = 0
+	numAddedTriedEntries = 0
+	numRemovedNewEntries = 0
+	numRemovedTriedEntries = 0
+	numNewUpdates = 0
+	numTriedUpdates = 0
+	# Loop through each new bucket
 	for i in getbucketinfo['New buckets']:
-		indexOffset = 27
 		changedNewBucketEntries = {}
 		# Remove all the address entries that have not changed, that way we only see those that have changed
 		for address in getbucketinfo['New buckets'][i]:
@@ -857,17 +851,26 @@ def logAddressManagerBucketInfo(timestamp, directory):
 			if i in globalPrevNewBuckets and address in globalPrevNewBuckets[i]:
 				for j in range(7): # [fChance, isTerrible, lastTriedTime, nAttempts, lastAttemptTime, lastSuccessTime, sourceAddress]
 					if globalPrevNewBuckets[i][address][j] != getbucketinfo['New buckets'][i][address][j]:
+						numNewUpdates += 1
 						addressHasChanged = True
 						break
 			else:
+				numAddedNewEntries += 1
 				addressHasChanged = True
 			if addressHasChanged:
 				#print(f'\tUpdating {address} in new bucket #{i + 1}')
 				changedNewBucketEntries[address] = getbucketinfo['New buckets'][i][address]
-				numNewChanges += 1
+		# Now check for addresses that have been removed from the current bucket
+		if i in globalPrevNewBuckets:
+			for address in globalPrevNewBuckets[i]:
+				if address in getbucketinfo['New buckets'][i]: continue
+				changedNewBucketEntries['removed_' + address] = globalPrevNewBuckets[i][address]
+				numRemovedNewEntries += 1
+
+
 		newBucketsColumns += '"' + json.dumps(changedNewBucketEntries, separators=(',', ':')).replace('"', "'") + '",'
+	# Loop through each tried bucket
 	for i in getbucketinfo['Tried buckets']:
-		indexOffset = 27 + numNewBuckets
 		changedTriedBucketEntries = {}
 		# Remove all the address entries that have not changed, that way we only see those that have changed
 		for address in getbucketinfo['Tried buckets'][i]:
@@ -875,18 +878,29 @@ def logAddressManagerBucketInfo(timestamp, directory):
 			if i in globalPrevTriedBuckets and address in globalPrevTriedBuckets[i]:
 				for j in range(7): # [fChance, isTerrible, lastTriedTime, nAttempts, lastAttemptTime, lastSuccessTime, sourceAddress]
 					if globalPrevTriedBuckets[i][address][j] != getbucketinfo['Tried buckets'][i][address][j]:
+						numTriedUpdates += 1
 						addressHasChanged = True
 						break
 			else:
+				numAddedTriedEntries += 1
 				addressHasChanged = True
 			if addressHasChanged:
 				#print(f'\tUpdating {address} in tried bucket #{i + 1}')
 				changedTriedBucketEntries[address] = getbucketinfo['Tried buckets'][i][address]
-				numTriedChanges += 1
+		# Now check for addresses that have been removed from the current bucket
+		if i in globalPrevTriedBuckets:
+			for address in globalPrevTriedBuckets[i]:
+				if address in getbucketinfo['Tried buckets'][i]: continue
+				changedTriedBucketEntries['removed_' + address] = globalPrevTriedBuckets[i][address]
+				numRemovedTriedEntries += 1
 		triedBucketsColumns += '"' + json.dumps(changedTriedBucketEntries, separators=(',', ':')).replace('"', "'") + '",'
 	
-	line += str(numTriedChanges) + ','
-	line += str(numNewChanges) + ','
+	line += str(numAddedTriedEntries) + ','
+	line += str(numRemovedTriedEntries) + ','
+	line += str(numTriedUpdates) + ','
+	line += str(numAddedNewEntries) + ','
+	line += str(numRemovedNewEntries) + ','
+	line += str(numNewUpdates) + ','
 	line += str(triedBucketsColumns) # Already has a comma
 	line += str(newBucketsColumns) # Already has a comma
 	file.write(line + '\n')
@@ -900,10 +914,9 @@ def logAddressManagerBucketInfo(timestamp, directory):
 def makeMainPeerHeader(address):
 	line = 'Timestamp,'
 	line += 'Timestamp (UNIX epoch),'
-	line += 'Time Since Last Sample (seconds),'
-	line += f'Port for {address},'
 	line += 'Connection Count,'
 	line += 'Connection Duration (seconds),'
+	line += f'Port for {address},'
 	line += 'Number of New Unique Blocks Received,'
 	line += 'Number of New Unique Transactions Received,'
 	line += 'Aggregate of New Unique Transaction Fees (satoshi),'
@@ -911,7 +924,7 @@ def makeMainPeerHeader(address):
 	line += 'Peer Banscore (accumulated misbehavior score for this peer),'
 	line += 'Addrman fChance Score (the relative chance that this entry should be given when selecting nodes to connect to),'
 	line += 'Addrman isTerrible Rating (if the statistics about this entry are bad enough that it can just be deleted),'
-	line += 'Node Time Offset (milliseconds),'
+	line += 'Node Time Offset (seconds),'
 	line += 'Ping Round Trip Time (milliseconds),'
 	line += 'Minimum Ping Round Trip Time (milliseconds),'
 	line += 'Ping Wait Time for an Outstanding Ping (milliseconds),'
@@ -1161,21 +1174,18 @@ def logNode(address, timestamp, directory, updateInfo):
 
 	timestampSeconds = int(timestamp.astimezone(datetime.timezone.utc).timestamp() * timePrecision) / timePrecision
 	if prevLine == '':
-		timeSinceLastSample = ''
 		connectionCount = 1
 	else: 
-		timeSinceLastSample = int((timestampSeconds - float(prevLine[1])) * timePrecision) / timePrecision
-		connectionCount = int(prevLine[4])
+		connectionCount = int(prevLine[2])
 		# Check if this is the same connection or a new connection
-		if (prevLine[3] != '' and updateInfo['port'] != int(prevLine[3])) or (prevLine[5] != '' and updateInfo['connectionDuration'] < float(prevLine[5])):
+		if (updateInfo['port'] != int(prevLine[4])) or (prevLine[3] != '' and updateInfo['connectionDuration'] < float(prevLine[3])):
 			connectionCount += 1
 
 	line = '"' + getHumanReadableDateTime(timestamp) + '",'
 	line += str(timestampSeconds) + ','
-	line += str(timeSinceLastSample) + ','
-	line += str(updateInfo['port']) + ','
 	line += str(connectionCount) + ','
 	line += str(updateInfo['connectionDuration']) + ','
+	line += str(updateInfo['port']) + ','
 	line += str(updateInfo['newBlocksReceivedCount']) + ','
 	line += str(updateInfo['newTransactionsReceivedCount']) + ','
 	line += str(updateInfo['newTransactionsReceivedFee']) + ','
@@ -1183,7 +1193,7 @@ def logNode(address, timestamp, directory, updateInfo):
 	line += str(updateInfo['banscore']) + ','
 	line += str(updateInfo['fChance']) + ','
 	line += str(updateInfo['isTerrible']) + ','
-	line += str(updateInfo['secondsOffset'] * 1000) + ',' # Convert from seconds to milliseconds
+	line += str(updateInfo['secondsOffset']) + ','
 	line += str(updateInfo['pingRoundTripTime']) + ','
 	line += str(updateInfo['pingMinRoundTripTime']) + ','
 	line += str(updateInfo['pingWaitTime']) + ','

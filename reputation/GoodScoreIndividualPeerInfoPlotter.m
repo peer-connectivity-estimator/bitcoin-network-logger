@@ -2,7 +2,7 @@ filePath = 'GoodScoreIndividualPeerInfo.csv'
 
 font_size = 20
 line_width = 2
-use_pseudonyms = 0
+use_pseudonyms = 1
 onlyFocusOnNumPeers = 0 % Zero for all peers
 legendPosition = 'EastOutside' %'EastOutside'
 legendNumColumns = 3
