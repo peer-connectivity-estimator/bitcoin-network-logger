@@ -29,11 +29,9 @@ import time
 
 # The path to copy over the finalized output files (preferably an external storage device)
 outputFilesToTransferPath = '/media/research/BTC/Official_Research_Logs'
-#outputFilesToTransferPath = '/home/ubuntu1/Desktop/Official_Research_Logs'
 
 # The path where the Bitcoin blockchain is stored
 bitcoinDirectory = '/home/research/BitcoinFullLedger'
-#bitcoinDirectory = '/home/ubuntu1/.bitcoin'
 
 # The logger will take one sample for every numSecondsPerSample interval
 numSecondsPerSample = 10
@@ -127,6 +125,7 @@ def restartBitcoin():
 		startBitcoin()
 	isInStartupDownload = True
 
+# Convert a UNIX epoch timestamp into a human readable format, example: Friday, Jun 09 2023, 11:11:11 PM MDT
 def getHumanReadableDateTime(timestamp):
 	return timestamp.strftime('%A, %b %d %Y, %-I:%M:%S %p ') + time.tzname[time.localtime().tm_isdst]
 
@@ -1425,6 +1424,7 @@ def logNode(address, timestamp, directory, updateInfo):
 	file.write(line + '\n')
 	file.close()
 
+# Returns a blank peer JSON object ready to be filled with information
 def getPeerInfoTemplate():
 	return {
 		# Start of listnewbroadcastsandclear
@@ -1686,8 +1686,7 @@ def finalizeLogDirectory(directory):
 		for source in outputFilesToTransfer:
 			print(f'\tCould not export {source} to {outputFilesToTransferPath}, will retry next cycle.')
 
-
-
+# Main logger loop responsible for all logging functions
 def log(targetDateTime, previousDirectory, isTimeForNewDirectory):
 	global timerThread, globalNumSamples, globalLoggingStartTimestamp, globalNumForksSeen, globalMaxForkLength
 	if not bitcoinUp():
