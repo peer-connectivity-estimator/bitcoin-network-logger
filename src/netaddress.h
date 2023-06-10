@@ -248,7 +248,8 @@ public:
 
     friend class CSubNet;
 
-private:
+// Cybersecurity Lab: Enable RPC access to the other CNetAddr fields
+//private:
     /**
      * Parse a Tor address and set this object to it.
      * @param[in] addr Address to parse, must be a valid C string, for example

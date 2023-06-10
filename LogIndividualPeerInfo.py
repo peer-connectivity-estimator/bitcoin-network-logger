@@ -11,7 +11,7 @@ directory has 10000 samples. The bucket logger makes a row every 100 samples.
 
 __author__ = 'Simeon Wuthier'
 __contact__ = 'swuthier@uccs.edu'
-__date__ = '2023/06/01'
+__date__ = '2023/06/09'
 
 from threading import Timer
 import datetime
@@ -229,7 +229,7 @@ def maybeLogBlockState(timestamp, directory, getblockchaininfo, getchaintips, ne
 				if prevBlockHash == tip['hash']: return
 				break
 
-	timestampSeconds = int(timestamp.astimezone(datetime.timezone.utc).timestamp() * timePrecision) / timePrecision
+	timestampSeconds = int(getTimestampEpoch(timestamp) * timePrecision) / timePrecision
 
 	# If we're in IBD mode, then don't try to iterate through the blocks between samples, otherwise, if more than one block arrives during a sample they'll all be logged
 	allowSkippedBlocks = getblockchaininfo['initialblockdownload']
@@ -259,14 +259,14 @@ def maybeLogBlockState(timestamp, directory, getblockchaininfo, getchaintips, ne
 			'height': height,
 			'hash': '',
 			'status': activeTip['status'],
-			'isFork': '1' if 'fork' in activeTip['status'] else '0',
+			'isFork': '1' if ('fork' in activeTip['status']) else '0',
 			'forkLength': activeTip['branchlen'],
 		})
 	tipsToProcess.append({
 		'height': activeTip['height'],
 		'hash': activeTip['hash'],
 		'status': activeTip['status'],
-		'isFork': '1' if 'fork' in activeTip['status'] else '0',
+		'isFork': '1' if ('fork' in activeTip['status']) else '0',
 		'forkLength': activeTip['branchlen'],
 	})
 	for tip in getchaintips:
@@ -274,7 +274,7 @@ def maybeLogBlockState(timestamp, directory, getblockchaininfo, getchaintips, ne
 			'height': tip['height'],
 			'hash': tip['hash'],
 			'status': tip['status'],
-			'isFork': '1' if 'fork' in tip['status'] else '0',
+			'isFork': '1' if ('fork' in tip['status']) else '0',
 			'forkLength': tip['branchlen'],
 		})
 
@@ -434,10 +434,10 @@ def maybeLogBlockState(timestamp, directory, getblockchaininfo, getchaintips, ne
 			prevBlockHash = blockHash
 			prevBlockHeight = height
 		
-		if tip['isFork']:
+		if tipIsFork == '1' and forkLength > 0:
 			globalNumForksSeen += 1
-			if tip['forkLength'] > globalMaxForkLength:
-				globalMaxForkLength = tip['forkLength']
+			if forkLength > globalMaxForkLength:
+				globalMaxForkLength = forkLength
 
 	# Finally, write the blockchain info to the output file
 	file.write(lines)
@@ -452,8 +452,10 @@ def getDirectorySize(directory):
 
 # Generate the machine info CSV header line
 def writeInitialMachineInfo(timestamp, directory):
-	contents = 'Bitcoin Core Version (./src/bitcoind --version):\n'
-	contents += '\t' + terminal('./src/bitcoin-cli --version').strip().replace('\n', '\n\t') + '\n'
+	contents = 'Bitcoin Core Version (./src/bitcoind --version | head -2):\n'
+	contents += '\t' + terminal('./src/bitcoin-cli --version | head -2').strip().replace('\n', '\n\t') + '\n'
+	contents += '\nLink to Git Version (git config --get remote.origin.url and git rev-parse HEAD):\n'
+	contents += '\t' + terminal('git config --get remote.origin.url').strip().replace('.git', '').replace('\n', '\n\t') + '/tree/' + terminal('git rev-parse HEAD').strip().replace('\n', '\n\t') + '\n'
 	contents += '\nPython (python3 --version):\n'
 	contents += '\t' + terminal('python3 --version').strip().replace('\n', '\n\t') + '\n'
 	contents += '\nOperating System (lsb_release -idrc):\n'
@@ -656,7 +658,7 @@ def logMachineState(timestamp, directory, getpeerinfo, getblockchaininfo, getmem
 				print(f'{e}, attempt {attempts}')
 				time.sleep(1)
  
-	timestampSeconds = int(timestamp.astimezone(datetime.timezone.utc).timestamp() * timePrecision) / timePrecision
+	timestampSeconds = int(getTimestampEpoch(timestamp) * timePrecision) / timePrecision
 	cpuPercent = psutil.cpu_percent()
 	cpuFrequency = 0
 	try:
@@ -732,9 +734,8 @@ def logMachineState(timestamp, directory, getpeerinfo, getblockchaininfo, getmem
 def makeAddressManagerBucketStateHeader(numNewBuckets, numTriedBuckets):
 	line = 'Timestamp,'
 	line += 'Timestamp (UNIX epoch),'
-	line += 'Number of Total Addresses,'
-	line += 'Number of Tried Addresses,'
-	line += 'Number of Unique New Addresses,'
+	line += 'Number of Tried Entries,'
+	line += 'Number of New Entries,'
 	line += 'IPv4 New Addresses (count),'
 	line += 'IPv4 Tried Addresses (count),'
 	line += 'IPv6 New Addresses (count),'
@@ -747,9 +748,9 @@ def makeAddressManagerBucketStateHeader(numNewBuckets, numTriedBuckets):
 	line += 'CJDNS Tried Addresses (count),'
 	line += 'Internal New Addresses (count),'
 	line += 'Internal Tried Addresses (count),'
-	line += 'Unrouteable New Addresses (count),'
-	line += 'Unrouteable Tried Addresses (count),'
-	line += 'Timestamp of Last Good Call,'
+	line += 'Unroutable New Addresses (count),'
+	line += 'Unroutable Tried Addresses (count),'
+	line += 'Timestamp of Last Good Call (move from new to tried),'
 	line += 'Number of Tried Buckets,'
 	line += 'Number of New Buckets,'
 	line += 'Number of Tried Added Entries,'
@@ -760,12 +761,12 @@ def makeAddressManagerBucketStateHeader(numNewBuckets, numTriedBuckets):
 	line += 'Number of New Entry Updates,'
 	for i in range(numTriedBuckets):
 		if i == 0:
-			line += f'"Tried Bucket {i + 1} Changes (JSON: [fChance, isTerrible, lastTriedTime, nAttempts, lastAttemptTime, lastSuccessTime, sourceAddress])",'
+			line += f'"Tried Bucket {i + 1} Changes (JSON: [type (1:IPv4, 2:IPv6, 3:TorV2, 4:TorV3, 5:I2P, 6:CJDNS), fChance, isTerrible, nInstances, nTime, lastTriedTime, nAttempts, lastCountedAttemptTime, lastSuccessTime, sourceAddress])",'
 		else:
 			line += f'Tried Bucket {i + 1} Changes (JSON),'
 	for i in range(numNewBuckets):
 		if i == 0:
-			line += f'"New Bucket {i + 1} Changes (JSON: [fChance, isTerrible, lastTriedTime, nAttempts, lastAttemptTime, lastSuccessTime, sourceAddress])",'
+			line += f'"New Bucket {i + 1} Changes (JSON: [type (1:IPv4, 2:IPv6, 3:TorV2, 4:TorV3, 5:I2P, 6:CJDNS), fChance, isTerrible, nInstances, nTime, lastTriedTime, nAttempts, lastCountedAttemptTime, lastSuccessTime, sourceAddress])",'
 		else:
 			line += f'New Bucket {i + 1} Changes (JSON),'
 	return line
@@ -775,8 +776,8 @@ def logAddressManagerBucketInfo(timestamp, directory):
 	global globalPrevNewBuckets, globalPrevTriedBuckets
 	print('\tLogging address manager bucket information...')
 	getbucketinfo = bitcoin('getbucketinfo', True)
-	numNewBuckets = len(getbucketinfo['New buckets'])
-	numTriedBuckets = len(getbucketinfo['Tried buckets'])
+	numTriedBuckets = 256
+	numNewBuckets = 1024
 
 	filePath = os.path.join(directory, 'address_manager_bucket_info.csv')
 	if not os.path.exists(filePath):
@@ -808,11 +809,10 @@ def logAddressManagerBucketInfo(timestamp, directory):
 		globalPrevNewBuckets = getbucketinfo['New buckets']
 		globalPrevTriedBuckets = getbucketinfo['Tried buckets']
  
-	timestampSeconds = int(timestamp.astimezone(datetime.timezone.utc).timestamp() * timePrecision) / timePrecision
+	timestampSeconds = int(getTimestampEpoch(timestamp) * timePrecision) / timePrecision
 
 	line = '"' + getHumanReadableDateTime(timestamp) + '",'
 	line += str(timestampSeconds) + ','
-	line += str(getbucketinfo['Number of total addresses']) + ','
 	line += str(getbucketinfo['Number of tried entries']) + ','
 	line += str(getbucketinfo['Number of (unique) new entries']) + ','
 	line += str(getbucketinfo['Number of IPv4 new addresses']) + ','
@@ -842,7 +842,18 @@ def logAddressManagerBucketInfo(timestamp, directory):
 	numRemovedTriedEntries = 0
 	numNewUpdates = 0
 	numTriedUpdates = 0
-	# Loop through each new bucket
+	
+	# Add the bucket entries that don't currently exist
+	for i in range(numNewBuckets):
+		if str(i) not in getbucketinfo['New buckets']:
+			getbucketinfo['New buckets'][str(i)] = {}
+	for i in range(numNewBuckets):
+		if str(i) not in getbucketinfo['Tried buckets']:
+			getbucketinfo['Tried buckets'][str(i)] = {}
+	getbucketinfo['New buckets'] = dict(sorted(getbucketinfo['New buckets'].items(), key=lambda item: int(item[0])))
+	getbucketinfo['Tried buckets'] = dict(sorted(getbucketinfo['Tried buckets'].items(), key=lambda item: int(item[0])))
+
+	# Loop through each new bucket			
 	for i in getbucketinfo['New buckets']:
 		changedNewBucketEntries = {}
 		# Remove all the address entries that have not changed, that way we only see those that have changed
@@ -1172,14 +1183,15 @@ def logNode(address, timestamp, directory, updateInfo):
 				print(f'{e}, attempt {attempts}')
 				time.sleep(1)
 
-	timestampSeconds = int(timestamp.astimezone(datetime.timezone.utc).timestamp() * timePrecision) / timePrecision
-	if prevLine == '':
-		connectionCount = 1
-	else: 
-		connectionCount = int(prevLine[2])
+	timestampSeconds = int(getTimestampEpoch(timestamp) * timePrecision) / timePrecision
+	connectionCount = 1
+	if prevLine != '':
+		if prevLine[2] != '':
+			connectionCount = int(prevLine[2])
 		# Check if this is the same connection or a new connection
-		if (updateInfo['port'] != int(prevLine[4])) or (prevLine[3] != '' and updateInfo['connectionDuration'] < float(prevLine[3])):
+		if (prevLine[4] != '' and updateInfo['port'] != int(prevLine[4])) or (prevLine[3] != '' and updateInfo['connectionDuration'] < float(prevLine[3])):
 			connectionCount += 1
+
 
 	line = '"' + getHumanReadableDateTime(timestamp) + '",'
 	line += str(timestampSeconds) + ','
@@ -1682,7 +1694,7 @@ def log(targetDateTime, previousDirectory, isTimeForNewDirectory):
 		startBitcoin()
 	
 	timestamp = datetime.datetime.now()
-	timestampSeconds = int(timestamp.astimezone(datetime.timezone.utc).timestamp() * timePrecision) / timePrecision
+	timestampSeconds = int(getTimestampEpoch(timestamp) * timePrecision) / timePrecision
 	directory = previousDirectory
 	try:
 		getblockchaininfo = bitcoin('getblockchaininfo', True)
@@ -1702,7 +1714,7 @@ def log(targetDateTime, previousDirectory, isTimeForNewDirectory):
 
 				# Reset the target datetime to accommodate for the time just spent finalizing the sample
 				timestamp = targetDateTime = datetime.datetime.now()
-				timestampSeconds = int(timestamp.astimezone(datetime.timezone.utc).timestamp() * timePrecision) / timePrecision
+				timestampSeconds = int(getTimestampEpoch(timestamp) * timePrecision) / timePrecision
 				getblockchaininfo = bitcoin('getblockchaininfo', True)
 
 			sampleNumber = 1

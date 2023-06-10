@@ -3032,69 +3032,101 @@ void CConnman::getBucketInfoForRPC(UniValue &result) {
         // UniValue bucketInfo(UniValue::VOBJ);
         // for (const auto& [nid, entry] : newBuckets[bucket]) {
         UniValue bucketInfo(UniValue::VOBJ);
+        int numEntries = 0;
         for (int i = 0; i < ADDRMAN_BUCKET_SIZE; i++) {
             if (addrman.m_impl->vvNew[bucket][i] != -1) {
                 // UniValue addrInfo(UniValue::VOBJ);
+                // addrInfo.pushKV("Network Type (1: IPv4, 2: IPv6, 3: TorV2, 4: TorV3, 5: I2P, 6: CJDNS)", (int)entry.GetBIP155Network());
                 // addrInfo.pushKV("fChance", entry.GetChance());
                 // addrInfo.pushKV("isTerrible", entry.IsTerrible());
-                // addrInfo.pushKV("nAttempts", entry.nAttempts);
+                // addrInfo.pushKV("nInstances", entry.nRefCount);
+                // addrInfo.pushKV("nTime", std::chrono::duration_cast<std::chrono::seconds>(entry.nTime.time_since_epoch()).count());
                 // addrInfo.pushKV("Last try by us", std::chrono::duration_cast<std::chrono::seconds>(entry.m_last_try.time_since_epoch()).count());
+                // addrInfo.pushKV("nAttempts", entry.nAttempts);
+                // addrInfo.pushKV("Last counted attempt", std::chrono::duration_cast<std::chrono::seconds>(entry.m_last_count_attempt.time_since_epoch()).count());
                 // addrInfo.pushKV("Last success by us", std::chrono::duration_cast<std::chrono::seconds>(entry.m_last_success.time_since_epoch()).count());
-                // addrInfo.pushKV("Last count attempt", std::chrono::duration_cast<std::chrono::seconds>(entry.m_last_count_attempt.time_since_epoch()).count());
                 // addrInfo.pushKV("Source", entry.source.ToStringAddrPort()).count());
                 // bucketInfo.pushKV(entry.ToStringAddr(), addrInfo);
-                const auto &entry = addrman.m_impl->mapInfo[addrman.m_impl->vvNew[bucket][i]];
+                const AddrInfo &entry = addrman.m_impl->mapInfo[addrman.m_impl->vvNew[bucket][i]];
                 UniValue entryInfo(UniValue::VARR);
+                entryInfo.push_back((int)entry.GetBIP155Network());
                 entryInfo.push_back(entry.GetChance());
                 entryInfo.push_back(entry.IsTerrible() ? 1 : 0);
-                entryInfo.push_back(entry.nAttempts);
+                entryInfo.push_back(entry.nRefCount);
+                entryInfo.push_back(std::chrono::duration_cast<std::chrono::seconds>(entry.nTime.time_since_epoch()).count());
                 entryInfo.push_back(std::chrono::duration_cast<std::chrono::seconds>(entry.m_last_try.time_since_epoch()).count());
-                entryInfo.push_back(std::chrono::duration_cast<std::chrono::seconds>(entry.m_last_success.time_since_epoch()).count());
+                entryInfo.push_back(entry.nAttempts);
                 entryInfo.push_back(std::chrono::duration_cast<std::chrono::seconds>(entry.m_last_count_attempt.time_since_epoch()).count());
+                entryInfo.push_back(std::chrono::duration_cast<std::chrono::seconds>(entry.m_last_success.time_since_epoch()).count());
                 entryInfo.push_back(entry.source.ToStringAddr());
                 bucketInfo.pushKV(entry.ToStringAddr(), entryInfo);
+                numEntries++;
             }
         }
-        resultNewBuckets.pushKV(std::to_string(bucket), bucketInfo);
+        if (numEntries > 0) {
+            resultNewBuckets.pushKV(std::to_string(bucket), bucketInfo);
+        }
     }
-    result.pushKV("New buckets", resultNewBuckets);
-
     UniValue resultTriedBuckets(UniValue::VOBJ);
     for (int bucket = 0; bucket < ADDRMAN_TRIED_BUCKET_COUNT; bucket++) {
         UniValue bucketInfo(UniValue::VOBJ);
+        int numEntries = 0;
         for (int i = 0; i < ADDRMAN_BUCKET_SIZE; i++) {
             if (addrman.m_impl->vvTried[bucket][i] != -1) {
                 // UniValue addrInfo(UniValue::VOBJ);
+                // addrInfo.pushKV("Network Type (1: IPv4, 2: IPv6, 3: TorV2, 4: TorV3, 5: I2P, 6: CJDNS)", (int)entry.GetBIP155Network());
                 // addrInfo.pushKV("fChance", entry.GetChance());
                 // addrInfo.pushKV("isTerrible", entry.IsTerrible());
-                // addrInfo.pushKV("nAttempts", entry.nAttempts);
+                // addrInfo.pushKV("nInstances", entry.nRefCount);
+                // addrInfo.pushKV("nTime", std::chrono::duration_cast<std::chrono::seconds>(entry.nTime.time_since_epoch()).count());
                 // addrInfo.pushKV("Last try by us", std::chrono::duration_cast<std::chrono::seconds>(entry.m_last_try.time_since_epoch()).count());
+                // addrInfo.pushKV("nAttempts", entry.nAttempts);
+                // addrInfo.pushKV("Last counted attempt", std::chrono::duration_cast<std::chrono::seconds>(entry.m_last_count_attempt.time_since_epoch()).count());
                 // addrInfo.pushKV("Last success by us", std::chrono::duration_cast<std::chrono::seconds>(entry.m_last_success.time_since_epoch()).count());
-                // addrInfo.pushKV("Last attempt", std::chrono::duration_cast<std::chrono::seconds>(entry.m_last_count_attempt.time_since_epoch()).count());
                 // addrInfo.pushKV("Source", entry.source.ToStringAddrPort()).count());
                 // bucketInfo.pushKV(entry.ToStringAddr(), addrInfo);
-                const auto &entry = addrman.m_impl->mapInfo[addrman.m_impl->vvTried[bucket][i]];
+                const AddrInfo &entry = addrman.m_impl->mapInfo[addrman.m_impl->vvTried[bucket][i]];
                 UniValue entryInfo(UniValue::VARR);
+                entryInfo.push_back((int)entry.GetBIP155Network());
                 entryInfo.push_back(entry.GetChance());
                 entryInfo.push_back(entry.IsTerrible() ? 1 : 0);
+                entryInfo.push_back(entry.nRefCount);
+                entryInfo.push_back(std::chrono::duration_cast<std::chrono::seconds>(entry.nTime.time_since_epoch()).count());
                 entryInfo.push_back(std::chrono::duration_cast<std::chrono::seconds>(entry.m_last_try.time_since_epoch()).count());
                 entryInfo.push_back(entry.nAttempts);
                 entryInfo.push_back(std::chrono::duration_cast<std::chrono::seconds>(entry.m_last_count_attempt.time_since_epoch()).count());
                 entryInfo.push_back(std::chrono::duration_cast<std::chrono::seconds>(entry.m_last_success.time_since_epoch()).count());
                 entryInfo.push_back(entry.source.ToStringAddr());
                 bucketInfo.pushKV(entry.ToStringAddr(), entryInfo);
+                numEntries++;
             }
         }
-        resultTriedBuckets.pushKV(std::to_string(bucket), bucketInfo);
+        if (numEntries > 0) {
+            resultTriedBuckets.pushKV(std::to_string(bucket), bucketInfo);
+        }
     }
+    result.pushKV("New buckets", resultNewBuckets);
     result.pushKV("Tried buckets", resultTriedBuckets);
 
+    result.pushKV("Addrman nKey", addrman.m_impl->nKey.ToString());
     result.pushKV("Number of tried entries", nTried);
     result.pushKV("Number of (unique) new entries", nNew);
     result.pushKV("Number of total addresses", size);
 
+    // From netaddress.h:
+    // enum Network {
+    //     /// Addresses from these networks are not publicly routable on the global Internet.
+    //     NET_UNROUTABLE = 0,
+    //     NET_IPV4,
+    //     NET_IPV6,
+    //     NET_ONION,
+    //     NET_I2P,
+    //     NET_CJDNS,
+    //     NET_INTERNAL,
+    //     NET_MAX,
+    // };
     std::vector<std::string> network_types = {
-        "IPv4", "IPv6", "TOR (v2 or v3)", "I2P", "CJDNS", "internal", "unrouteable", "unknown"
+        "unrouteable", "IPv4", "IPv6", "TOR (v2 or v3)", "I2P", "CJDNS", "internal", "unknown"
     };
 
     for (int i = 0; i < NET_MAX; ++i) {
