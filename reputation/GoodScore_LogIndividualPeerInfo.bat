@@ -1,2 +1,0 @@
-@echo off
-python3 GoodScore_LogIndividualPeerInfo.py
