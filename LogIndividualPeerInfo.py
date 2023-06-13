@@ -939,7 +939,7 @@ def makeMainPeerHeader(address):
 	line += 'Minimum Ping Round Trip Time (milliseconds),'
 	line += 'Ping Wait Time for an Outstanding Ping (milliseconds),'
 	line += 'Address/Network Type,'
-	line += 'Prototol Version,'
+	line += 'Protocol Version,'
 	line += 'Bitcoin Software Version,'
 	line += '"Connection Type (outbound-full-relay, block-relay-only, inbound, manual, addr-fetch, or feeler)",'
 	line += 'Is Outbound Connection,'
