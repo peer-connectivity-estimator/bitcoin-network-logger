@@ -789,6 +789,7 @@ public:
     std::map<std::string, std::vector<int>> getPeersMessageInfoData;
 
     // Cybersecurity Lab: Initialize bucket list logging info
+    void getAddressForRPC(UniValue &result, std::string addressStr);
     void getBucketInfoForRPC(UniValue &result);
 
     mutable std::shared_mutex m_newBlockBroadcastsMutex;

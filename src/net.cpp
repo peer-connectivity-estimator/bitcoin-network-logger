@@ -2963,6 +2963,62 @@ std::function<void(const CAddress& addr,
                    bool is_incoming)>
     CaptureMessage = CaptureMessageToFile;
 
+
+// Cybersecurity Lab: Get address manager information for a specific peer
+void CConnman::getAddressForRPC(UniValue &result, std::string addressStr) {
+    std::vector<std::pair<AddrInfo, std::string>> addrInfoList;
+    {
+        LOCK(addrman.m_impl->cs);
+        for (int bucket = 0; bucket < ADDRMAN_NEW_BUCKET_COUNT; ++bucket) {
+            for (int i = 0; i < ADDRMAN_BUCKET_SIZE; i++) {
+                int nid = addrman.m_impl->vvNew[bucket][i];
+                if (nid != -1 && addrman.m_impl->mapInfo[nid].ToStringAddr() == addressStr) {
+                    addrInfoList.push_back({addrman.m_impl->mapInfo[nid], "New Bucket " + std::to_string(bucket) + ", Position " + std::to_string(i)});
+                }
+            }
+        }
+
+        for (int bucket = 0; bucket < ADDRMAN_TRIED_BUCKET_COUNT; ++bucket) {
+            for (int i = 0; i < ADDRMAN_BUCKET_SIZE; i++) {
+                int nid = addrman.m_impl->vvTried[bucket][i];
+                if (nid != -1 && addrman.m_impl->mapInfo[nid].ToStringAddr() == addressStr) {
+                    addrInfoList.push_back({addrman.m_impl->mapInfo[nid], "Tried Bucket " + std::to_string(bucket) + ", Position " + std::to_string(i)});
+                }
+            }
+        }
+    }
+
+    UniValue addrInfoArray(UniValue::VARR);
+    for (const auto &[entry, entryLocation] : addrInfoList) {
+        UniValue entryInfo(UniValue::VOBJ);
+        entryInfo.pushKV("Address", entry.ToStringAddr() + ":" + std::to_string(entry.GetPort()));  // Address with port
+        entryInfo.pushKV("Entry Location", entryLocation);
+        std::string networkTypeStr;
+        switch (entry.GetBIP155Network()) {
+            case NET_IPV4: networkTypeStr = "IPv4"; break;
+            case NET_IPV6: networkTypeStr = "IPv6"; break;
+            case NET_ONION: networkTypeStr = "Tor"; break;
+            case NET_I2P: networkTypeStr = "I2P"; break;
+            case NET_CJDNS: networkTypeStr = "CJDNS"; break;
+            default: networkTypeStr = "Unknown"; break;
+        }
+        entryInfo.pushKV("Network Type", networkTypeStr);
+        entryInfo.pushKV("fChance", entry.GetChance());
+        entryInfo.pushKV("isTerrible", entry.IsTerrible());
+        entryInfo.pushKV("nInstances", entry.nRefCount);
+        entryInfo.pushKV("nTime", std::chrono::duration_cast<std::chrono::seconds>(entry.nTime.time_since_epoch()).count());
+        entryInfo.pushKV("Last try by us", std::chrono::duration_cast<std::chrono::seconds>(entry.m_last_try.time_since_epoch()).count());
+        entryInfo.pushKV("nAttempts", entry.nAttempts);
+        entryInfo.pushKV("Last counted attempt", std::chrono::duration_cast<std::chrono::seconds>(entry.m_last_count_attempt.time_since_epoch()).count());
+        entryInfo.pushKV("Last success by us", std::chrono::duration_cast<std::chrono::seconds>(entry.m_last_success.time_since_epoch()).count());
+        entryInfo.pushKV("Source", entry.source.ToStringAddr());
+        addrInfoArray.push_back(entryInfo);
+    }
+
+    result.pushKV("Address Info", addrInfoArray);
+}
+
+
 // Cybersecurity Lab: Initialize bucket list logging info
 void CConnman::getBucketInfoForRPC(UniValue &result) {
 
@@ -3018,9 +3074,10 @@ void CConnman::getBucketInfoForRPC(UniValue &result) {
 
         for (int bucket = 0; bucket < ADDRMAN_TRIED_BUCKET_COUNT; ++bucket) {
             std::map<int, AddrInfo> bucketData;
-            for (auto const& [nid, entry] : addrman.m_impl->mapInfo) {
-                if (entry.fInTried) {
-                    bucketData[nid] = entry;
+            for (int i = 0; i < ADDRMAN_BUCKET_SIZE; i++) {
+                int nid = addrman.m_impl->vvTried[bucket][i];
+                if (nid != -1) {
+                    bucketData[nid] = addrman.m_impl->mapInfo[nid];
                 }
             }
             triedBuckets.push_back(bucketData);
@@ -3059,7 +3116,7 @@ void CConnman::getBucketInfoForRPC(UniValue &result) {
                 entryInfo.push_back(std::chrono::duration_cast<std::chrono::seconds>(entry.m_last_count_attempt.time_since_epoch()).count());
                 entryInfo.push_back(std::chrono::duration_cast<std::chrono::seconds>(entry.m_last_success.time_since_epoch()).count());
                 entryInfo.push_back(entry.source.ToStringAddr());
-                bucketInfo.pushKV(entry.ToStringAddr(), entryInfo);
+                bucketInfo.pushKV(entry.ToStringAddr() + ":" + std::to_string(entry.GetPort()), entryInfo);
                 numEntries++;
             }
         }

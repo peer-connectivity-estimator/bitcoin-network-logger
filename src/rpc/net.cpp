@@ -1329,8 +1329,34 @@ static RPCHelpMan listnewbroadcastsandclear()
     };
 }
 
+// Cybersecurity Lab: getaddressinfo RPC definition
+static RPCHelpMan getbucketentry()
+{
+    return RPCHelpMan{"getbucketentry",
+                "\nGet the address information for an address manager entry.\n",
+                {
+                    {"getbucketentry", RPCArg::Type::STR, RPCArg::Optional::NO, "The IP address of the peer"},
+                },
+                RPCResults{},
+                RPCExamples{
+                    HelpExampleCli("getbucketentry", "\"1.2.3.4\"")
+            + HelpExampleRpc("getbucketentry", "\"1.2.3.4\"")
+                },
+        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+{
+    const std::string& addr_string{request.params[0].get_str()};
+    NodeContext& node = EnsureAnyNodeContext(request.context);
+    //const CConnman& connman = EnsureConnman(node);
+    UniValue result(UniValue::VOBJ);
+    // Access to the non-const CConnman instance
+    node.connman->getAddressForRPC(result, addr_string);
+    return result;
+},
+    };
+}
 
-// Cybersecurity Lab: listnewbroadcastsandclear RPC definition
+
+// Cybersecurity Lab: getbucketinfo RPC definition
 static RPCHelpMan getbucketinfo()
 {
     return RPCHelpMan{"getbucketinfo",
@@ -1348,11 +1374,6 @@ static RPCHelpMan getbucketinfo()
     UniValue result(UniValue::VOBJ);
     // Access to the non-const CConnman instance
     node.connman->getBucketInfoForRPC(result);
-
-    // result.pushKV("new_transaction_broadcasts", subresult2);
-    // result.pushKV("new_transaction_fee_broadcasts", subresult3);
-    // result.pushKV("new_transaction_size_broadcasts", subresult4);
-    // result.pushKV("timestamps", subresult5);
     return result;
 },
     };
@@ -1382,6 +1403,7 @@ void RegisterNetRPCCommands(CRPCTable& t)
         {"researcher", &listnewbroadcasts},
         {"researcher", &listnewbroadcastsandclear},
         {"researcher", &getbucketinfo},
+        {"researcher", &getbucketentry},
     };
     for (const auto& c : commands) {
         t.appendCommand(c.name, &c);
