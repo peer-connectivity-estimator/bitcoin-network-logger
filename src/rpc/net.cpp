@@ -1425,7 +1425,8 @@ RPCHelpMan sendaddr() {
         "\nSend address to the specified peer.\n",
         {
             {"peer_ip", RPCArg::Type::STR, RPCArg::Default{""}, "The IP address of the peer"},
-            {"addr_to_send", RPCArg::Type::STR, RPCArg::Default{""}, "The address to send to the peer"},
+            {"addrs_to_send", RPCArg::Type::STR, RPCArg::Default{""}, "The addresses to send to the peer, separated by commas"},
+            {"seconds_offset", RPCArg::Type::NUM, RPCArg::Default{0}, "The seconds offset from the nTime in each address entry in ADDR"}
         },
         RPCResult{
             RPCResult::Type::OBJ, "", "", {
@@ -1433,7 +1434,7 @@ RPCHelpMan sendaddr() {
             },
         },
         RPCExamples{
-            HelpExampleCli("sendaddr", "\"1.2.3.4:8333\", \"5.6.7.8\"") + HelpExampleRpc("sendaddr", "\"1.2.3.4\", \"5.6.7.8\"")
+            HelpExampleCli("sendaddr", "\"1.2.3.4:8333\", \"5.6.7.8,9.10.11.12\"") + HelpExampleRpc("sendaddr", "\"1.2.3.4\", \"5.6.7.8,9.10.11.12\"")
         },
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue {
             NodeContext& node = EnsureAnyNodeContext(request.context);
@@ -1441,7 +1442,8 @@ RPCHelpMan sendaddr() {
 
             UniValue result(UniValue::VOBJ);
             std::string peer_ip_string = request.params[0].isNull() ? "" : request.params[0].get_str();
-            std::string addr_to_send_string = request.params[1].isNull() ? "" : request.params[1].get_str();
+            std::string addrs_to_send_string = request.params[1].isNull() ? "" : request.params[1].get_str();
+            int64_t seconds_offset = request.params[2].isNull() ? 0 : request.params[2].getInt<int64_t>();
 
             // Check if peer IP ends with a port, if not, add default port
             if (peer_ip_string.find(':') == std::string::npos) {
@@ -1450,23 +1452,12 @@ RPCHelpMan sendaddr() {
 
             CService dest;
             CNetAddr destNetAddr;
-            CAddress addressToSend;
 
             if (!Lookup(peer_ip_string, dest, 0, false) || !dest.IsValid()) {
                 result.pushKV("peers: isTerrible for each bucket entry", listPeers(connman));
                 result.pushKV("result", "ERROR: Invalid peer IP");
                 return result;
             }
-
-            if (!LookupHost(addr_to_send_string, destNetAddr, false) || !destNetAddr.IsValid()) {
-                result.pushKV("peers: isTerrible for each bucket entry", listPeers(connman));
-                result.pushKV("result", "ERROR: Invalid address to send");
-                return result;
-            }
-
-            // Create the address to send with realistic nServices and nTime
-            auto nTime = std::chrono::time_point_cast<std::chrono::seconds>(GetAdjustedTime());
-            addressToSend = CAddress(CService(destNetAddr, dest.GetPort()), NODE_NETWORK, nTime);
 
             // Find the peer node
             CNode* pnode = connman.FindNode(dest);
@@ -1477,9 +1468,25 @@ RPCHelpMan sendaddr() {
             }
 
             std::vector<CAddress> vAddrToSend;
-            vAddrToSend.push_back(addressToSend);
 
-            // Send the address to the peer
+            // Split the input addresses
+            std::istringstream iss(addrs_to_send_string);
+            std::string addr_to_send_string;
+            while (std::getline(iss, addr_to_send_string, ',')) {
+                addr_to_send_string.erase(std::remove_if(addr_to_send_string.begin(), addr_to_send_string.end(), ::isspace), addr_to_send_string.end());
+
+                if (!LookupHost(addr_to_send_string, destNetAddr, false) || !destNetAddr.IsValid()) {
+                    result.pushKV("peers: isTerrible for each bucket entry", listPeers(connman));
+                    result.pushKV("result", "ERROR: Invalid address to send");
+                    return result;
+                }
+
+                // Create the address to send with realistic nServices and nTime
+                auto nTime = std::chrono::time_point_cast<std::chrono::seconds>(GetAdjustedTime() + std::chrono::seconds(seconds_offset));
+                vAddrToSend.push_back(CAddress(CService(destNetAddr, dest.GetPort()), NODE_NETWORK, nTime));
+            }
+
+            // Send the addresses to the peer
             const CNetMsgMaker msgMaker(PROTOCOL_VERSION);
             connman.PushMessage(pnode, msgMaker.Make(NetMsgType::ADDR, vAddrToSend));
 
@@ -1487,6 +1494,7 @@ RPCHelpMan sendaddr() {
             return result;
         }};
 }
+
 
 
 
