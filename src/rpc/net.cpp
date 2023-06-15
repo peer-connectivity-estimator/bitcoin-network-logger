@@ -1426,7 +1426,7 @@ RPCHelpMan sendaddr() {
         {
             {"peer_ip", RPCArg::Type::STR, RPCArg::Default{""}, "The IP address of the peer"},
             {"addrs_to_send", RPCArg::Type::STR, RPCArg::Default{""}, "The addresses to send to the peer, separated by commas"},
-            {"seconds_offset", RPCArg::Type::NUM, RPCArg::Default{0}, "The seconds offset from the nTime in each address entry in ADDR"}
+            {"seconds_offset", RPCArg::Type::STR, RPCArg::Default{"0"}, "The seconds offset from the nTime in each address entry in ADDR"}
         },
         RPCResult{
             RPCResult::Type::OBJ, "", "", {
@@ -1434,7 +1434,7 @@ RPCHelpMan sendaddr() {
             },
         },
         RPCExamples{
-            HelpExampleCli("sendaddr", "\"1.2.3.4:8333\", \"5.6.7.8,9.10.11.12\"") + HelpExampleRpc("sendaddr", "\"1.2.3.4\", \"5.6.7.8,9.10.11.12\"")
+            HelpExampleCli("sendaddr", "\"1.2.3.4:8333\", \"5.6.7.8,9.10.11.12\", \"60\"") + HelpExampleRpc("sendaddr", "\"1.2.3.4\", \"5.6.7.8,9.10.11.12\", \"60\"")
         },
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue {
             NodeContext& node = EnsureAnyNodeContext(request.context);
@@ -1443,7 +1443,20 @@ RPCHelpMan sendaddr() {
             UniValue result(UniValue::VOBJ);
             std::string peer_ip_string = request.params[0].isNull() ? "" : request.params[0].get_str();
             std::string addrs_to_send_string = request.params[1].isNull() ? "" : request.params[1].get_str();
-            int64_t seconds_offset = request.params[2].isNull() ? 0 : request.params[2].getInt<int64_t>();
+            int64_t seconds_offset = 0;
+            if (!request.params[2].isNull()) {
+                try {
+                    seconds_offset = std::stoi(request.params[2].get_str());
+                } catch (std::invalid_argument& e) {
+                    result.pushKV("peers: isTerrible for each bucket entry", listPeers(connman));
+                    result.pushKV("result", "ERROR: Invalid seconds offset");
+                    return result;
+                } catch (std::out_of_range& e) {
+                    result.pushKV("peers: isTerrible for each bucket entry", listPeers(connman));
+                    result.pushKV("result", "ERROR: Seconds offset out of range");
+                    return result;
+                }
+            }
 
             // Check if peer IP ends with a port, if not, add default port
             if (peer_ip_string.find(':') == std::string::npos) {
@@ -1472,6 +1485,7 @@ RPCHelpMan sendaddr() {
             // Split the input addresses
             std::istringstream iss(addrs_to_send_string);
             std::string addr_to_send_string;
+            auto nTime = std::chrono::time_point_cast<std::chrono::seconds>(GetAdjustedTime() + std::chrono::seconds(seconds_offset));
             while (std::getline(iss, addr_to_send_string, ',')) {
                 addr_to_send_string.erase(std::remove_if(addr_to_send_string.begin(), addr_to_send_string.end(), ::isspace), addr_to_send_string.end());
 
@@ -1482,7 +1496,6 @@ RPCHelpMan sendaddr() {
                 }
 
                 // Create the address to send with realistic nServices and nTime
-                auto nTime = std::chrono::time_point_cast<std::chrono::seconds>(GetAdjustedTime() + std::chrono::seconds(seconds_offset));
                 vAddrToSend.push_back(CAddress(CService(destNetAddr, dest.GetPort()), NODE_NETWORK, nTime));
             }
 
@@ -1490,7 +1503,8 @@ RPCHelpMan sendaddr() {
             const CNetMsgMaker msgMaker(PROTOCOL_VERSION);
             connman.PushMessage(pnode, msgMaker.Make(NetMsgType::ADDR, vAddrToSend));
 
-            result.pushKV("result", "Success");
+            result.pushKV("nTime", int64_t{TicksSinceEpoch<std::chrono::seconds>(nTime)});
+            result.pushKV("result", "Successfully sent addresses to peer");
             return result;
         }};
 }
