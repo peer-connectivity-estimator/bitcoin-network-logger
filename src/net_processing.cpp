@@ -3766,6 +3766,8 @@ void PeerManagerImpl::_ProcessMessage(CNode& pfrom, const std::string& msg_type,
         Shuffle(vAddr.begin(), vAddr.end(), FastRandomContext());
         for (CAddress& addr : vAddr)
         {
+            // Cybersecurity Lab: Address processing messages
+            LogPrint(BCLog::NET, "! Checking %s... m_addr_token_bucket=%f\n", addr.ToStringAddrPort(), peer->m_addr_token_bucket);
             if (interruptMsgProc)
                 return;
 
@@ -3773,34 +3775,48 @@ void PeerManagerImpl::_ProcessMessage(CNode& pfrom, const std::string& msg_type,
             if (peer->m_addr_token_bucket < 1.0) {
                 if (rate_limited) {
                     ++num_rate_limit;
+                    LogPrint(BCLog::NET, "! Rate limited, incrementing num_rate_limit=%d, skipping entry.\n", num_rate_limit);
                     continue;
                 }
             } else {
+                LogPrint(BCLog::NET, "! Decrementing the peer's m_addr_token_bucket.\n");
                 peer->m_addr_token_bucket -= 1.0;
             }
             // We only bother storing full nodes, though this may include
             // things which we would not make an outbound connection to, in
             // part because we may make feeler connections to them.
-            if (!MayHaveUsefulAddressDB(addr.nServices) && !HasAllDesirableServiceFlags(addr.nServices))
+            // if (!MayHaveUsefulAddressDB(addr.nServices) && !HasAllDesirableServiceFlags(addr.nServices))
+            //     continue;
+            if (!MayHaveUsefulAddressDB(addr.nServices) && !HasAllDesirableServiceFlags(addr.nServices)) {
                 continue;
+            }
 
             if (addr.nTime <= NodeSeconds{100000000s} || addr.nTime > current_a_time + 10min) {
                 addr.nTime = current_a_time - 5 * 24h;
+                // Cybersecurity Lab: Log the invalid time
+                LogPrint(BCLog::NET, "! Current time invalid, resetting to 5 days ago: %d\n", TicksSinceEpoch<std::chrono::seconds>(addr.nTime));
             }
             AddAddressKnown(*peer, addr);
             if (m_banman && (m_banman->IsDiscouraged(addr) || m_banman->IsBanned(addr))) {
                 // Do not process banned/discouraged addresses beyond remembering we received them
+                // Cybersecurity Lab: Log invalid banned address
+                LogPrint(BCLog::NET, "! The address is banned, ignoring.\n");
                 continue;
             }
             ++num_proc;
             bool fReachable = IsReachable(addr);
             if (addr.nTime > current_a_time - 10min && !peer->m_getaddr_sent && vAddr.size() <= 10 && addr.IsRoutable()) {
                 // Relay to a limited number of other nodes
+                LogPrint(BCLog::NET, "! Relaying the address to other nodes.\n");
                 RelayAddress(pfrom.GetId(), addr, fReachable);
             }
             // Do not store addresses outside our network
-            if (fReachable)
+            // if (fReachable)
+            //     vAddrOk.push_back(addr);
+            if (fReachable) {
                 vAddrOk.push_back(addr);
+                LogPrint(BCLog::NET, "! Address added to vAddrOk.\n");
+            }
         }
         peer->m_addr_processed += num_proc;
         peer->m_addr_rate_limited += num_rate_limit;
