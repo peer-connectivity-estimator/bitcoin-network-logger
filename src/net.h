@@ -789,6 +789,7 @@ public:
     std::map<std::string, std::vector<int>> getPeersMessageInfoData;
 
     // Cybersecurity Lab: Initialize bucket list logging info
+    std::string isAddressTerrible(std::string addressStr);
     void getAddressForRPC(UniValue &result, std::string addressStr);
     void getBucketInfoForRPC(UniValue &result);
 
@@ -915,7 +916,8 @@ public:
     /** Return true if we should disconnect the peer for failing an inactivity check. */
     bool ShouldRunInactivityChecks(const CNode& node, std::chrono::seconds now) const;
 
-private:
+// Cybersecurity Lab: Let the RPC commands access the internal CConnman information
+//private:
     struct ListenSocket {
     public:
         std::shared_ptr<Sock> sock;

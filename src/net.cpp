@@ -2964,6 +2964,34 @@ std::function<void(const CAddress& addr,
     CaptureMessage = CaptureMessageToFile;
 
 
+// Cybersecurity Lab: Check if an address is terrible
+std::string CConnman::isAddressTerrible(std::string addressStr) {
+    std::string result = "";
+    {
+        LOCK(addrman.m_impl->cs);
+        for (int bucket = 0; bucket < ADDRMAN_NEW_BUCKET_COUNT; ++bucket) {
+            for (int i = 0; i < ADDRMAN_BUCKET_SIZE; i++) {
+                int nid = addrman.m_impl->vvNew[bucket][i];
+                if (nid != -1 && addrman.m_impl->mapInfo[nid].ToStringAddr() == addressStr) {
+                    bool isTerrible = addrman.m_impl->mapInfo[nid].IsTerrible();
+                    result += isTerrible ? '1' : '0';
+                }
+            }
+        }
+
+        for (int bucket = 0; bucket < ADDRMAN_TRIED_BUCKET_COUNT; ++bucket) {
+            for (int i = 0; i < ADDRMAN_BUCKET_SIZE; i++) {
+                int nid = addrman.m_impl->vvTried[bucket][i];
+                if (nid != -1 && addrman.m_impl->mapInfo[nid].ToStringAddr() == addressStr) {
+                    bool isTerrible = addrman.m_impl->mapInfo[nid].IsTerrible();
+                    result += isTerrible ? '1' : '0';
+                }
+            }
+        }
+    }
+    return result;
+}
+
 // Cybersecurity Lab: Get address manager information for a specific peer
 void CConnman::getAddressForRPC(UniValue &result, std::string addressStr) {
     std::vector<std::pair<AddrInfo, std::string>> addrInfoList;

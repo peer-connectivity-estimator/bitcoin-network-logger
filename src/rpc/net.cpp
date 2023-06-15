@@ -33,6 +33,7 @@
 
 #include <univalue.h>
 
+#include <netmessagemaker.h> // Cybersecurity Lab: Access to CNetMsgMaker
 using node::NodeContext;
 
 const std::vector<std::string> CONNECTION_TYPE_DOC{
@@ -976,6 +977,35 @@ static RPCHelpMan addpeeraddress()
     };
 }
 
+// Cybersecurity Lab: Simply list the peer connections, and their corresponding connection ID
+static RPCHelpMan ls() {
+    return RPCHelpMan{"ls",
+        "\nList our peer connections.",
+        {},
+                RPCResults{},
+                RPCExamples{
+                    HelpExampleCli("ls", "")
+            + HelpExampleRpc("ls", "")
+                },
+        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+{
+    NodeContext& node = EnsureAnyNodeContext(request.context);
+    const CConnman& connman = EnsureConnman(node);
+
+    std::vector<CNodeStats> vstats;
+    connman.GetNodeStats(vstats);
+
+    UniValue result(UniValue::VOBJ);
+
+    for (const CNodeStats& stats : vstats) {
+        result.pushKV(stats.m_addr_name, stats.nodeid);
+    }
+
+    return result;
+},
+    };
+}
+
 // Cybersecurity Lab: getmsginfo RPC definition
 RPCHelpMan getmsginfo()
 {
@@ -1329,13 +1359,13 @@ static RPCHelpMan listnewbroadcastsandclear()
     };
 }
 
-// Cybersecurity Lab: getaddressinfo RPC definition
+// Cybersecurity Lab: getbucketentry RPC definition
 static RPCHelpMan getbucketentry()
 {
     return RPCHelpMan{"getbucketentry",
                 "\nGet the address information for an address manager entry.\n",
                 {
-                    {"getbucketentry", RPCArg::Type::STR, RPCArg::Optional::NO, "The IP address of the peer"},
+                    {"address", RPCArg::Type::STR, RPCArg::Optional::NO, "The IP address of the peer"},
                 },
                 RPCResults{},
                 RPCExamples{
@@ -1379,6 +1409,89 @@ static RPCHelpMan getbucketinfo()
     };
 }
 
+UniValue listPeers(CConnman& connman) {
+    std::vector<CNodeStats> vstats;
+    connman.GetNodeStats(vstats);
+    UniValue result(UniValue::VOBJ);
+    for (const CNodeStats& stats : vstats) {
+        result.pushKV(stats.addr.ToStringAddrPort(), connman.isAddressTerrible(stats.addr.ToStringAddr()));
+    }
+    return result;
+}
+
+// Cybersecurity Lab: sendaddr RPC definition
+RPCHelpMan sendaddr() {
+    return RPCHelpMan{"sendaddr",
+        "\nSend address to the specified peer.\n",
+        {
+            {"peer_ip", RPCArg::Type::STR, RPCArg::Default{""}, "The IP address of the peer"},
+            {"addr_to_send", RPCArg::Type::STR, RPCArg::Default{""}, "The address to send to the peer"},
+        },
+        RPCResult{
+            RPCResult::Type::OBJ, "", "", {
+                {RPCResult::Type::STR, "result", "The result of the operation"},
+            },
+        },
+        RPCExamples{
+            HelpExampleCli("sendaddr", "\"1.2.3.4:8333\", \"5.6.7.8\"") + HelpExampleRpc("sendaddr", "\"1.2.3.4\", \"5.6.7.8\"")
+        },
+        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue {
+            NodeContext& node = EnsureAnyNodeContext(request.context);
+            CConnman& connman = EnsureConnman(node);
+
+            UniValue result(UniValue::VOBJ);
+            std::string peer_ip_string = request.params[0].isNull() ? "" : request.params[0].get_str();
+            std::string addr_to_send_string = request.params[1].isNull() ? "" : request.params[1].get_str();
+
+            // Check if peer IP ends with a port, if not, add default port
+            if (peer_ip_string.find(':') == std::string::npos) {
+                peer_ip_string += ":8333";
+            }
+
+            CService dest;
+            CNetAddr destNetAddr;
+            CAddress addressToSend;
+
+            if (!Lookup(peer_ip_string, dest, 0, false) || !dest.IsValid()) {
+                result.pushKV("peers: isTerrible for each bucket entry", listPeers(connman));
+                result.pushKV("result", "ERROR: Invalid peer IP");
+                return result;
+            }
+
+            if (!LookupHost(addr_to_send_string, destNetAddr, false) || !destNetAddr.IsValid()) {
+                result.pushKV("peers: isTerrible for each bucket entry", listPeers(connman));
+                result.pushKV("result", "ERROR: Invalid address to send");
+                return result;
+            }
+
+            // Create the address to send with realistic nServices and nTime
+            auto nTime = std::chrono::time_point_cast<std::chrono::seconds>(GetAdjustedTime());
+            addressToSend = CAddress(CService(destNetAddr, dest.GetPort()), NODE_NETWORK, nTime);
+
+            // Find the peer node
+            CNode* pnode = connman.FindNode(dest);
+            if (!pnode) {
+                result.pushKV("peers: isTerrible for each bucket entry", listPeers(connman));
+                result.pushKV("result", "ERROR: Peer not found");
+                return result;
+            }
+
+            std::vector<CAddress> vAddrToSend;
+            vAddrToSend.push_back(addressToSend);
+
+            // Send the address to the peer
+            const CNetMsgMaker msgMaker(PROTOCOL_VERSION);
+            connman.PushMessage(pnode, msgMaker.Make(NetMsgType::ADDR, vAddrToSend));
+
+            result.pushKV("result", "Success");
+            return result;
+        }};
+}
+
+
+
+
+
 void RegisterNetRPCCommands(CRPCTable& t)
 {
     static const CRPCCommand commands[]{
@@ -1397,6 +1510,7 @@ void RegisterNetRPCCommands(CRPCTable& t)
         {"network", &getnodeaddresses},
         {"hidden", &addconnection},
         {"hidden", &addpeeraddress},
+        {"researcher", &ls},
         {"researcher", &getmsginfo},
         {"researcher", &getpeersmsginfo},
         {"researcher", &getpeersmsginfoandclear},
@@ -1404,6 +1518,7 @@ void RegisterNetRPCCommands(CRPCTable& t)
         {"researcher", &listnewbroadcastsandclear},
         {"researcher", &getbucketinfo},
         {"researcher", &getbucketentry},
+        {"researcher", &sendaddr},
     };
     for (const auto& c : commands) {
         t.appendCommand(c.name, &c);
