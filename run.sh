@@ -157,7 +157,7 @@ else
 		if [[ " ${otherParams[*]} " =~ " gdb " ]]; then
 			gdb -ex run --args src/bitcoind -prune=550 -datadir="$dir" $bitcoinParams #--debug=researcher
 		else
-			src/bitcoind -prune=550 -datadir="$dir" $bitcoinParams --debug=net
+			src/bitcoind -prune=550 -datadir="$dir" $bitcoinParams #--debug=net
 		fi
 	else
 		echo
