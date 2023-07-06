@@ -980,7 +980,7 @@ static RPCHelpMan addpeeraddress()
 // Cybersecurity Lab: Simply list the peer connections, and their corresponding connection ID
 static RPCHelpMan ls() {
     return RPCHelpMan{"ls",
-        "\nList our peer connections.",
+        "\nList the peer connections.",
         {},
                 RPCResults{},
                 RPCExamples{
@@ -1000,6 +1000,32 @@ static RPCHelpMan ls() {
     for (const CNodeStats& stats : vstats) {
         result.pushKV(stats.m_addr_name, stats.nodeid);
     }
+
+    return result;
+},
+    };
+}
+
+// Cybersecurity Lab: Count the number of peer connections
+static RPCHelpMan count() {
+    return RPCHelpMan{"count",
+        "\nCount the peer connections.",
+        {},
+                RPCResults{},
+                RPCExamples{
+                    HelpExampleCli("count", "")
+            + HelpExampleRpc("count", "")
+                },
+        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+{
+    NodeContext& node = EnsureAnyNodeContext(request.context);
+    const CConnman& connman = EnsureConnman(node);
+
+    std::vector<CNodeStats> vstats;
+    connman.GetNodeStats(vstats);
+
+    UniValue result(UniValue::VOBJ);
+    result.pushKV("Number of peer connections", vstats.size());
 
     return result;
 },
@@ -1533,6 +1559,7 @@ void RegisterNetRPCCommands(CRPCTable& t)
         {"hidden", &addconnection},
         {"hidden", &addpeeraddress},
         {"researcher", &ls},
+        {"researcher", &count},
         {"researcher", &getmsginfo},
         {"researcher", &getpeersmsginfo},
         {"researcher", &getpeersmsginfoandclear},

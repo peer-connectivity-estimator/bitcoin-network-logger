@@ -503,6 +503,7 @@ void SetupServerArgs(ArgsManager& argsman)
     argsman.AddArg("-peertimeout=<n>", strprintf("Specify a p2p connection timeout delay in seconds. After connecting to a peer, wait this amount of time before considering disconnection based on inactivity (minimum: 1, default: %d)", DEFAULT_PEER_CONNECT_TIMEOUT), ArgsManager::ALLOW_ANY | ArgsManager::DEBUG_ONLY, OptionsCategory::CONNECTION);
     argsman.AddArg("-torcontrol=<ip>:<port>", strprintf("Tor control port to use if onion listening enabled (default: %s)", DEFAULT_TOR_CONTROL), ArgsManager::ALLOW_ANY, OptionsCategory::CONNECTION);
     argsman.AddArg("-torpassword=<pass>", "Tor control port password (default: empty)", ArgsManager::ALLOW_ANY | ArgsManager::SENSITIVE, OptionsCategory::CONNECTION);
+    argsman.AddArg("-minconnections=<n>", strprintf("Maintain <n> connections to peers (default: %u)", -1), ArgsManager::ALLOW_ANY, OptionsCategory::CONNECTION); // Cybersecurity Lab
 #ifdef USE_UPNP
 #if USE_UPNP
     argsman.AddArg("-upnp", "Use UPnP to map the listening port (default: 1 when listening and no -proxy)", ArgsManager::ALLOW_ANY, OptionsCategory::CONNECTION);
@@ -773,6 +774,7 @@ void InitLogging(const ArgsManager& args)
 namespace { // Variables internal to initialization process only
 
 int nMaxConnections;
+int numConnections; // Cybersecurity Lab
 int nUserMaxConnections;
 int nFD;
 ServiceFlags nLocalServices = ServiceFlags(NODE_NETWORK_LIMITED | NODE_WITNESS);
@@ -924,6 +926,9 @@ bool AppInitParameterInteraction(const ArgsManager& args, bool use_syscall_sandb
     int nBind = std::max(nUserBind, size_t(1));
     nUserMaxConnections = args.GetIntArg("-maxconnections", DEFAULT_MAX_PEER_CONNECTIONS);
     nMaxConnections = std::max(nUserMaxConnections, 0);
+
+    // Cybersecurity Lab
+    numConnections = args.GetIntArg("-minconnections", -1);
 
     nFD = RaiseFileDescriptorLimit(nMaxConnections + MIN_CORE_FILEDESCRIPTORS + MAX_ADDNODE_CONNECTIONS + nBind + NUM_FDS_MESSAGE_CAPTURE);
 
@@ -1729,6 +1734,14 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     connOptions.m_added_nodes = args.GetArgs("-addnode");
     connOptions.nMaxOutboundLimit = *opt_max_upload;
     connOptions.m_peer_connect_timeout = peer_connect_timeout;
+
+    // Cybersecurity Lab: Override connection limit if minconnections is set
+    if(numConnections > 0) {
+      LogPrintf("\n Cybersecurity Lab: minconnections = %d set, overriding maxconnections\n", numConnections);
+      connOptions.nMaxConnections = numConnections;
+      connOptions.m_max_outbound_full_relay = numConnections - MAX_BLOCK_RELAY_ONLY_CONNECTIONS;
+      connOptions.m_max_outbound_block_relay = MAX_BLOCK_RELAY_ONLY_CONNECTIONS;
+    }
 
     // Port to bind to if `-bind=addr` is provided without a `:port` suffix.
     const uint16_t default_bind_port =

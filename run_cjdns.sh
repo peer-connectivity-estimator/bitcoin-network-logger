@@ -1,8 +1,8 @@
 #!/bin/bash
 # ./run.sh
-# ./run.sh --debug=researcher noconsole
-# ./run.sh --debug=researcher gui
-# ./run.sh --debug=researcher gdb
+# ./run.sh #--debug=researcher noconsole
+# ./run.sh #--debug=researcher gui
+# ./run.sh #--debug=researcher gdb
 # ./run.sh gui noconsole gdb
 
 bitcoinParams=""
@@ -109,16 +109,9 @@ echo "port: $port, rpcport: $rpcport, SELECTED"
 	echo "[main]" >> "$dir/bitcoin.conf"
 	echo "port=$port" >> "$dir/bitcoin.conf"
 	echo "" >> "$dir/bitcoin.conf"
-	#echo "proxy=127.0.0.1:9050" >> "$dir/bitcoin.conf"
 	#echo "bind=127.0.0.1" >> "$dir/bitcoin.conf"
-	#echo "onlynet=i2p" >> "$dir/bitcoin.conf"
-	echo "onion=127.0.0.1:9050" >> "$dir/bitcoin.conf"
-	echo "i2psam=127.0.0.1:7656" >> "$dir/bitcoin.conf"
 	echo "cjdnsreachable=1" >> "$dir/bitcoin.conf"
-	#echo "onlynet=ipv6" >> "$dir/bitcoin.conf"
-	#echo "onlynet=onion" >> "$dir/bitcoin.conf"
-	#echo "onlynet=i2p" >> "$dir/bitcoin.conf"
-	#echo "onlynet=cjdns" >> "$dir/bitcoin.conf"
+	echo "onlynet=cjdns" >> "$dir/bitcoin.conf"
 	
 	#echo "dnsseed=0" >> "$dir/bitcoin.conf"
 	#echo "dns=0" >> "$dir/bitcoin.conf"
@@ -137,7 +130,7 @@ if [[ " ${otherParams[*]} " =~ " gui " ]]; then
 		echo
 
 		if [[ " ${otherParams[*]} " =~ " gdb " ]]; then
-			gdb -ex run --args src/qt/bitcoin-qt -prune=550 -datadir="$dir" $bitcoinParams --debug=researcher
+			gdb -ex run --args src/qt/bitcoin-qt -prune=550 -datadir="$dir" $bitcoinParams #--debug=researcher
 		else
 			src/qt/bitcoin-qt -prune=550 -datadir="$dir" $bitcoinParams #--debug=researcher
 		fi
@@ -145,7 +138,7 @@ if [[ " ${otherParams[*]} " =~ " gui " ]]; then
 		echo
 
 		if [[ " ${otherParams[*]} " =~ " gdb " ]]; then
-			gdb -ex run --args src/qt/bitcoin-qt -datadir="$dir" $bitcoinParams --debug=researcher
+			gdb -ex run --args src/qt/bitcoin-qt -datadir="$dir" $bitcoinParams #--debug=researcher
 		else
 			src/qt/bitcoin-qt -datadir="$dir" $bitcoinParams #--debug=researcher
 		fi
@@ -171,7 +164,7 @@ else
 		echo
 
 		if [[ " ${otherParams[*]} " =~ " gdb " ]]; then
-			gdb -ex run --args src/bitcoind -prune=550 -datadir="$dir" $bitcoinParams --debug=researcher
+			gdb -ex run --args src/bitcoind -prune=550 -datadir="$dir" $bitcoinParams #--debug=researcher
 		else
 			src/bitcoind -prune=550 -datadir="$dir" $bitcoinParams #--debug=net
 		fi
@@ -179,7 +172,7 @@ else
 		echo
 
 		if [[ " ${otherParams[*]} " =~ " gdb " ]]; then
-			gdb -ex run --args src/bitcoind -datadir="$dir" -txindex=1 $bitcoinParams --debug=researcher
+			gdb -ex run --args src/bitcoind -datadir="$dir" -txindex=1 $bitcoinParams #--debug=researcher
 		else
 			src/bitcoind -datadir="$dir" -txindex=1 $bitcoinParams
 		fi
