@@ -27,6 +27,7 @@ import subprocess
 import sys
 import time
 
+
 # The path to copy over the finalized output files (preferably an external storage device)
 outputFilesToTransferPath = '/media/sf_Shared_Folder/Official_Research_Logs_CJDNS'
 
