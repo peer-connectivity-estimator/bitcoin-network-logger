@@ -3213,8 +3213,10 @@ void PeerManagerImpl::ProcessBlock(CNode& node, const std::shared_ptr<const CBlo
         m_connman.blockPropagationNodeReceivedBy = address;
         int64_t blockTime = static_cast<int64_t>(block->GetBlockTime()) * 1000;
         // "Never go to sea with two chronometers; take one or three." (timedata.cpp)
-        m_connman.blockPropagationTime = now - blockTime;
-        m_connman.blockPropagationTimeMedian = now_median - blockTime;
+        if(blockTime >= 1230981305000) { // Cybersecurity Lab: Bitcoin genesis creation time restriction
+            m_connman.blockPropagationTime = now - blockTime;
+            m_connman.blockPropagationTimeMedian = now_median - blockTime;
+        }
         
         // In case this block came from a different peer than we requested
         // from, we can erase the block request now anyway (as we just stored
