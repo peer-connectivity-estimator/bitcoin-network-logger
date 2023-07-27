@@ -1280,6 +1280,13 @@ static RPCHelpMan listnewbroadcasts()
         subsubresult1.pushKV("node_received_by", connman.blockPropagationNodeReceivedBy);
         subresult1.pushKV("block_information", subsubresult1);
 
+        UniValue subsubresult2(UniValue::VOBJ);
+        subsubresult2.pushKV("hash", connman.headerPropagationHash);
+        subsubresult2.pushKV("propagation_time", connman.headerPropagationTime);
+        subsubresult2.pushKV("propagation_time_median_of_peers", connman.headerPropagationTimeMedian);
+        subsubresult2.pushKV("node_received_by", connman.headerPropagationNodeReceivedBy);
+        subresult1.pushKV("header_information", subsubresult2);
+
         result.pushKV("new_block_broadcasts", subresult1);
     }
     {
@@ -1342,6 +1349,13 @@ static RPCHelpMan listnewbroadcastsandclear()
         subsubresult1.pushKV("propagation_time_median_of_peers", connman.blockPropagationTimeMedian);
         subsubresult1.pushKV("node_received_by", connman.blockPropagationNodeReceivedBy);
         subresult1.pushKV("block_information", subsubresult1);
+
+        UniValue subsubresult2(UniValue::VOBJ);
+        subsubresult2.pushKV("hash", connman.headerPropagationHash);
+        subsubresult2.pushKV("propagation_time", connman.headerPropagationTime);
+        subsubresult2.pushKV("propagation_time_median_of_peers", connman.headerPropagationTimeMedian);
+        subsubresult2.pushKV("node_received_by", connman.headerPropagationNodeReceivedBy);
+        subresult1.pushKV("header_information", subsubresult2);
 
         result.pushKV("new_block_broadcasts", subresult1);
     }

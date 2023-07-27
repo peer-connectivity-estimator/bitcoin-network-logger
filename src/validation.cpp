@@ -3870,6 +3870,8 @@ bool ChainstateManager::AcceptBlockHeader(const CBlockHeader& block, BlockValida
     const auto msg = strprintf(
         "Saw new header hash=%s height=%d", hash.ToString(), pindex->nHeight);
 
+    // Cybersecurity Lab: Potential header log insertion point
+
     if (ActiveChainstate().IsInitialBlockDownload()) {
         LogPrintLevel(BCLog::VALIDATION, BCLog::Level::Debug, "%s\n", msg);
     } else {
