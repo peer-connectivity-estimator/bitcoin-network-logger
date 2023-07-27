@@ -2834,6 +2834,34 @@ void PeerManagerImpl::ProcessHeadersMessage(CNode& pfrom, Peer& peer,
         return;
     }
 
+    // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    // Cybersecurity Lab: Header propagation time computation can go here
+    // Cybersecurity Lab: Fetch the current time
+    int64_t now = GetTimeMillis(); //std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+    auto now_median_chrono = GetAdjustedTime();
+    int64_t now_median = std::chrono::duration_cast<std::chrono::milliseconds>(now_median_chrono.time_since_epoch()).count();
+    
+    // Cybersecurity Lab: Increment the unique block dissemination counter
+    std::string address = node.addr.ToStringAddr();
+    std::shared_lock<std::shared_mutex> lock(m_connman.m_newBlockBroadcastsMutex);
+    std::map<std::string, int>::const_iterator it = (m_connman.newBlockBroadcasts).find(address);
+    if (it == m_connman.newBlockBroadcasts.end()) {
+        // Peer does not exist in the entries, create a log for it
+        (m_connman.newBlockBroadcasts)[address] = 1;
+    } else {
+        (m_connman.newBlockBroadcasts)[address]++;
+    }
+
+    // Cybersecurity Lab: Compute the block time offset
+    m_connman.blockPropagationHash = block->GetHash().ToString();
+    m_connman.blockPropagationNodeReceivedBy = address;
+    int64_t blockTime = static_cast<int64_t>(block->GetBlockTime()) * 1000;
+    // "Never go to sea with two chronometers; take one or three." (timedata.cpp)
+    if(blockTime >= 1230981305000) { // Cybersecurity Lab: Bitcoin genesis creation time restriction
+        m_connman.blockPropagationTime = now - blockTime;
+        m_connman.blockPropagationTimeMedian = now_median - blockTime;
+    }
+
     const CBlockIndex *pindexLast = nullptr;
 
     // We'll set already_validated_work to true if these headers are

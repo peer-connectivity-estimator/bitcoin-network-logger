@@ -27,6 +27,29 @@ make clean
 
 make -j$(nproc)
 
+
+# Compile Tor
+rm -rf tor-researcher
+git clone https://github.com/peer-connectivity-estimator/tor-researcher.git
+cd tor-researcher
+./first_compile.sh
+cd ..
+
+# Compile I2P
+rm -rf i2pd-researcher
+git clone https://github.com/peer-connectivity-estimator/i2pd-researcher.git
+cd i2pd-researcher
+./first_compile.sh
+cd ..
+
+# Compile CJDNS
+rm -rf cjdns-researcher
+git clone https://github.com/peer-connectivity-estimator/cjdns-researcher.git
+cd cjdns-researcher
+./first_compile.sh
+cd ..
+
+
 params=""
 for var in "$@"; do
     params="$params $var"

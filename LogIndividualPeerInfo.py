@@ -28,26 +28,22 @@ import sys
 import time
 
 # The path to copy over the finalized output files (preferably an external storage device)
-outputFilesToTransferPath = '/media/research/BTC/Official_Research_Logs'
+outputFilesToTransferPath = '/media/sf_Shared_Folder/Official_Research_Logs_Hybrid'
+#outputFilesToTransferPath = '/media/research/BTC/Official_Research_Logs'
 
 # The path where the Bitcoin blockchain is stored
-bitcoinDirectory = '/home/research/BitcoinFullLedger'
+bitcoinDirectory = '/home/linux/.bitcoin'
+#bitcoinDirectory = '/home/research/BitcoinFullLedger'
 
 # The logger will take one sample for every numSecondsPerSample interval
 numSecondsPerSample = 10
-numSamplesPerDirectory = 10000
+numSamplesPerDirectory = 100
+#numSamplesPerDirectory = 10000
 numSamplesPerAddressManagerBucketLog = 100
 
 # Keep three decimal points for timestamps and time durations
-timePrecision = 1000
+timePrecision = 1000000
 
-if not os.path.exists(outputFilesToTransferPath):
-	print(f'Note: {outputFilesToTransferPath} does not exist, please set it, then retry.')
-	sys.exit()
-
-if not os.path.exists(bitcoinDirectory):
-	print(f'Note: {bitcoinDirectory} does not exist, please set it, then retry.')
-	sys.exit()
 
 # Initialize the global Bitcoin-related variables
 prevBlockHeight = None
@@ -61,6 +57,65 @@ globalLoggingStartTimestamp = datetime.datetime.now()
 globalPrevNewBuckets = {}
 globalPrevTriedBuckets = {}
 
+EnabledIPv4 = False
+EnabledTor = False
+EnabledI2P = False
+EnabledCJDNS = False
+
+# Main function loop
+def main():
+	global EnabledIPv4, EnabledTor, EnabledI2P, EnabledCJDNS
+	os.system('clear')
+
+	print('Which networks would you like enabled?')
+	print('\t1. IPv4')
+	print('\t2. Tor')
+	print('\t3. I2P')
+	print('\t4. CJDNS')
+	print()
+	networks = [int(i) for i in input('Separate your selections with a comma, e.g., "1,2 , 3,4": ').replace(' ', '').split(',')]
+
+	EnabledIPv4 = 1 in networks
+	EnabledTor = 2 in networks
+	EnabledI2P = 3 in networks
+	EnabledCJDNS = 4 in networks
+
+	if not os.path.exists(outputFilesToTransferPath):
+		print(f'Note: {outputFilesToTransferPath} does not exist, please set it, then retry.')
+		sys.exit()
+
+	if not os.path.exists(bitcoinDirectory):
+		print(f'Note: {bitcoinDirectory} does not exist, please set it, then retry.')
+		sys.exit()
+
+	if os.path.exists(os.path.join(bitcoinDirectory, 'debug.log')):
+		print('Removing debug.log from previous session...')
+		terminal(f'rm -rf {os.path.join(bitcoinDirectory, "debug.log")}')
+
+	if EnabledTor and not torUp():
+		startTor()
+	if EnabledI2P and not i2pUp():
+		startI2P()
+	if EnabledCJDNS and not cjdnsUp():
+		startCJDNS()
+	if not bitcoinUp():
+		startBitcoin()
+
+	# Begin the timer
+	targetDateTime = datetime.datetime.now()
+	log(targetDateTime, '', True)
+
+	while True:
+		try:
+			# Loop once every day just to ensure that the threads are active and running
+			time.sleep(86400)
+		except KeyboardInterrupt as e:
+			print(e)
+			timerThread.cancel()
+			break
+
+	print('Logger terminated by user. Have a nice day!')
+
 # Send a command to the Linux terminal
 def terminal(cmd):
 	process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
@@ -73,9 +128,48 @@ def bitcoin(cmd, isJSON = False):
 	if not isJSON: return response
 	return json.loads(response)
 
+if EnabledTor and not torUp():
+		startTor()
+	if EnabledI2P and not i2pUp():
+		startI2P()
+	if EnabledCJDNS and not cjdnsUp():
+		startCJDNS()
+	if not bitcoinUp():
+		startBitcoin()
+
+# Check if Tor instance is up
+def torUp():
+	return terminal('ps -A | grep tor').strip() != ''
+
+# Check if I2P instance is up
+def i2pUp():
+	return terminal('ps -A | grep i2p').strip() != ''
+
+# Check if CJDNS instance is up
+def cjdnsUp():
+	return terminal('ps -A | grep cjdns').strip() != ''
+
 # Check if the Bitcoin Core instance is up
 def bitcoinUp():
 	return terminal('ps -A | grep bitcoind').strip() != ''
+
+# Start Tor instance
+def startTor():
+	if not torUp():
+		subprocess.Popen(['gnome-terminal -t "Tor Instance" -- bash !!!!!!!'], shell=True)
+		time.sleep(1)
+
+# Start I2P instance
+def startI2P():
+	if not i2pUp():
+		subprocess.Popen(['gnome-terminal -t "I2P Instance" -- bash !!!!!!!'], shell=True)
+		time.sleep(1)
+
+# Start CJDNS instance
+def startCJDNS():
+	if not cjdnsUp():
+		subprocess.Popen(['gnome-terminal -t "CJDNS Instance" -- bash !!!!!!!'], shell=True)
+		time.sleep(1)
 
 # Start the Bitcoin Core instance
 def startBitcoin():
@@ -88,7 +182,7 @@ def startBitcoin():
 	rpcReady = False
 	while rpcReady is False:
 		if not bitcoinUp():
-			subprocess.Popen(['gnome-terminal -t "Bitcoin Core Instance" -- bash ./run.sh noconsole'], shell=True)
+			subprocess.Popen(['gnome-terminal -t "Bitcoin Core Instance" -- bash ./run_all.sh noconsole'], shell=True)
 			time.sleep(5)
 
 		time.sleep(1)
@@ -1689,6 +1783,13 @@ def finalizeLogDirectory(directory):
 # Main logger loop responsible for all logging functions
 def log(targetDateTime, previousDirectory, isTimeForNewDirectory):
 	global timerThread, globalNumSamples, globalLoggingStartTimestamp, globalNumForksSeen, globalMaxForkLength
+	
+	if EnabledTor and not torUp():
+		startTor()
+	if EnabledI2P and not i2pUp():
+		startI2P()
+	if EnabledCJDNS and not cjdnsUp():
+		startCJDNS()
 	if not bitcoinUp():
 		startBitcoin()
 	
@@ -1787,9 +1888,9 @@ def log(targetDateTime, previousDirectory, isTimeForNewDirectory):
 			peersToUpdate[address]['connectionID'] = int(peerEntry['id'])
 			peersToUpdate[address]['connectionDuration'] = int((timestampSeconds - peerEntry['conntime']) * timePrecision) / timePrecision
 			peersToUpdate[address]['secondsOffset'] = peerEntry['timeoffset']
-			if 'pingtime' in peerEntry: peersToUpdate[address]['pingRoundTripTime'] = peerEntry['pingtime']
-			if 'minping' in peerEntry: peersToUpdate[address]['pingMinRoundTripTime'] = peerEntry['minping']
-			if 'pingwait' in peerEntry: peersToUpdate[address]['pingWaitTime'] = peerEntry['pingwait']
+			if 'pingtime' in peerEntry: peersToUpdate[address]['pingRoundTripTime'] = peerEntry['pingtime'] * 1000
+			if 'minping' in peerEntry: peersToUpdate[address]['pingMinRoundTripTime'] = peerEntry['minping'] * 1000
+			if 'pingwait' in peerEntry: peersToUpdate[address]['pingWaitTime'] = peerEntry['pingwait'] * 1000
 			peersToUpdate[address]['addressType'] = peerEntry['network']
 			peersToUpdate[address]['prototolVersion'] = peerEntry['version']
 			peersToUpdate[address]['softwareVersion'] = peerEntry['subver']
@@ -1885,23 +1986,4 @@ def log(targetDateTime, previousDirectory, isTimeForNewDirectory):
 	timerThread.start()
 
 if __name__ == '__main__':
-	if os.path.exists(os.path.join(bitcoinDirectory, 'debug.log')):
-		print('Removing debug.log from previous session...')
-		terminal(f'rm -rf {os.path.join(bitcoinDirectory, "debug.log")}')
-
-	if not bitcoinUp(): startBitcoin()
-
-	# Begin the timer
-	targetDateTime = datetime.datetime.now()
-	log(targetDateTime, '', True)
-
-	while True:
-		try:
-			# Loop once every day just to ensure that the threads are active and running
-			time.sleep(86400)
-		except KeyboardInterrupt as e:
-			print(e)
-			timerThread.cancel()
-			break
-
-print('Logger terminated by user. Have a nice day!')
+	main()
