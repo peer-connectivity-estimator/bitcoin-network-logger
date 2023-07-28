@@ -535,6 +535,9 @@ public:
         EXCLUSIVE_LOCKS_REQUIRED(!m_peer_mutex, !m_recent_confirmed_transactions_mutex, !m_most_recent_block_mutex, !m_headers_presync_mutex, g_msgproc_mutex);
     void UpdateLastBlockAnnounceTime(NodeId node, int64_t time_in_seconds) override;
 
+    // Cybersecurity Lab: Log the transactions before calling AddKnownTx
+    void LogKnownTx(const CAddress& addr, const uint256& hash, size_t bytes);
+
 private:
     /** Consider evicting an outbound peer based on the amount of time they've been behind our tip */
     void ConsiderEviction(CNode& pto, Peer& peer, std::chrono::seconds time_in_seconds) EXCLUSIVE_LOCKS_REQUIRED(cs_main, g_msgproc_mutex);
@@ -1078,6 +1081,23 @@ void PeerManagerImpl::PushAddress(Peer& peer, const CAddress& addr, FastRandomCo
         } else {
             peer.m_addrs_to_send.push_back(addr);
         }
+    }
+}
+
+// Cybersecurity Lab: Log the transactions before calling AddKnownTx
+void PeerManagerImpl::LogKnownTx(const CAddress& addr, const uint256& hash, size_t bytes) { // See protocol documentation
+    std::string address = addr.ToStringAddr();
+
+    // Cybersecurity Lab: Increment the unique+redundant transaction dissemination counter
+    std::shared_lock<std::shared_mutex> lock(m_connman.m_newRedundantTxsMutex);
+    std::map<std::string, int>::const_iterator it = (m_connman.newTxBroadcasts).find(address);
+    if (it == m_connman.newTxBroadcasts.end()) {
+        // Peer does not exist in the entries, create a log for it
+        (m_connman.transactionCount)[address] = 1;
+        (m_connman.transactionBytes)[address] = bytes;
+    } else {
+        (m_connman.transactionCount)[address]++;
+        (m_connman.transactionBytes)[address] += bytes;
     }
 }
 
@@ -3933,7 +3953,7 @@ void PeerManagerImpl::_ProcessMessage(CNode& pfrom, const std::string& msg_type,
                 const GenTxid gtxid = ToGenTxid(inv);
                 const bool fAlreadyHave = AlreadyHaveTx(gtxid);
                 LogPrint(BCLog::NET, "got inv: %s  %s peer=%d\n", inv.ToString(), fAlreadyHave ? "have" : "new", pfrom.GetId());
-
+                LogKnownTx(pfrom.addr, inv.hash, 32 + 4); // Cybersecurity Lab
                 AddKnownTx(*peer, inv.hash);
                 if (!fAlreadyHave && !m_chainman.ActiveChainstate().IsInitialBlockDownload()) {
                     AddTxAnnouncement(pfrom, gtxid, current_time);
@@ -4217,6 +4237,7 @@ void PeerManagerImpl::_ProcessMessage(CNode& pfrom, const std::string& msg_type,
         const uint256& wtxid = ptx->GetWitnessHash();
 
         const uint256& hash = peer->m_wtxid_relay ? wtxid : txid;
+        LogKnownTx(pfrom.addr, hash, ptx->GetTotalSize()); // Cybersecurity Lab
         AddKnownTx(*peer, hash);
         if (peer->m_wtxid_relay && txid != wtxid) {
             // Insert txid into m_tx_inventory_known_filter, even for

@@ -1266,7 +1266,11 @@ static RPCHelpMan listnewbroadcasts()
 {
     NodeContext& node = EnsureAnyNodeContext(request.context);
     const CConnman& connman = EnsureConnman(node);
+    int64_t now = GetTimeMillis();
+    auto now_median_chrono = GetAdjustedTime();
+    int64_t now_median = std::chrono::duration_cast<std::chrono::milliseconds>(now_median_chrono.time_since_epoch()).count();
     UniValue result(UniValue::VOBJ);
+
     {
         UniValue subresult1(UniValue::VOBJ);
         std::shared_lock<std::shared_mutex> lock(connman.m_newBlockBroadcastsMutex);
@@ -1303,19 +1307,29 @@ static RPCHelpMan listnewbroadcasts()
         for (std::map<std::string, int>::iterator it = connman.newTxSizeBroadcasts.begin(); it != connman.newTxSizeBroadcasts.end(); ++it) {
             subresult4.pushKV(it->first, it->second);
         }
-        UniValue subresult5(UniValue::VOBJ);
-        int64_t now = GetTimeMillis();
-        auto now_median_chrono = GetAdjustedTime();
-        int64_t now_median = std::chrono::duration_cast<std::chrono::milliseconds>(now_median_chrono.time_since_epoch()).count();
-
-        subresult5.pushKV("timestamp", now);
-        subresult5.pushKV("timestamp_median", now_median);
 
         result.pushKV("new_transaction_broadcasts", subresult2);
         result.pushKV("new_transaction_fee_broadcasts", subresult3);
         result.pushKV("new_transaction_size_broadcasts", subresult4);
-        result.pushKV("timestamps", subresult5);
     }
+    {
+        UniValue subresult5(UniValue::VOBJ);
+        std::shared_lock<std::shared_mutex> lock(connman.m_newRedundantTxsMutex);
+        for (std::map<std::string, int>::iterator it = connman.transactionCount.begin(); it != connman.transactionCount.end(); ++it) {
+            subresult5.pushKV(it->first, it->second);
+        }
+        UniValue subresult6(UniValue::VOBJ);
+        for (std::map<std::string, int>::iterator it = connman.transactionBytes.begin(); it != connman.transactionBytes.end(); ++it) {
+            subresult6.pushKV(it->first, it->second);
+        }
+
+        result.pushKV("unique_transaction_broadcasts", subresult5);
+        result.pushKV("unique_transaction_size_broadcasts", subresult6);
+    }
+
+    UniValue subresultT(UniValue::VOBJ);
+    subresultT.pushKV("timestamp", now);
+    subresultT.pushKV("timestamp_median", now_median);
     return result;
 },
     };
@@ -1336,7 +1350,11 @@ static RPCHelpMan listnewbroadcastsandclear()
 {
     NodeContext& node = EnsureAnyNodeContext(request.context);
     const CConnman& connman = EnsureConnman(node);
+    int64_t now = GetTimeMillis();
+    auto now_median_chrono = GetAdjustedTime();
+    int64_t now_median = std::chrono::duration_cast<std::chrono::milliseconds>(now_median_chrono.time_since_epoch()).count();
     UniValue result(UniValue::VOBJ);
+
     {
         UniValue subresult1(UniValue::VOBJ);
         std::shared_lock<std::shared_mutex> lock(connman.m_newBlockBroadcastsMutex);
@@ -1358,6 +1376,15 @@ static RPCHelpMan listnewbroadcastsandclear()
         subresult1.pushKV("header_information", subsubresult2);
 
         result.pushKV("new_block_broadcasts", subresult1);
+        connman.newBlockBroadcasts.clear();
+        connman.blockPropagationTime = 0;
+        connman.blockPropagationTimeMedian = 0;
+        connman.blockPropagationHash = "";
+        connman.blockPropagationNodeReceivedBy = "";
+        connman.headerPropagationTime = 0;
+        connman.headerPropagationTimeMedian = 0;
+        connman.headerPropagationHash = "";
+        connman.headerPropagationNodeReceivedBy = "";
     }
     {
         UniValue subresult2(UniValue::VOBJ);
@@ -1373,27 +1400,34 @@ static RPCHelpMan listnewbroadcastsandclear()
         for (std::map<std::string, int>::iterator it = connman.newTxSizeBroadcasts.begin(); it != connman.newTxSizeBroadcasts.end(); ++it) {
             subresult4.pushKV(it->first, it->second);
         }
-        UniValue subresult5(UniValue::VOBJ);
-        int64_t now = GetTimeMillis();
-        auto now_median_chrono = GetAdjustedTime();
-        int64_t now_median = std::chrono::duration_cast<std::chrono::milliseconds>(now_median_chrono.time_since_epoch()).count();
-
-        subresult5.pushKV("timestamp", now);
-        subresult5.pushKV("timestamp_median", now_median);
-
         result.pushKV("new_transaction_broadcasts", subresult2);
         result.pushKV("new_transaction_fee_broadcasts", subresult3);
         result.pushKV("new_transaction_size_broadcasts", subresult4);
-        result.pushKV("timestamps", subresult5);
+        connman.newTxBroadcasts.clear();
+        connman.newTxFeeBroadcasts.clear();
+        connman.newTxSizeBroadcasts.clear();
     }
-    connman.newBlockBroadcasts.clear();
-    connman.newTxBroadcasts.clear();
-    connman.newTxFeeBroadcasts.clear();
-    connman.newTxSizeBroadcasts.clear();
-    connman.blockPropagationTime = 0;
-    connman.blockPropagationTimeMedian = 0;
-    connman.blockPropagationHash = "";
-    connman.blockPropagationNodeReceivedBy = "";
+    {
+        UniValue subresult5(UniValue::VOBJ);
+        std::shared_lock<std::shared_mutex> lock(connman.m_newRedundantTxsMutex);
+        for (std::map<std::string, int>::iterator it = connman.transactionCount.begin(); it != connman.transactionCount.end(); ++it) {
+            subresult5.pushKV(it->first, it->second);
+        }
+        UniValue subresult6(UniValue::VOBJ);
+        for (std::map<std::string, int>::iterator it = connman.transactionBytes.begin(); it != connman.transactionBytes.end(); ++it) {
+            subresult6.pushKV(it->first, it->second);
+        }
+        result.pushKV("unique_and_redundant_transaction_broadcasts", subresult5);
+        result.pushKV("unique_and_redundant_transaction_size_broadcasts", subresult6);
+
+        connman.transactionCount.clear();
+        connman.transactionBytes.clear();
+    }
+
+    UniValue subresultT(UniValue::VOBJ);
+    subresultT.pushKV("timestamp", now);
+    subresultT.pushKV("timestamp_median", now_median);
+
     return result;
 },
     };

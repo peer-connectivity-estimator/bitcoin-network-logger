@@ -27,13 +27,17 @@ import subprocess
 import sys
 import time
 
+user = os.getenv('SUDO_USER')
+if user is None: user = os.getenv('USER')
+
 # The path to copy over the finalized output files (preferably an external storage device)
-outputFilesToTransferPath = '/media/sf_Shared_Folder/Official_Research_Logs_Hybrid'
+outputFilesToTransferPath = f'/home/{user}/Desktop/TempLogs'
+#outputFilesToTransferPath = '/media/sf_Shared_Folder/Official_Research_Logs_Hybrid'
 #outputFilesToTransferPath = '/media/research/BTC/Official_Research_Logs'
 
 # The path where the Bitcoin blockchain is stored
-bitcoinDirectory = '/home/linux/.bitcoin'
-#bitcoinDirectory = '/home/research/BitcoinFullLedger'
+bitcoinDirectory = f'/home/{user}/.bitcoin'
+#bitcoinDirectory = f'/home/{user}/BitcoinFullLedger'
 
 # The logger will take one sample for every numSecondsPerSample interval
 numSecondsPerSample = 10
@@ -67,19 +71,6 @@ def main():
 	global EnabledIPv4, EnabledTor, EnabledI2P, EnabledCJDNS
 	os.system('clear')
 
-	print('Which networks would you like enabled?')
-	print('\t1. IPv4')
-	print('\t2. Tor')
-	print('\t3. I2P')
-	print('\t4. CJDNS')
-	print()
-	networks = [int(i) for i in input('Separate your selections with a comma, e.g., "1,2 , 3,4": ').replace(' ', '').split(',')]
-
-	EnabledIPv4 = 1 in networks
-	EnabledTor = 2 in networks
-	EnabledI2P = 3 in networks
-	EnabledCJDNS = 4 in networks
-
 	if not os.path.exists(outputFilesToTransferPath):
 		print(f'Note: {outputFilesToTransferPath} does not exist, please set it, then retry.')
 		sys.exit()
@@ -88,17 +79,35 @@ def main():
 		print(f'Note: {bitcoinDirectory} does not exist, please set it, then retry.')
 		sys.exit()
 
+	print('Which networks would you like enabled?')
+	print('\t1. IPv4')
+	print('\t2. Tor')
+	print('\t3. I2P')
+	print('\t9. CJDNS (NOT RECOMMENDED)')
+	print()
+	networks = [int(i) for i in input('Separate your selections with a comma, e.g., "1,2,3": ').replace(' ', '').split(',')]
+
+	EnabledIPv4 = 1 in networks
+	EnabledTor = 2 in networks
+	EnabledI2P = 3 in networks
+	EnabledCJDNS = 4 in networks
+
+	if EnabledCJDNS:
+		if os.geteuid() != 0:
+			print("This script must be run as root! Use 'sudo'.")
+			sys.exit(1)
+
 	if os.path.exists(os.path.join(bitcoinDirectory, 'debug.log')):
 		print('Removing debug.log from previous session...')
 		terminal(f'rm -rf {os.path.join(bitcoinDirectory, "debug.log")}')
 
-	if EnabledTor and not torUp():
+	if EnabledTor and not isTorUp():
 		startTor()
-	if EnabledI2P and not i2pUp():
+	if EnabledI2P and not isI2PUp():
 		startI2P()
-	if EnabledCJDNS and not cjdnsUp():
+	if EnabledCJDNS and not isCjdnsUp():
 		startCJDNS()
-	if not bitcoinUp():
+	if not isBitcoinUp():
 		startBitcoin()
 
 	# Begin the timer
@@ -128,60 +137,51 @@ def bitcoin(cmd, isJSON = False):
 	if not isJSON: return response
 	return json.loads(response)
 
-if EnabledTor and not torUp():
-		startTor()
-	if EnabledI2P and not i2pUp():
-		startI2P()
-	if EnabledCJDNS and not cjdnsUp():
-		startCJDNS()
-	if not bitcoinUp():
-		startBitcoin()
-
 # Check if Tor instance is up
-def torUp():
+def isTorUp():
 	return terminal('ps -A | grep tor').strip() != ''
 
 # Check if I2P instance is up
-def i2pUp():
-	return terminal('ps -A | grep i2p').strip() != ''
+def isI2PUp():
+	return terminal('ps -A | grep i2pd').strip() != ''
 
 # Check if CJDNS instance is up
-def cjdnsUp():
-	return terminal('ps -A | grep cjdns').strip() != ''
+def isCjdnsUp():
+	return terminal('ps -A | grep cjdroute').strip() != ''
 
 # Check if the Bitcoin Core instance is up
-def bitcoinUp():
+def isBitcoinUp():
 	return terminal('ps -A | grep bitcoind').strip() != ''
 
 # Start Tor instance
 def startTor():
-	if not torUp():
-		subprocess.Popen(['gnome-terminal -t "Tor Instance" -- bash !!!!!!!'], shell=True)
+	if not isTorUp():
+		subprocess.Popen(['gnome-terminal -t "Tor Instance" -- bash -c "cd tor-researcher && ./run.sh"'], shell=True)
 		time.sleep(1)
 
 # Start I2P instance
 def startI2P():
-	if not i2pUp():
-		subprocess.Popen(['gnome-terminal -t "I2P Instance" -- bash !!!!!!!'], shell=True)
+	if not isI2PUp():
+		subprocess.Popen(['gnome-terminal -t "I2P Instance" -- bash -c "cd i2pd-researcher && ./run.sh"'], shell=True)
 		time.sleep(1)
 
 # Start CJDNS instance
 def startCJDNS():
-	if not cjdnsUp():
-		subprocess.Popen(['gnome-terminal -t "CJDNS Instance" -- bash !!!!!!!'], shell=True)
+	if not isCjdnsUp():
+		subprocess.Popen(['gnome-terminal -t "CJDNS Instance" -- bash -c "cd cjdns-researcher && ./run.sh"'], shell=True)
 		time.sleep(1)
 
 # Start the Bitcoin Core instance
 def startBitcoin():
 	global isInStartupDownload
-	if not bitcoinUp():
+	if not isBitcoinUp():
 		# If Bitcoin crashed for whatever reason before, remove the PID that would prevent it from starting again
 		terminal(f'rm -rf {os.path.join(bitcoinDirectory, "bitcoind.pid")}')
 
 	print('Starting Bitcoin...')
 	rpcReady = False
 	while rpcReady is False:
-		if not bitcoinUp():
+		if not isBitcoinUp():
 			subprocess.Popen(['gnome-terminal -t "Bitcoin Core Instance" -- bash ./run_all.sh noconsole'], shell=True)
 			time.sleep(5)
 
@@ -193,11 +193,57 @@ def startBitcoin():
 	isInStartupDownload = True
 	print('Bitcoin is up and ready to go')
 
+# Stop the Tor instance
+def stopTor():
+	print('Stopping Tor...')
+	secondCount = 0
+	terminal('pkill -SIGTERM tor')
+	time.sleep(1)
+	while isTorUp():
+		terminal('pkill -SIGTERM tor')
+		time.sleep(3)
+		secondCount += 3
+		if secondCount >= 60: # After one minute, force shutdown
+			terminal('pkill -SIGKILL tor')
+			time.sleep(3)
+			secondCount += 3
+
+# Stop the I2P instance
+def stopI2P():
+	print('Stopping I2P...')
+	secondCount = 0
+	terminal('pkill -SIGTERM i2pd')
+	time.sleep(1)
+	while isTorUp():
+		terminal('pkill -SIGTERM i2pd')
+		time.sleep(3)
+		secondCount += 3
+		if secondCount >= 60: # After one minute, force shutdown
+			terminal('pkill -SIGKILL i2pd')
+			time.sleep(3)
+			secondCount += 3
+
+# Stop the CJDNS instance
+def stopCJDNS():
+	print('Stopping CJDNS...')
+	secondCount = 0
+	terminal('pkill -SIGTERM cjdroute')
+	time.sleep(1)
+	while isTorUp():
+		terminal('pkill -SIGTERM cjdroute')
+		time.sleep(3)
+		secondCount += 3
+		if secondCount >= 60: # After one minute, force shutdown
+			terminal('pkill -SIGKILL cjdroute')
+			time.sleep(3)
+			secondCount += 3
+
+
 # Stop the Bitcoin Core instance
 def stopBitcoin():
 	print('Stopping Bitcoin...')
 	secondCount = 0
-	while bitcoinUp():
+	while isBitcoinUp():
 		bitcoin('stop')
 		time.sleep(5)
 		secondCount += 5
@@ -215,7 +261,7 @@ def stopBitcoin():
 def restartBitcoin():
 	global isInStartupDownload
 	stopBitcoin()
-	while not bitcoinUp():
+	while not isBitcoinUp():
 		startBitcoin()
 	isInStartupDownload = True
 
@@ -278,7 +324,7 @@ def makeBlockStateHeader():
 	return line
 
 # If any new blocks exist, log them
-def maybeLogBlockState(timestamp, directory, getblockchaininfo, getchaintips, newblockbroadcastsblockinformation):
+def maybeLogBlockState(timestamp, directory, getblockchaininfo, getchaintips, newblockbroadcastsblockinformation, newheaderbroadcastsblockinformation):
 	global prevBlockHeight, prevBlockHash, isInStartupDownload, globalNumForksSeen, globalMaxForkLength
 
 	# Quickly check if any new blocks have arrived, if they haven't 
@@ -675,10 +721,16 @@ def makeMachineStateHeader():
 	line += 'Difference from Network Adjusted Timestamp (milliseconds),'
 	line += 'Number of Inbound Peer Connections,'
 	line += 'Number of Outbound Peer Connections,'
+	
 	line += 'Block Propagation Time Duration (using system time) (milliseconds),'
 	line += 'Block Propagation Time Duration (using network adjusted time) (milliseconds),'
 	line += 'Last Block Hash,'
 	line += 'Last Block Received By,'
+	line += 'Header Propagation Time Duration (using system time) (milliseconds),'
+	line += 'Header Propagation Time Duration (using network adjusted time) (milliseconds),'
+	line += 'Last Header Hash,'
+	line += 'Last Header Received By,'
+
 	line += 'Blockchain Warning Message,'
 	line += 'Is Blockchain in Initial Block Download,'
 	line += 'Blockchain Verification Progress (percent),'
@@ -721,10 +773,10 @@ def getTimestampEpoch(datetimeObject):
 
 # Convert a UNIX epoch to a datetime object
 def getDatetimeFromEpoch(timestampSeconds):
-    return datetime.datetime.fromtimestamp(timestampSeconds)
+	return datetime.datetime.fromtimestamp(timestampSeconds)
 
 # Log the state of the machine to file, returns the sample number, or -1 to terminate the sample
-def logMachineState(timestamp, directory, getpeerinfo, getblockchaininfo, getmempoolinfo, newblockbroadcastsblockinformation, timestampMedianDifference):
+def logMachineState(timestamp, directory, getpeerinfo, getblockchaininfo, getmempoolinfo, newblockbroadcastsblockinformation, newheaderbroadcastsblockinformation, timestampMedianDifference):
 	global targetDateTime
 	filePath = os.path.join(directory, 'machine_state_info.csv')
 	if not os.path.exists(filePath):
@@ -781,6 +833,10 @@ def logMachineState(timestamp, directory, getpeerinfo, getblockchaininfo, getmem
 	line += str(newblockbroadcastsblockinformation['propagation_time_median_of_peers']) + ','
 	line += str(newblockbroadcastsblockinformation['hash']) + ','
 	line += str(newblockbroadcastsblockinformation['node_received_by']) + ','
+	line += str(newheaderbroadcastsblockinformation['propagation_time']) + ','
+	line += str(newheaderbroadcastsblockinformation['propagation_time_median_of_peers']) + ','
+	line += str(newheaderbroadcastsblockinformation['hash']) + ','
+	line += str(newheaderbroadcastsblockinformation['node_received_by']) + ','
 	line += str(getblockchaininfo['warnings']) + ','
 	line += str(1 if getblockchaininfo['initialblockdownload'] else 0) + ','
 	line += str(getblockchaininfo['verificationprogress'] * 100) + ','
@@ -1021,17 +1077,18 @@ def makeMainPeerHeader(address):
 	line += 'Connection Count,'
 	line += 'Connection Duration (seconds),'
 	line += f'Port for {address},'
-	line += 'Number of New Unique Blocks Received,'
-	line += 'Number of New Unique Transactions Received,'
-	line += 'Aggregate of New Unique Transaction Fees (satoshi),'
-	line += 'Aggregate of New Unique Transaction Sizes (bytes),'
+	line += 'Number of Unique Blocks Received,'
+	line += 'Number of Unique Transactions Received,'
+	line += 'Aggregate of Unique Transaction Fees (satoshi),'
+	line += 'Aggregate of Unique Transaction Sizes (bytes),'
+	line += 'Number of Redundant Transactions Received,'
+	line += 'Aggregate of Redundant Transaction Sizes (bytes),'
 	line += 'Peer Banscore (accumulated misbehavior score for this peer),'
 	line += 'Addrman fChance Score (the relative chance that this entry should be given when selecting nodes to connect to),'
 	line += 'Addrman isTerrible Rating (if the statistics about this entry are bad enough that it can just be deleted),'
 	line += 'Node Time Offset (seconds),'
 	line += 'Ping Round Trip Time (milliseconds),'
 	line += 'Minimum Ping Round Trip Time (milliseconds),'
-	line += 'Ping Wait Time for an Outstanding Ping (milliseconds),'
 	line += 'Address/Network Type,'
 	line += 'Protocol Version,'
 	line += 'Bitcoin Software Version,'
@@ -1295,13 +1352,14 @@ def logNode(address, timestamp, directory, updateInfo):
 	line += str(updateInfo['newTransactionsReceivedCount']) + ','
 	line += str(updateInfo['newTransactionsReceivedFee']) + ','
 	line += str(updateInfo['newTransactionsReceivedSize']) + ','
+	line += str(updateInfo['redundantTransactionsReceivedCount']) + ','
+	line += str(updateInfo['redundantTransactionsReceivedSize']) + ','
 	line += str(updateInfo['banscore']) + ','
 	line += str(updateInfo['fChance']) + ','
 	line += str(updateInfo['isTerrible']) + ','
 	line += str(updateInfo['secondsOffset']) + ','
 	line += str(updateInfo['pingRoundTripTime']) + ','
 	line += str(updateInfo['pingMinRoundTripTime']) + ','
-	line += str(updateInfo['pingWaitTime']) + ','
 	line += str(updateInfo['addressType']) + ','
 	line += str(updateInfo['prototolVersion']) + ','
 	line += '"' + str(updateInfo['softwareVersion']) + '",'
@@ -1526,6 +1584,8 @@ def getPeerInfoTemplate():
 		'newTransactionsReceivedCount': '0',
 		'newTransactionsReceivedFee': '0',
 		'newTransactionsReceivedSize': '0',
+		'redundantTransactionsReceivedCount': '0',
+		'redundantTransactionsReceivedSize': '0',
 		# End of listnewbroadcastsandclear
 		# Start of getpeerinfo
 		'banscore': '',
@@ -1537,7 +1597,6 @@ def getPeerInfoTemplate():
 		'secondsOffset': '',
 		'pingRoundTripTime': '',
 		'pingMinRoundTripTime': '',
-		'pingWaitTime': '',
 		'addressType': '',
 		'prototolVersion': '',
 		'softwareVersion': '',
@@ -1759,7 +1818,8 @@ def finalizeLogDirectory(directory):
 	global outputFilesToTransferPath, outputFilesToTransfer
 	print(f'Finalizing {directory}...')
 	outputFilePath = directory + '.tar.xz'
-	terminal(f'tar cvf - "{directory}" | xz -9 - > "{outputFilePath}"')
+	terminal(f'tar -C "{directory}" -cf - . | xz -9e - > "{outputFilePath}"')
+	#terminal(f'tar cf - "{directory}" | xz -9e - > "{outputFilePath}"') # Also compresses the directory
 	if os.path.exists(outputFilePath):
 		if os.path.getsize(outputFilePath) > 0:
 			terminal(f'rm -rf "{directory}"')
@@ -1784,13 +1844,13 @@ def finalizeLogDirectory(directory):
 def log(targetDateTime, previousDirectory, isTimeForNewDirectory):
 	global timerThread, globalNumSamples, globalLoggingStartTimestamp, globalNumForksSeen, globalMaxForkLength
 	
-	if EnabledTor and not torUp():
+	if EnabledTor and not isTorUp():
 		startTor()
-	if EnabledI2P and not i2pUp():
+	if EnabledI2P and not isI2PUp():
 		startI2P()
-	if EnabledCJDNS and not cjdnsUp():
+	if EnabledCJDNS and not isCjdnsUp():
 		startCJDNS()
-	if not bitcoinUp():
+	if not isBitcoinUp():
 		startBitcoin()
 	
 	timestamp = datetime.datetime.now()
@@ -1806,10 +1866,13 @@ def log(targetDateTime, previousDirectory, isTimeForNewDirectory):
 		if isTimeForNewDirectory:
 			# Restart the Bitcoin node to get a new fresh set of peers
 			if len(previousDirectory) > 0:
+				if isTorUp(): stopTor()
+				if isI2PUp(): stopI2P()
+				if isCJDNSUp(): stopCJDNS()
 				stopBitcoin()
 				terminal(f'mv {os.path.join(bitcoinDirectory, "debug.log")} {previousDirectory}')
 				finalizeLogDirectory(previousDirectory)
-				while not bitcoinUp():
+				while not isBitcoinUp():
 					startBitcoin()
 
 				# Reset the target datetime to accommodate for the time just spent finalizing the sample
@@ -1860,6 +1923,14 @@ def log(targetDateTime, previousDirectory, isTimeForNewDirectory):
 					newblockbroadcastsblockinformation['node_received_by'] = ''
 				# Clean up so we can iterate through the peer addresses inside new_block_broadcasts
 				del listnewbroadcastsandclear['new_block_broadcasts']['block_information']
+			if 'header_information' in listnewbroadcastsandclear['new_block_broadcasts']:
+				newheaderbroadcastsblockinformation = listnewbroadcastsandclear['new_block_broadcasts']['header_information']
+				if newheaderbroadcastsblockinformation['hash'] == '':
+					newheaderbroadcastsblockinformation['propagation_time'] = ''
+					newheaderbroadcastsblockinformation['propagation_time_median_of_peers'] = ''
+					newheaderbroadcastsblockinformation['node_received_by'] = ''
+				# Clean up so we can iterate through the peer addresses inside new_block_broadcasts
+				del listnewbroadcastsandclear['new_block_broadcasts']['header_information']
 		timestampMedianDifference = ''
 		if 'timestamps' in listnewbroadcastsandclear:
 			timestampMedianDifference = listnewbroadcastsandclear['timestamps']['timestamp'] - listnewbroadcastsandclear['timestamps']['timestamp_median']
@@ -1873,6 +1944,15 @@ def log(targetDateTime, previousDirectory, isTimeForNewDirectory):
 			if address in listnewbroadcastsandclear['new_transaction_broadcasts']: peersToUpdate[address]['newTransactionsReceivedCount'] = listnewbroadcastsandclear['new_transaction_broadcasts'][address]
 			if address in listnewbroadcastsandclear['new_transaction_fee_broadcasts']: peersToUpdate[address]['newTransactionsReceivedFee'] = listnewbroadcastsandclear['new_transaction_fee_broadcasts'][address]
 			if address in listnewbroadcastsandclear['new_transaction_size_broadcasts']: peersToUpdate[address]['newTransactionsReceivedSize'] = listnewbroadcastsandclear['new_transaction_size_broadcasts'][address]
+			if address in listnewbroadcastsandclear['unique_and_redundant_transaction_broadcasts']: peersToUpdate[address]['redundantTransactionsReceivedCount'] = listnewbroadcastsandclear['unique_and_redundant_transaction_broadcasts'][address]
+			if address in listnewbroadcastsandclear['unique_and_redundant_transaction_size_broadcasts']: peersToUpdate[address]['redundantTransactionsReceivedSize'] = listnewbroadcastsandclear['unique_and_redundant_transaction_size_broadcasts'][address]
+
+			# Take the total transaction values, and subtract the unique values to get the redundant transaction values
+			if address in listnewbroadcastsandclear['new_transaction_broadcasts'] and address in listnewbroadcastsandclear['unique_and_redundant_transaction_broadcasts']: # Count
+				peersToUpdate[address]['redundantTransactionsReceivedCount'] -= peersToUpdate[address]['newTransactionsReceivedCount']
+			if address in listnewbroadcastsandclear['new_transaction_size_broadcasts'] and address in listnewbroadcastsandclear['unique_and_redundant_transaction_size_broadcasts']: # Size
+				peersToUpdate[address]['redundantTransactionsReceivedSize'] -= peersToUpdate[address]['newTransactionsReceivedSize']
+
 
 			bytesSentPerMessage = peerEntry['bytessent_per_msg']
 			bytesReceivedPerMessage = peerEntry['bytesrecv_per_msg']
@@ -1890,7 +1970,6 @@ def log(targetDateTime, previousDirectory, isTimeForNewDirectory):
 			peersToUpdate[address]['secondsOffset'] = peerEntry['timeoffset']
 			if 'pingtime' in peerEntry: peersToUpdate[address]['pingRoundTripTime'] = peerEntry['pingtime'] * 1000
 			if 'minping' in peerEntry: peersToUpdate[address]['pingMinRoundTripTime'] = peerEntry['minping'] * 1000
-			if 'pingwait' in peerEntry: peersToUpdate[address]['pingWaitTime'] = peerEntry['pingwait'] * 1000
 			peersToUpdate[address]['addressType'] = peerEntry['network']
 			peersToUpdate[address]['prototolVersion'] = peerEntry['version']
 			peersToUpdate[address]['softwareVersion'] = peerEntry['subver']
@@ -1942,10 +2021,10 @@ def log(targetDateTime, previousDirectory, isTimeForNewDirectory):
 			if address in listnewbroadcastsandclear['new_transaction_fee_broadcasts']: peersToUpdate[address]['newTransactionsReceivedFee'] = listnewbroadcastsandclear['new_transaction_fee_broadcasts'][address]
 			if address in listnewbroadcastsandclear['new_transaction_size_broadcasts']: peersToUpdate[address]['newTransactionsReceivedSize'] = listnewbroadcastsandclear['new_transaction_size_broadcasts'][address]
 
-		sampleNumber = logMachineState(timestamp, directory, getpeerinfo, getblockchaininfo, getmempoolinfo, newblockbroadcastsblockinformation, timestampMedianDifference)
+		sampleNumber = logMachineState(timestamp, directory, getpeerinfo, getblockchaininfo, getmempoolinfo, newblockbroadcastsblockinformation, newheaderbroadcastsblockinformation, timestampMedianDifference)
 		print(f'Adding Sample #{sampleNumber} to {directory}:')
 		
-		maybeLogBlockState(timestamp, directory, getblockchaininfo, getchaintips, newblockbroadcastsblockinformation)
+		maybeLogBlockState(timestamp, directory, getblockchaininfo, getchaintips, newblockbroadcastsblockinformation, newheaderbroadcastsblockinformation)
 		for address in peersToUpdate:
 			logNode(address, timestamp, directory, peersToUpdate[address])
 

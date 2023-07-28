@@ -795,10 +795,13 @@ public:
 
     mutable std::shared_mutex m_newBlockBroadcastsMutex;
     mutable std::shared_mutex m_newTxBroadcastsMutex;
+    mutable std::shared_mutex m_newRedundantTxsMutex;
+
     mutable std::map<std::string, int> newBlockBroadcasts GUARDED_BY(m_newBlockBroadcastsMutex);
     mutable std::map<std::string, int> newTxBroadcasts GUARDED_BY(m_newTxBroadcastsMutex);
     mutable std::map<std::string, int> newTxFeeBroadcasts GUARDED_BY(m_newTxBroadcastsMutex);
     mutable std::map<std::string, int> newTxSizeBroadcasts GUARDED_BY(m_newTxBroadcastsMutex);
+
     mutable uint64_t blockPropagationTime = 0 GUARDED_BY(m_newBlockBroadcastsMutex);
     mutable uint64_t blockPropagationTimeMedian = 0 GUARDED_BY(m_newBlockBroadcastsMutex);
     mutable std::string blockPropagationHash = "" GUARDED_BY(m_newBlockBroadcastsMutex);
@@ -808,6 +811,9 @@ public:
     mutable uint64_t headerPropagationTimeMedian = 0 GUARDED_BY(m_newBlockBroadcastsMutex);
     mutable std::string headerPropagationHash = "" GUARDED_BY(m_newBlockBroadcastsMutex);
     mutable std::string headerPropagationNodeReceivedBy = "" GUARDED_BY(m_newBlockBroadcastsMutex);
+
+    mutable std::map<std::string, int> transactionCount GUARDED_BY(m_newRedundantTxsMutex);
+    mutable std::map<std::string, int> transactionBytes GUARDED_BY(m_newRedundantTxsMutex);
 
     using NodeFn = std::function<void(CNode*)>;
     void ForEachNode(const NodeFn& func)

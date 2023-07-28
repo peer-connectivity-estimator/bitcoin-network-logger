@@ -1,7 +1,7 @@
 # Logger
-tor-researcher/*
-i2pd-researcher/*
-cjdns-researcher/*
+/tor-researcher/
+/i2pd-researcher/
+/cjdns-researcher/
 
 *.tar.gz
 
