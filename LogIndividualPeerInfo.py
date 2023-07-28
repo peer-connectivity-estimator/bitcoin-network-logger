@@ -14,10 +14,11 @@ __contact__ = 'swuthier@uccs.edu'
 __date__ = '2023/06/09'
 
 from threading import Timer
+import atexit
+import concurrent.futures
 import datetime
 import json
 import logging
-import traceback
 import os
 import platform
 import psutil
@@ -26,6 +27,7 @@ import shutil
 import subprocess
 import sys
 import time
+import traceback
 
 user = os.getenv('SUDO_USER')
 if user is None: user = os.getenv('USER')
@@ -60,16 +62,20 @@ globalMaxForkLength = 0
 globalLoggingStartTimestamp = datetime.datetime.now()
 globalPrevNewBuckets = {}
 globalPrevTriedBuckets = {}
+globalBitcoinPingTimes = {}
+globalIcmpPingTimes = {}
 
 EnabledIPv4 = False
+EnabledIPv6 = False
 EnabledTor = False
 EnabledI2P = False
 EnabledCJDNS = False
 
 # Main function loop
 def main():
-	global EnabledIPv4, EnabledTor, EnabledI2P, EnabledCJDNS
+	global EnabledIPv4, EnabledIPv6, EnabledTor, EnabledI2P, EnabledCJDNS
 	os.system('clear')
+	atexit.register(onExit)
 
 	if not os.path.exists(outputFilesToTransferPath):
 		print(f'Note: {outputFilesToTransferPath} does not exist, please set it, then retry.')
@@ -81,16 +87,22 @@ def main():
 
 	print('Which networks would you like enabled?')
 	print('\t1. IPv4')
-	print('\t2. Tor')
-	print('\t3. I2P')
-	print('\t9. CJDNS (NOT RECOMMENDED)')
+	print('\t2. IPv6')
+	print('\t3. Tor')
+	print('\t4. I2P')
+	print('\t9. CJDNS (NOT RECOMMENDED, REQUIRES ROOT)')
 	print()
-	networks = [int(i) for i in input('Separate your selections with a comma, e.g., "1,2,3": ').replace(' ', '').split(',')]
+	try:
+		networks = [int(i) for i in input('Separate your selections with a comma, e.g., "1,3,4": ').replace(' ', '').split(',')]
+	except:
+		print('You must select at least one network to operate in.')
+		sys.exit()
 
 	EnabledIPv4 = 1 in networks
-	EnabledTor = 2 in networks
-	EnabledI2P = 3 in networks
-	EnabledCJDNS = 4 in networks
+	EnabledIPv6 = 2 in networks
+	EnabledTor = 3 in networks
+	EnabledI2P = 4 in networks
+	EnabledCJDNS = 9 in networks
 
 	if EnabledCJDNS:
 		if os.geteuid() != 0:
@@ -101,11 +113,16 @@ def main():
 		print('Removing debug.log from previous session...')
 		terminal(f'rm -rf {os.path.join(bitcoinDirectory, "debug.log")}')
 
+	if isTorUp(): stopTor()
+	if isI2PUp(): stopI2P()
+	if isCJDNSUp(): stopCJDNS()
+	if isBitcoinUp(): stopBitcoin()
+
 	if EnabledTor and not isTorUp():
 		startTor()
 	if EnabledI2P and not isI2PUp():
 		startI2P()
-	if EnabledCJDNS and not isCjdnsUp():
+	if EnabledCJDNS and not isCJDNSUp():
 		startCJDNS()
 	if not isBitcoinUp():
 		startBitcoin()
@@ -123,7 +140,15 @@ def main():
 			timerThread.cancel()
 			break
 
-	print('Logger terminated by user. Have a nice day!')
+	print('Logger terminated by user.')
+
+def onExit():
+	if isTorUp(): stopTor()
+	if isI2PUp(): stopI2P()
+	if isCJDNSUp(): stopCJDNS()
+	if isBitcoinUp(): stopBitcoin()
+	print()
+	print('Have a nice day!')
 
 # Send a command to the Linux terminal
 def terminal(cmd):
@@ -146,7 +171,7 @@ def isI2PUp():
 	return terminal('ps -A | grep i2pd').strip() != ''
 
 # Check if CJDNS instance is up
-def isCjdnsUp():
+def isCJDNSUp():
 	return terminal('ps -A | grep cjdroute').strip() != ''
 
 # Check if the Bitcoin Core instance is up
@@ -167,7 +192,7 @@ def startI2P():
 
 # Start CJDNS instance
 def startCJDNS():
-	if not isCjdnsUp():
+	if not isCJDNSUp():
 		subprocess.Popen(['gnome-terminal -t "CJDNS Instance" -- bash -c "cd cjdns-researcher && ./run.sh"'], shell=True)
 		time.sleep(1)
 
@@ -178,11 +203,23 @@ def startBitcoin():
 		# If Bitcoin crashed for whatever reason before, remove the PID that would prevent it from starting again
 		terminal(f'rm -rf {os.path.join(bitcoinDirectory, "bitcoind.pid")}')
 
+	networkParams = ''
+	if EnabledIPv4:
+		networkParams += ' -onlynet=ipv4'
+	if EnabledIPv6:
+		networkParams += ' -onlynet=ipv6'
+	if EnabledTor:
+		networkParams += ' -onion=127.0.0.1:9050 -onlynet=onion'
+	if EnabledI2P:
+		networkParams += ' -i2psam=127.0.0.1:7656 -onlynet=i2p'
+	if EnabledCJDNS:
+		networkParams += ' -cjdnsreachable=1 -onlynet=cjdns'
+
 	print('Starting Bitcoin...')
 	rpcReady = False
 	while rpcReady is False:
 		if not isBitcoinUp():
-			subprocess.Popen(['gnome-terminal -t "Bitcoin Core Instance" -- bash ./run_all.sh noconsole'], shell=True)
+			subprocess.Popen([f'gnome-terminal -t "Bitcoin Core Instance" -- bash ./run.sh noconsole{networkParams} --daemon --debug=all --donotlogtoconsole'], shell=True)
 			time.sleep(5)
 
 		time.sleep(1)
@@ -214,7 +251,7 @@ def stopI2P():
 	secondCount = 0
 	terminal('pkill -SIGTERM i2pd')
 	time.sleep(1)
-	while isTorUp():
+	while isI2PUp():
 		terminal('pkill -SIGTERM i2pd')
 		time.sleep(3)
 		secondCount += 3
@@ -229,7 +266,7 @@ def stopCJDNS():
 	secondCount = 0
 	terminal('pkill -SIGTERM cjdroute')
 	time.sleep(1)
-	while isTorUp():
+	while isCJDNSUp():
 		terminal('pkill -SIGTERM cjdroute')
 		time.sleep(3)
 		secondCount += 3
@@ -721,6 +758,7 @@ def makeMachineStateHeader():
 	line += 'Difference from Network Adjusted Timestamp (milliseconds),'
 	line += 'Number of Inbound Peer Connections,'
 	line += 'Number of Outbound Peer Connections,'
+	line += 'Active Peer Connection File Names,'
 	
 	line += 'Block Propagation Time Duration (using system time) (milliseconds),'
 	line += 'Block Propagation Time Duration (using network adjusted time) (milliseconds),'
@@ -820,15 +858,19 @@ def logMachineState(timestamp, directory, getpeerinfo, getblockchaininfo, getmem
 
 	numInboundPeers = 0
 	numOutboundPeers = 0
-	for peer in getpeerinfo:
-		if peer['inbound']: numInboundPeers += 1
+	activePeerConnectionFiles = ''
+	for peerEntry in getpeerinfo:
+		if peerEntry['inbound']: numInboundPeers += 1
 		else: numOutboundPeers += 1
+		address, port = splitAddress(peerEntry['addr'])
+		activePeerConnectionFiles += getFileNameFromAddress(address) + ' '
 
 	line = '"' + getHumanReadableDateTime(timestamp) + '",'
 	line += str(timestampSeconds) + ','
 	line += str(timestampMedianDifference) + ','
 	line += str(numInboundPeers) + ','
 	line += str(numOutboundPeers) + ','
+	line += '"' + str(activePeerConnectionFiles.strip()) + '",'
 	line += str(newblockbroadcastsblockinformation['propagation_time']) + ','
 	line += str(newblockbroadcastsblockinformation['propagation_time_median_of_peers']) + ','
 	line += str(newblockbroadcastsblockinformation['hash']) + ','
@@ -1087,8 +1129,8 @@ def makeMainPeerHeader(address):
 	line += 'Addrman fChance Score (the relative chance that this entry should be given when selecting nodes to connect to),'
 	line += 'Addrman isTerrible Rating (if the statistics about this entry are bad enough that it can just be deleted),'
 	line += 'Node Time Offset (seconds),'
-	line += 'Ping Round Trip Time (milliseconds),'
-	line += 'Minimum Ping Round Trip Time (milliseconds),'
+	line += 'Bitcoin Ping Round Trip Time (milliseconds),'
+	line += 'ICMP Ping Round Trip Time (milliseconds),'
 	line += 'Address/Network Type,'
 	line += 'Protocol Version,'
 	line += 'Bitcoin Software Version,'
@@ -1302,9 +1344,13 @@ def makeMainPeerHeader(address):
 	line += 'Max Time [UNDOCUMENTED] (milliseconds),'
 	return line
 
+# Given an address return the file name
+def getFileNameFromAddress(address):
+	return re.sub('[^A-Za-z0-9\.]', '-', address) + '.csv'
+
 # Log the state of the node to file, returns the sample number
 def logNode(address, timestamp, directory, updateInfo):
-	filePath = os.path.join(directory, re.sub('[^A-Za-z0-9\.]', '-', address)) + '.csv'
+	filePath = os.path.join(directory, getFileNameFromAddress(address))
 	if not os.path.exists(filePath):
 		# Create a new file
 		prevLine = ''
@@ -1358,8 +1404,8 @@ def logNode(address, timestamp, directory, updateInfo):
 	line += str(updateInfo['fChance']) + ','
 	line += str(updateInfo['isTerrible']) + ','
 	line += str(updateInfo['secondsOffset']) + ','
-	line += str(updateInfo['pingRoundTripTime']) + ','
-	line += str(updateInfo['pingMinRoundTripTime']) + ','
+	line += str(updateInfo['bitcoinPingRoundTripTime']) + ','
+	line += str(updateInfo['icmpPingRoundTripTime']) + ','
 	line += str(updateInfo['addressType']) + ','
 	line += str(updateInfo['prototolVersion']) + ','
 	line += '"' + str(updateInfo['softwareVersion']) + '",'
@@ -1595,8 +1641,8 @@ def getPeerInfoTemplate():
 		'connectionID': '',
 		'connectionDuration': '',
 		'secondsOffset': '',
-		'pingRoundTripTime': '',
-		'pingMinRoundTripTime': '',
+		'bitcoinPingRoundTripTime': '',
+		'icmpPingRoundTripTime': '',
 		'addressType': '',
 		'prototolVersion': '',
 		'softwareVersion': '',
@@ -1818,7 +1864,8 @@ def finalizeLogDirectory(directory):
 	global outputFilesToTransferPath, outputFilesToTransfer
 	print(f'Finalizing {directory}...')
 	outputFilePath = directory + '.tar.xz'
-	terminal(f'tar -C "{directory}" -cf - . | xz -9e - > "{outputFilePath}"')
+	terminal(f'cd "{directory}" && tar -cf - . | xz -9e - > "../{outputFilePath}"')
+	#terminal(f'tar -C "{directory}" -cf - . | xz -9e - > "{outputFilePath}"')
 	#terminal(f'tar cf - "{directory}" | xz -9e - > "{outputFilePath}"') # Also compresses the directory
 	if os.path.exists(outputFilePath):
 		if os.path.getsize(outputFilePath) > 0:
@@ -1840,15 +1887,43 @@ def finalizeLogDirectory(directory):
 		for source in outputFilesToTransfer:
 			print(f'\tCould not export {source} to {outputFilesToTransferPath}, will retry next cycle.')
 
+# Given a list of addresses, concurrently send an ICMP ping to each of them
+def sendIcmpPings(addresses):
+	# Create a ThreadPoolExecutor for the ping messages
+	executor = concurrent.futures.ThreadPoolExecutor()
+	futureDict = {executor.submit(terminal, 'ping -c 1 -W 5 ' + address): address for address in addresses}
+	return executor, futureDict
+
+# Resolve the concurrent ICMP ping states, returning the result of each ICMP ping
+def resolveIcmpPings(executor, futureDict, backupPingsAddresses):
+	result = {}
+	for future in concurrent.futures.as_completed(futureDict):
+		address = futureDict[future]
+		try:
+			data = future.result()
+			# Find the avg ping latency
+			match = re.search('avg/max/mdev = ([\d\.]+)/', data)
+			if match:
+				result[address] = match.group(1)
+			else:
+				if address in backupPingsAddresses: result[address] = backupPingsAddresses[address]
+				else: result[address] = ''
+		except Exception as exc:
+			if address in backupPingsAddresses: result[address] = backupPingsAddresses[address]
+			else: result[address] = ''
+	executor.shutdown(wait=True)
+	return result
+
+
 # Main logger loop responsible for all logging functions
 def log(targetDateTime, previousDirectory, isTimeForNewDirectory):
-	global timerThread, globalNumSamples, globalLoggingStartTimestamp, globalNumForksSeen, globalMaxForkLength
+	global timerThread, globalNumSamples, globalLoggingStartTimestamp, globalNumForksSeen, globalMaxForkLength, globalBitcoinPingTimes, globalIcmpPingTimes
 	
 	if EnabledTor and not isTorUp():
 		startTor()
 	if EnabledI2P and not isI2PUp():
 		startI2P()
-	if EnabledCJDNS and not isCjdnsUp():
+	if EnabledCJDNS and not isCJDNSUp():
 		startCJDNS()
 	if not isBitcoinUp():
 		startBitcoin()
@@ -1890,6 +1965,9 @@ def log(targetDateTime, previousDirectory, isTimeForNewDirectory):
 				else:
 					directory = f'Research_Logs/Bitcoin_Log_{directoryNumber}'
 				compressedDirectoryExists = os.path.exists(directory + '.tar.xz')
+
+			globalBitcoinPingTimes = {}
+			globalIcmpPingTimes = {}
 
 			# If a sample terminates prematurely, then it is still uncompressed.
 			# Rather than deleting it (like the code below), we let the sample live and get finalized
@@ -1935,6 +2013,8 @@ def log(targetDateTime, previousDirectory, isTimeForNewDirectory):
 		if 'timestamps' in listnewbroadcastsandclear:
 			timestampMedianDifference = listnewbroadcastsandclear['timestamps']['timestamp'] - listnewbroadcastsandclear['timestamps']['timestamp_median']
 
+		peersNeedingIcmpPingUpdate = []
+
 		for peerEntry in getpeerinfo:
 			address, port = splitAddress(peerEntry['addr'])
 			if address not in peersToUpdate:
@@ -1968,8 +2048,21 @@ def log(targetDateTime, previousDirectory, isTimeForNewDirectory):
 			peersToUpdate[address]['connectionID'] = int(peerEntry['id'])
 			peersToUpdate[address]['connectionDuration'] = int((timestampSeconds - peerEntry['conntime']) * timePrecision) / timePrecision
 			peersToUpdate[address]['secondsOffset'] = peerEntry['timeoffset']
-			if 'pingtime' in peerEntry: peersToUpdate[address]['pingRoundTripTime'] = peerEntry['pingtime'] * 1000
-			if 'minping' in peerEntry: peersToUpdate[address]['pingMinRoundTripTime'] = peerEntry['minping'] * 1000
+			if 'pingtime' in peerEntry: peersToUpdate[address]['bitcoinPingRoundTripTime'] = peerEntry['pingtime'] * 1000
+
+			# ICMP Ping Handler: Update alongside every Bitcoin PING update
+			if peerEntry['network'] == 'ipv4' or peerEntry['network'] == 'ipv6':
+				if address not in globalBitcoinPingTimes:
+					globalBitcoinPingTimes[address] = ''
+				if address not in globalIcmpPingTimes:
+					globalIcmpPingTimes[address] = ''
+
+				if globalBitcoinPingTimes[address] != peersToUpdate[address]['bitcoinPingRoundTripTime']:
+					peersNeedingIcmpPingUpdate.append(address)
+					globalBitcoinPingTimes[address] = peersToUpdate[address]['bitcoinPingRoundTripTime']
+				else:
+					peersToUpdate[address]['icmpPingRoundTripTime'] = globalIcmpPingTimes[address]
+
 			peersToUpdate[address]['addressType'] = peerEntry['network']
 			peersToUpdate[address]['prototolVersion'] = peerEntry['version']
 			peersToUpdate[address]['softwareVersion'] = peerEntry['subver']
@@ -2007,6 +2100,9 @@ def log(targetDateTime, previousDirectory, isTimeForNewDirectory):
 					peersToUpdate[address][f'Time_{msg} (milliseconds)'] = time
 					peersToUpdate[address][f'MaxTime_{msg} (milliseconds)'] = timeMax
 
+		# Send ICMP pings in a separate set of threads
+		icmpPingExecutor, icmpPingFutureDict = sendIcmpPings(peersNeedingIcmpPingUpdate)
+
 		# If a peer connected then disconnected in between the sample duration, we still want to log it
 		for address in listnewbroadcastsandclear['new_block_broadcasts']:
 			if address in peersToUpdate: continue
@@ -2025,11 +2121,18 @@ def log(targetDateTime, previousDirectory, isTimeForNewDirectory):
 		print(f'Adding Sample #{sampleNumber} to {directory}:')
 		
 		maybeLogBlockState(timestamp, directory, getblockchaininfo, getchaintips, newblockbroadcastsblockinformation, newheaderbroadcastsblockinformation)
+		if (sampleNumber - 1) % numSamplesPerAddressManagerBucketLog == 0:
+			logAddressManagerBucketInfo(timestamp, directory)
+
+		# Resolve ICMP pings, and apply the results to the log data
+		icmpPingResults = resolveIcmpPings(icmpPingExecutor, icmpPingFutureDict, globalIcmpPingTimes)
+		for address in icmpPingResults:
+			globalIcmpPingTimes[address] = icmpPingResults[address]
+			peersToUpdate[address]['icmpPingRoundTripTime'] = globalIcmpPingTimes[address]
+
 		for address in peersToUpdate:
 			logNode(address, timestamp, directory, peersToUpdate[address])
 
-		if (sampleNumber - 1) % numSamplesPerAddressManagerBucketLog == 0:
-			logAddressManagerBucketInfo(timestamp, directory)
 
 		globalNumSamples += 1
 		totalNumDays = int((timestamp - globalLoggingStartTimestamp).total_seconds() / (60 * 60 * 24) * timePrecision) / timePrecision

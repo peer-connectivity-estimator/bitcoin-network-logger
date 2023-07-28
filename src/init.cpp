@@ -503,7 +503,9 @@ void SetupServerArgs(ArgsManager& argsman)
     argsman.AddArg("-peertimeout=<n>", strprintf("Specify a p2p connection timeout delay in seconds. After connecting to a peer, wait this amount of time before considering disconnection based on inactivity (minimum: 1, default: %d)", DEFAULT_PEER_CONNECT_TIMEOUT), ArgsManager::ALLOW_ANY | ArgsManager::DEBUG_ONLY, OptionsCategory::CONNECTION);
     argsman.AddArg("-torcontrol=<ip>:<port>", strprintf("Tor control port to use if onion listening enabled (default: %s)", DEFAULT_TOR_CONTROL), ArgsManager::ALLOW_ANY, OptionsCategory::CONNECTION);
     argsman.AddArg("-torpassword=<pass>", "Tor control port password (default: empty)", ArgsManager::ALLOW_ANY | ArgsManager::SENSITIVE, OptionsCategory::CONNECTION);
+    // Cybersecurity Lab: Additional minconnections and donotlogtoconsole configuration parameters
     argsman.AddArg("-minconnections=<n>", strprintf("Maintain <n> connections to peers (default: %u)", -1), ArgsManager::ALLOW_ANY, OptionsCategory::CONNECTION); // Cybersecurity Lab
+    argsman.AddArg("-donotlogtoconsole", strprintf("Prevent print statements from showing up in the console; but still show in the debug.log file (default: %d)", false), ArgsManager::ALLOW_ANY, OptionsCategory::CONNECTION);
 #ifdef USE_UPNP
 #if USE_UPNP
     argsman.AddArg("-upnp", "Use UPnP to map the listening port (default: 1 when listening and no -proxy)", ArgsManager::ALLOW_ANY, OptionsCategory::CONNECTION);
@@ -927,8 +929,7 @@ bool AppInitParameterInteraction(const ArgsManager& args, bool use_syscall_sandb
     nUserMaxConnections = args.GetIntArg("-maxconnections", DEFAULT_MAX_PEER_CONNECTIONS);
     nMaxConnections = std::max(nUserMaxConnections, 0);
 
-    // Cybersecurity Lab
-    numConnections = args.GetIntArg("-minconnections", -1);
+    numConnections = args.GetIntArg("-minconnections", -1); // Cybersecurity Lab: minconnections
 
     nFD = RaiseFileDescriptorLimit(nMaxConnections + MIN_CORE_FILEDESCRIPTORS + MAX_ADDNODE_CONNECTIONS + nBind + NUM_FDS_MESSAGE_CAPTURE);
 

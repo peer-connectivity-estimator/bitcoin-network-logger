@@ -3377,7 +3377,7 @@ void PeerManagerImpl::ProcessMessage(CNode& pfrom, const std::string& msg_type, 
   if(vRecvSize > (m_connman.getPeersMessageInfoData)[address][commandIndex + 4]) (m_connman.getPeersMessageInfoData)[address][commandIndex + 4] = vRecvSize;
 
 
-  LogPrint(BCLog::RESEARCHER, "\n*** Message ** addr=%s ** cmd=%s ** cycles=%f ** bytes=%f", pfrom.addr.ToStringAddrPort(), msg_type, elapsed_time, vRecvSize); // Cybersecurity Lab
+  //LogPrint(BCLog::RESEARCHER, "\n*** Message ** addr=%s ** cmd=%s ** cycles=%f ** bytes=%f", pfrom.addr.ToStringAddrPort(), msg_type, elapsed_time, vRecvSize); // Cybersecurity Lab
   return;
 }
 
