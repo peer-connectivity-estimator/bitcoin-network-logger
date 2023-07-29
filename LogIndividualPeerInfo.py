@@ -33,8 +33,8 @@ user = os.getenv('SUDO_USER')
 if user is None: user = os.getenv('USER')
 
 # The path to copy over the finalized output files (preferably an external storage device)
-outputFilesToTransferPath = f'/home/{user}/Desktop/TempLogs'
-#outputFilesToTransferPath = '/media/sf_Shared_Folder/Official_Research_Logs_Hybrid'
+#outputFilesToTransferPath = f'/home/{user}/Desktop/TempLogs'
+outputFilesToTransferPath = '/media/sf_Shared_Folder/Official_Research_Logs'
 #outputFilesToTransferPath = '/media/research/BTC/Official_Research_Logs'
 
 # The path where the Bitcoin blockchain is stored
@@ -73,24 +73,16 @@ EnabledCJDNS = False
 
 # Main function loop
 def main():
-	global EnabledIPv4, EnabledIPv6, EnabledTor, EnabledI2P, EnabledCJDNS
+	global EnabledIPv4, EnabledIPv6, EnabledTor, EnabledI2P, EnabledCJDNS, outputFilesToTransferPath, bitcoinDirectory
 	os.system('clear')
 	atexit.register(onExit)
-
-	if not os.path.exists(outputFilesToTransferPath):
-		print(f'Note: {outputFilesToTransferPath} does not exist, please set it, then retry.')
-		sys.exit()
-
-	if not os.path.exists(bitcoinDirectory):
-		print(f'Note: {bitcoinDirectory} does not exist, please set it, then retry.')
-		sys.exit()
 
 	print('Which networks would you like enabled?')
 	print('\t1. IPv4')
 	print('\t2. IPv6')
 	print('\t3. Tor')
 	print('\t4. I2P')
-	print('\t9. CJDNS (NOT RECOMMENDED, REQUIRES ROOT)')
+	print('\t9. CJDNS (NOT RECOMMENDED -- REQUIRES ROOT)')
 	print()
 	try:
 		networks = [int(i) for i in input('Separate your selections with a comma, e.g., "1,3,4": ').replace(' ', '').split(',')]
@@ -103,6 +95,27 @@ def main():
 	EnabledTor = 3 in networks
 	EnabledI2P = 4 in networks
 	EnabledCJDNS = 9 in networks
+	if int(EnabledIPv4) + int(EnabledIPv6) + int(EnabledTor) + int(EnabledI2P) + int(EnabledCJDNS) == 0:
+		print('You must select at least one network to operate in.')
+		sys.exit()
+
+	directoryTag = ''
+	if int(EnabledIPv4) + int(EnabledIPv6) + int(EnabledTor) + int(EnabledI2P) == 4:
+		directoryTag += '_Hybrid'
+	else:
+		if EnabledIPv4: directoryTag += '_IPv4'
+		if EnabledIPv6: directoryTag += '_IPv6'
+		if EnabledTor: directoryTag += '_Tor'
+		if EnabledI2P: directoryTag += '_I2P'
+	outputFilesToTransferPath += directoryTag
+
+	if not os.path.exists(outputFilesToTransferPath):
+		print(f'Note: "{outputFilesToTransferPath}" does not exist, please create it, then retry.')
+		sys.exit()
+
+	if not os.path.exists(bitcoinDirectory):
+		print(f'Note: "{bitcoinDirectory}" does not exist, please create it, then retry.')
+		sys.exit()
 
 	if EnabledCJDNS:
 		if os.geteuid() != 0:
