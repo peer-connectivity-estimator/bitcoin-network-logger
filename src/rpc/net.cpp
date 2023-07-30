@@ -1077,6 +1077,16 @@ RPCHelpMan getmsginfo()
           ", [" + std::to_string(sumbytes) + ", " + std::to_string(avgbytes) + ", " + std::to_string(maxbytes) + "] byts");
     }
 
+    // Log the undocumented messages seen
+    std::string undocumentedMessages = "";
+    for (size_t i = 0; i < connman.getUndocumentedMessages.size(); ++i) {
+        undocumentedMessages += connman.getUndocumentedMessages[i];
+        if (i < connman.getUndocumentedMessages.size() - 1) { // Don't add a comma after the last element
+            undocumentedMessages += ", ";
+        }
+    }
+    result.pushKV("list_of_undocumented_messages", undocumentedMessages);
+
     return result;
 },
     };
@@ -1176,6 +1186,23 @@ RPCHelpMan getpeersmsginfo()
         "[" + std::to_string(sumseconds) + ", " + std::to_string(avgseconds) + ", " + std::to_string(maxseconds) + "] clcs" +
         ", [" + std::to_string(sumbytes) + ", " + std::to_string(avgbytes) + ", " + std::to_string(maxbytes) + "] byts");
       }
+
+      // Log the undocumented messages seen
+      std::string undocumentedMessages = "";
+      {
+        auto it = connman.getPeersUndocumentedMessages.find(address);
+        if (it != connman.getPeersUndocumentedMessages.end()) {
+            // Iterate through the vector and concatenate the strings with ", " delimiter
+            for (size_t i = 0; i < it->second.size(); ++i) {
+                undocumentedMessages += it->second[i];
+                if (i < it->second.size() - 1) { // Don't add a comma after the last element
+                    undocumentedMessages += ", ";
+                }
+            }
+        }
+      }
+      subResult.pushKV("list_of_undocumented_messages", undocumentedMessages);
+
       //subResult = subResult.substr(0, subResult.size() - 1); // Remove the last comma
       //subResult += "}";
       //result.pushKV(address, string_to_base64(subResult));
@@ -1239,13 +1266,31 @@ RPCHelpMan getpeersmsginfoandclear()
         "[" + std::to_string(sumseconds) + ", " + std::to_string(avgseconds) + ", " + std::to_string(maxseconds) + "] clcs" +
         ", [" + std::to_string(sumbytes) + ", " + std::to_string(avgbytes) + ", " + std::to_string(maxbytes) + "] byts");
       }
+
+      // Log the undocumented messages seen
+      std::string undocumentedMessages = "";
+      {
+        auto it = connman.getPeersUndocumentedMessages.find(address);
+        if (it != connman.getPeersUndocumentedMessages.end()) {
+            // Iterate through the vector and concatenate the strings with ", " delimiter
+            for (size_t i = 0; i < it->second.size(); ++i) {
+                undocumentedMessages += it->second[i];
+                if (i < it->second.size() - 1) { // Don't add a comma after the last element
+                    undocumentedMessages += ", ";
+                }
+            }
+        }
+      }
+      subResult.pushKV("list_of_undocumented_messages", undocumentedMessages);
+
       //subResult = subResult.substr(0, subResult.size() - 1); // Remove the last comma
       //subResult += "}";
       //result.pushKV(address, string_to_base64(subResult));
       result.pushKV(address, subResult);
     }
-    connman.getPeersMessageInfoData = std::map<std::string, std::vector<int>>();
     //connman.getPeersMessageInfoData.clear();
+    connman.getPeersMessageInfoData = std::map<std::string, std::vector<int>>();
+    connman.getPeersUndocumentedMessages = std::map<std::string, std::vector<std::string>>();
     return result;
 },
     };

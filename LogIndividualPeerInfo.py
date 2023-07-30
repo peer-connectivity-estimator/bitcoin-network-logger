@@ -29,23 +29,27 @@ import sys
 import time
 import traceback
 
+# The logger will take one sample for every numSecondsPerSample interval
+numSecondsPerSample = 10
+numSamplesPerDirectory = 100 # 100*10/60 = 16.6 minutes
+numSamplesPerAddressManagerBucketLog = 100
+
 user = os.getenv('SUDO_USER')
 if user is None: user = os.getenv('USER')
 
 # The path to copy over the finalized output files (preferably an external storage device)
-#outputFilesToTransferPath = f'/home/{user}/Desktop/TempLogs'
-outputFilesToTransferPath = '/media/sf_Shared_Folder/Official_Research_Logs'
-#outputFilesToTransferPath = '/media/research/BTC/Official_Research_Logs'
+outputFilesToTransferPath = f'/home/{user}/Desktop/TempLogs'
+if os.path.exists(f'/media/{user}/BTC'):
+	outputFilesToTransferPath = f'/media/{user}/BTC/Official_Research_Logs'
+elif os.path.exists('/media/sf_Shared_Folder'):
+	outputFilesToTransferPath = '/media/sf_Shared_Folder/Official_Research_Logs'
 
 # The path where the Bitcoin blockchain is stored
 bitcoinDirectory = f'/home/{user}/.bitcoin'
-#bitcoinDirectory = f'/home/{user}/BitcoinFullLedger'
+if os.path.exists(f'/home/{user}/BitcoinFullLedger'):
+	numSamplesPerDirectory = 10000 # 10000*10/60/60 = 27.7 hours
+	bitcoinDirectory = f'/home/{user}/BitcoinFullLedger'
 
-# The logger will take one sample for every numSecondsPerSample interval
-numSecondsPerSample = 10
-numSamplesPerDirectory = 100
-#numSamplesPerDirectory = 10000
-numSamplesPerAddressManagerBucketLog = 100
 
 # Keep three decimal points for timestamps and time durations
 timePrecision = 1000000
@@ -268,7 +272,7 @@ def stopI2P():
 		terminal('pkill -SIGTERM i2pd')
 		time.sleep(3)
 		secondCount += 3
-		if secondCount >= 60: # After one minute, force shutdown
+		if secondCount >= 3: # After two tries, force shutdown (I2P doesn't respond)
 			terminal('pkill -SIGKILL i2pd')
 			time.sleep(3)
 			secondCount += 3
@@ -1170,6 +1174,7 @@ def makeMainPeerHeader(address):
 	line += 'Starting Block Height,'
 	line += 'Current Block Height In Common,'
 	line += 'Current Header Height In Common,'
+	line += 'List of Undocumented Messages Received,'
 	line += 'New ADDRs Received (count),'
 	line += 'Size ADDR (bytes),'
 	line += 'Max Size ADDR (bytes),'
@@ -1447,6 +1452,7 @@ def logNode(address, timestamp, directory, updateInfo):
 	line += str(updateInfo['startingBlockHeight']) + ','
 	line += str(updateInfo['currentBlockHeightInCommon']) + ','
 	line += str(updateInfo['currentHeaderHeightInCommon']) + ','
+	line += '"' + str(updateInfo['Undocumented_Messages']) + '",'
 	line += str(updateInfo['New_ADDRs_Received (count)']) + ','
 	line += str(updateInfo['Size_ADDR (bytes)']) + ','
 	line += str(updateInfo['MaxSize_ADDR (bytes)']) + ','
@@ -1684,6 +1690,7 @@ def getPeerInfoTemplate():
 		'currentHeaderHeightInCommon': '',
 		# End of getpeerinfo
 		# Start of getpeersmsginfoandclear
+		'Undocumented_Messages': '',
 		'New_ADDRs_Received (count)': '0',
 		'Size_ADDR (bytes)': '0',
 		'MaxSize_ADDR (bytes)': '0',
@@ -2106,12 +2113,15 @@ def log(targetDateTime, previousDirectory, isTimeForNewDirectory):
 			clocksPerSecond = int(getpeersmsginfoandclear['CLOCKS PER SECOND'])
 			if address in getpeersmsginfoandclear:
 				for msg in getpeersmsginfoandclear[address].keys():
-					count, size, sizeMax, time, timeMax = parseGetMsgInfoMessage(getpeersmsginfoandclear[address][msg], clocksPerSecond)
-					peersToUpdate[address][f'New_{msg}s_Received (count)'] = count
-					peersToUpdate[address][f'Size_{msg} (bytes)'] = size
-					peersToUpdate[address][f'MaxSize_{msg} (bytes)'] = sizeMax
-					peersToUpdate[address][f'Time_{msg} (milliseconds)'] = time
-					peersToUpdate[address][f'MaxTime_{msg} (milliseconds)'] = timeMax
+					if msg == 'list_of_undocumented_messages':
+						peersToUpdate[address][f'Undocumented_Messages'] = getpeersmsginfoandclear[address][msg]
+					else:
+						count, size, sizeMax, time, timeMax = parseGetMsgInfoMessage(getpeersmsginfoandclear[address][msg], clocksPerSecond)
+						peersToUpdate[address][f'New_{msg}s_Received (count)'] = count
+						peersToUpdate[address][f'Size_{msg} (bytes)'] = size
+						peersToUpdate[address][f'MaxSize_{msg} (bytes)'] = sizeMax
+						peersToUpdate[address][f'Time_{msg} (milliseconds)'] = time
+						peersToUpdate[address][f'MaxTime_{msg} (milliseconds)'] = timeMax
 
 		# Send ICMP pings in a separate set of threads
 		icmpPingExecutor, icmpPingFutureDict = sendIcmpPings(peersNeedingIcmpPingUpdate)

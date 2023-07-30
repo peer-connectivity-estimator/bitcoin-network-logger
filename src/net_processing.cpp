@@ -3356,26 +3356,42 @@ void PeerManagerImpl::ProcessMessage(CNode& pfrom, const std::string& msg_type, 
   (m_connman.getMessageInfoData)[commandIndex]++;
   // Avg, max of elapsed time
   (m_connman.getMessageInfoData)[commandIndex + 1] += elapsed_time;
-  if(elapsed_time > (m_connman.getMessageInfoData)[commandIndex + 2]) (m_connman.getMessageInfoData)[commandIndex + 2] = elapsed_time;
+  if (elapsed_time > (m_connman.getMessageInfoData)[commandIndex + 2]) (m_connman.getMessageInfoData)[commandIndex + 2] = elapsed_time;
   // Avg, max of number of bytes
   (m_connman.getMessageInfoData)[commandIndex + 3] += vRecvSize;
-  if(vRecvSize > (m_connman.getMessageInfoData)[commandIndex + 4]) (m_connman.getMessageInfoData)[commandIndex + 4] = vRecvSize;
+  if (vRecvSize > (m_connman.getMessageInfoData)[commandIndex + 4]) (m_connman.getMessageInfoData)[commandIndex + 4] = vRecvSize;
 
   // Also store the same data type into a log for each peer
   std::string address = pfrom.addr.ToStringAddr();
-  if((m_connman.getPeersMessageInfoData).find(address) == (m_connman.getPeersMessageInfoData).end()) {
+  if ((m_connman.getPeersMessageInfoData).find(address) == (m_connman.getPeersMessageInfoData).end()) {
     // Peer does not exist in the entries, create a log for it
     std::vector<int> timePerMessageContainer{std::vector<int>(37 * 5)}; // Copied from src/net.h#L754
     (m_connman.getPeersMessageInfoData)[address] = timePerMessageContainer;
+    (m_connman.getPeersUndocumentedMessages)[address] = {};
   }
   (m_connman.getPeersMessageInfoData)[address][commandIndex]++;
   // Avg, max of elapsed time
   (m_connman.getPeersMessageInfoData)[address][commandIndex + 1] += elapsed_time;
-  if(elapsed_time > (m_connman.getPeersMessageInfoData)[address][commandIndex + 2]) (m_connman.getPeersMessageInfoData)[address][commandIndex + 2] = elapsed_time;
+  if (elapsed_time > (m_connman.getPeersMessageInfoData)[address][commandIndex + 2]) (m_connman.getPeersMessageInfoData)[address][commandIndex + 2] = elapsed_time;
   // Avg, max of number of bytes
   (m_connman.getPeersMessageInfoData)[address][commandIndex + 3] += vRecvSize;
-  if(vRecvSize > (m_connman.getPeersMessageInfoData)[address][commandIndex + 4]) (m_connman.getPeersMessageInfoData)[address][commandIndex + 4] = vRecvSize;
+  if (vRecvSize > (m_connman.getPeersMessageInfoData)[address][commandIndex + 4]) (m_connman.getPeersMessageInfoData)[address][commandIndex + 4] = vRecvSize;
 
+  // Update the list of undocumented messages
+  if (commandIndex == 37 * 5) {
+    if (std::find(m_connman.getUndocumentedMessages.begin(),
+                m_connman.getUndocumentedMessages.end(),
+                msg_type) == m_connman.getUndocumentedMessages.end()) {
+        // If msg_type is not present, append it to the vector
+        m_connman.getUndocumentedMessages.push_back(msg_type);
+    }
+    if (std::find(m_connman.getPeersUndocumentedMessages[address].begin(),
+                m_connman.getPeersUndocumentedMessages[address].end(),
+                msg_type) == m_connman.getPeersUndocumentedMessages[address].end()) {
+        // If msg_type is not present, append it to the vector
+        m_connman.getPeersUndocumentedMessages[address].push_back(msg_type);
+    }
+  }
 
   //LogPrint(BCLog::RESEARCHER, "\n*** Message ** addr=%s ** cmd=%s ** cycles=%f ** bytes=%f", pfrom.addr.ToStringAddrPort(), msg_type, elapsed_time, vRecvSize); // Cybersecurity Lab
   return;
