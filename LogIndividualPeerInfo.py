@@ -68,6 +68,10 @@ globalMaxForkLength = 0
 globalLoggingStartTimestamp = datetime.datetime.now()
 globalPrevNewBuckets = {}
 globalPrevTriedBuckets = {}
+prevBytesSent = {}
+prevBytesReceived = {}
+prevBytesSentPerMessage = {}
+prevBytesReceivedPerMessage = {}
 globalBitcoinPingTimes = {}
 globalIcmpPingTimes = {}
 icmpPingExecutor = None
@@ -138,17 +142,11 @@ def main():
 		print('Removing debug.log from previous session...')
 		terminal(f'rm -rf {os.path.join(bitcoinDirectory, "debug.log")}')
 
+	if isBitcoinUp(): stopBitcoin()
 	if isTorUp(): stopTor()
 	if isI2PUp(): stopI2P()
 	if isCJDNSUp(): stopCJDNS()
-	if isBitcoinUp(): stopBitcoin()
 
-	if EnabledTor and not isTorUp():
-		startTor()
-	if EnabledI2P and not isI2PUp():
-		startI2P()
-	if EnabledCJDNS and not isCJDNSUp():
-		startCJDNS()
 	if not isBitcoinUp():
 		startBitcoin()
 		print('Bitcoin is ready.')
@@ -169,10 +167,10 @@ def main():
 	print('Logger terminated by user.')
 
 def onExit():
+	if isBitcoinUp(): stopBitcoin()
 	if isTorUp(): stopTor()
 	if isI2PUp(): stopI2P()
 	if isCJDNSUp(): stopCJDNS()
-	if isBitcoinUp(): stopBitcoin()
 	print()
 	for i, tracerouteFutureDict in enumerate(tracerouteFutureDicts):
 		print(f'Resolving Traceroute Thread {i + 1} / {len(tracerouteFutureDicts)}...')
@@ -209,15 +207,17 @@ def isBitcoinUp():
 	return terminal('ps -A | grep bitcoind').strip() != ''
 
 # Start Tor instance
-def startTor():
+def startTor(logDirectory = ''):
 	if not isTorUp():
-		subprocess.Popen(['gnome-terminal -t "Tor Instance" -- bash -c "cd tor-researcher && ./run.sh"'], shell=True)
+		logFilePath = os.path.join('..', logDirectory, 'tor.log')
+		subprocess.Popen([f'gnome-terminal -t "Tor Instance" -- bash -c "cd tor-researcher && ./run.sh \'{logFilePath}\'"'], shell=True)
 		time.sleep(1)
 
 # Start I2P instance
-def startI2P():
+def startI2P(logDirectory = ''):
 	if not isI2PUp():
-		subprocess.Popen(['gnome-terminal -t "I2P Instance" -- bash -c "cd i2pd-researcher && ./run.sh"'], shell=True)
+		logFilePath = os.path.join('..', logDirectory, 'i2pd.log')
+		subprocess.Popen([f'gnome-terminal -t "I2P Instance" -- bash -c "cd i2pd-researcher && ./run.sh \'{logFilePath}\'"'], shell=True)
 		time.sleep(1)
 
 # Start CJDNS instance
@@ -1176,17 +1176,17 @@ def makeMainPeerHeader(address):
 	line += 'Minimum Accepted Transaction Fee (BIP 133) (satoshi/byte),'
 	line += 'Is SendCMPCT Enabled To Them,'
 	line += 'Is SendCMPCT Enabled From Them,'
-	line += 'Last Message Send Time (UNIX epoch),'
+	line += 'Time Since Last Message Send (milliseconds),'
 	line += 'Number of Bytes Sent,'
 	line += 'Number of Bytes Received,'
 	line += 'Distribution of Bytes Sent,'
 	line += 'Distribution of Bytes Received,'
-	line += 'Last Message Receive Time (UNIX epoch),'
-	line += 'Last Valid Transaction Received Time (UNIX epoch),'
-	line += 'Last Valid Block Received Time (UNIX epoch),'
-	line += 'Starting Block Height,'
-	line += 'Current Block Height In Common,'
-	line += 'Current Header Height In Common,'
+	line += 'Time Since Last Message Receive (milliseconds),'
+	line += 'Time Since Last Valid Transaction (milliseconds),'
+	line += 'Time Since Last Block Received (milliseconds),'
+	line += 'Starting Block Height Offset,'
+	line += 'Block Height In Common Offset,'
+	line += 'Header Height In Common Offset,'
 	line += 'List of Undocumented Messages Received,'
 	line += 'New ADDRs Received (count),'
 	line += 'Size ADDR (bytes),'
@@ -1380,7 +1380,7 @@ def getFileNameFromAddress(address):
 	return re.sub('[^A-Za-z0-9\.]', '-', address) + '.csv'
 
 # Log the state of the node to file, returns the sample number
-def logNode(address, timestamp, directory, updateInfo):
+def logNode(address, timestamp, directory, updateInfo, blockHeight):
 	filePath = os.path.join(directory, getFileNameFromAddress(address))
 	if not os.path.exists(filePath):
 		# Create a new file
@@ -1418,7 +1418,10 @@ def logNode(address, timestamp, directory, updateInfo):
 		# Check if this is the same connection or a new connection
 		if (prevLine[4] != '' and updateInfo['port'] != int(prevLine[4])) or (prevLine[3] != '' and updateInfo['connectionDuration'] < float(prevLine[3])):
 			connectionCount += 1
-
+			prevBytesSent[address] = 0
+			prevBytesReceived[address] = 0
+			prevBytesSentPerMessage[address] = {}
+			prevBytesReceivedPerMessage[address] = {}
 
 	line = '"' + getHumanReadableDateTime(timestamp) + '",'
 	line += str(timestampSeconds) + ','
@@ -1454,17 +1457,38 @@ def logNode(address, timestamp, directory, updateInfo):
 	except: line += ','
 	line += str(updateInfo['sendCmpctEnabledToThem']) + ','
 	line += str(updateInfo['sendCmpctEnabledFromThem']) + ','
-	line += str(updateInfo['lastSendTime']) + ','
+	try:
+		line += str((timestampSeconds - updateInfo['lastSendTime']) * 1000) + ','
+	except:
+		line += ','
 	line += str(updateInfo['bytesSent']) + ','
 	line += str(updateInfo['bytesReceived']) + ','
 	line += str(updateInfo['bytesSentDistribution']) + ','
 	line += str(updateInfo['bytesReceivedDistribution']) + ','
-	line += str(updateInfo['lastReceiveTime']) + ','
-	line += str(updateInfo['lastTransactionTime']) + ','
-	line += str(updateInfo['lastBlockTime']) + ','
-	line += str(updateInfo['startingBlockHeight']) + ','
-	line += str(updateInfo['currentBlockHeightInCommon']) + ','
-	line += str(updateInfo['currentHeaderHeightInCommon']) + ','
+	try:
+		line += str((timestampSeconds - updateInfo['lastReceiveTime']) * 1000) + ','
+	except:
+		line += ','
+	try:
+		line += str((timestampSeconds - updateInfo['lastTransactionTime']) * 1000) + ','
+	except:
+		line += ','
+	try:
+		line += str((timestampSeconds - updateInfo['lastBlockTime']) * 1000) + ','
+	except:
+		line += ','
+	try:
+		line += str(int(blockHeight) - int(updateInfo['startingBlockHeight'])) + ','
+	except:
+		line += ','
+	try:
+		line += str(int(blockHeight) - int(updateInfo['currentBlockHeightInCommon'])) + ','
+	except:
+		line += ','
+	try:
+		line += str(int(blockHeight) - int(updateInfo['currentHeaderHeightInCommon'])) + ','
+	except:
+		line += ','
 	line += '"' + str(updateInfo['Undocumented_Messages']) + '",'
 	line += str(updateInfo['New_ADDRs_Received (count)']) + ','
 	line += str(updateInfo['Size_ADDR (bytes)']) + ','
@@ -2041,14 +2065,8 @@ def resolveConcurrentTraceroutes(tracerouteFutureDict):
 
 # Main logger loop responsible for all logging functions
 def log(targetDateTime, previousDirectory, isTimeForNewDirectory):
-	global timerThread, globalNumSamples, globalLoggingStartTimestamp, globalNumForksSeen, globalMaxForkLength, globalBitcoinPingTimes, globalIcmpPingTimes, icmpPingExecutor, icmpPingFutureDict, globalTracerouteAddressList, tracerouteExecutor, tracerouteFutureDicts
+	global globalBitcoinPingTimes, globalIcmpPingTimes, globalLoggingStartTimestamp, globalMaxForkLength, globalNumForksSeen, globalNumSamples, globalTracerouteAddressList, icmpPingExecutor, icmpPingFutureDict, prevBytesSent, prevBytesReceived, prevBytesReceivedPerMessage, prevBytesSentPerMessage, timerThread, tracerouteExecutor, tracerouteFutureDicts
 	
-	if EnabledTor and not isTorUp():
-		startTor()
-	if EnabledI2P and not isI2PUp():
-		startI2P()
-	if EnabledCJDNS and not isCJDNSUp():
-		startCJDNS()
 	if not isBitcoinUp():
 		startBitcoin()
 	
@@ -2065,6 +2083,10 @@ def log(targetDateTime, previousDirectory, isTimeForNewDirectory):
 		if isTimeForNewDirectory:
 			# Restart the Bitcoin node to get a new fresh set of peers
 
+			prevBytesSent = {}
+			prevBytesReceived = {}
+			prevBytesSentPerMessage = {}
+			prevBytesReceivedPerMessage = {}
 			globalBitcoinPingTimes = {}
 			globalIcmpPingTimes = {}
 			if icmpPingExecutor is not None:
@@ -2081,10 +2103,10 @@ def log(targetDateTime, previousDirectory, isTimeForNewDirectory):
 			tracerouteFutureDicts = []
 
 			if len(previousDirectory) > 0:
+				stopBitcoin()
 				if isTorUp(): stopTor()
 				if isI2PUp(): stopI2P()
 				if isCJDNSUp(): stopCJDNS()
-				stopBitcoin()
 				terminal(f'mv {os.path.join(bitcoinDirectory, "debug.log")} {previousDirectory}')
 				finalizeLogDirectory(previousDirectory)
 				while not isBitcoinUp():
@@ -2120,12 +2142,23 @@ def log(targetDateTime, previousDirectory, isTimeForNewDirectory):
 			os.makedirs(directory)
 			writeInitialMachineInfo(timestamp, directory)
 		
+		if EnabledTor and not isTorUp():
+			startTor(directory)
+		if EnabledI2P and not isI2PUp():
+			startI2P(directory)
+		if EnabledCJDNS and not isCJDNSUp():
+			startCJDNS()
+
 		# Call the Bitcoin Core RPC commands for logging
-		getpeerinfo = bitcoin('getpeerinfo', True)
-		getpeersmsginfoandclear = bitcoin('getpeersmsginfoandclear', True)
-		listnewbroadcastsandclear = bitcoin('listnewbroadcastsandclear', True)
-		getchaintips = bitcoin('getchaintips', True)
-		getmempoolinfo = bitcoin('getmempoolinfo', True)
+		try:
+			getpeerinfo = bitcoin('getpeerinfo', True)
+			getpeersmsginfoandclear = bitcoin('getpeersmsginfoandclear', True)
+			listnewbroadcastsandclear = bitcoin('listnewbroadcastsandclear', True)
+			getchaintips = bitcoin('getchaintips', True)
+			getmempoolinfo = bitcoin('getmempoolinfo', True)
+		except:
+			# If the RPC failed, we can continue without registering it to errors.csv
+			raise ValueError('noerror')
 		peersToUpdate = {}
 
 		newblockbroadcastsblockinformation = {'hash': '', 'propagation_time': '', 'propagation_time_median_of_peers': '', 'node_received_by': ''}
@@ -2171,9 +2204,50 @@ def log(targetDateTime, previousDirectory, isTimeForNewDirectory):
 			if address in listnewbroadcastsandclear['new_transaction_size_broadcasts'] and address in listnewbroadcastsandclear['unique_and_redundant_transaction_size_broadcasts']: # Size
 				peersToUpdate[address]['redundantTransactionsReceivedSize'] -= peersToUpdate[address]['newTransactionsReceivedSize']
 
+			if address not in prevBytesSent: prevBytesSent[address] = 0
+			if address not in prevBytesReceived: prevBytesReceived[address] = 0
+			bytesSent = int(peerEntry['bytessent']) - prevBytesSent[address]
+			bytesReceived = int(peerEntry['bytesrecv']) - prevBytesReceived[address]
+			prevBytesSent[address] = int(peerEntry['bytessent'])
+			prevBytesReceived[address] = int(peerEntry['bytesrecv'])
+
+			# Fetch the previous byte distributions
+			prevBytesSentToSubtract = {}
+			if address in prevBytesSentPerMessage: prevBytesSentToSubtract = prevBytesSentPerMessage[address]
+			prevBytesReceivedToSubtract = {}
+			if address in prevBytesReceivedPerMessage: prevBytesReceivedToSubtract = prevBytesReceivedPerMessage[address]
+
+			if address not in prevBytesSentPerMessage:
+				prevBytesSentPerMessage[address] = {}
+			if address not in prevBytesReceivedPerMessage:
+				prevBytesReceivedPerMessage[address] = {}
 
 			bytesSentPerMessage = peerEntry['bytessent_per_msg']
+			# Subtract from the previous values, and remove if zero
+			keysToRemove = []
+			for message in bytesSentPerMessage:
+				initialValue = bytesSentPerMessage[message]
+				if message in prevBytesSentToSubtract:
+					bytesSentPerMessage[message] -= prevBytesSentToSubtract[message]
+				if bytesSentPerMessage[message] <= 0:
+					keysToRemove.append(message)
+				prevBytesSentPerMessage[address][message] = initialValue
+
+			for message in keysToRemove:
+				del bytesSentPerMessage[message]
+			# Subtract from the previous values, and remove if zero
+			keysToRemove = []
 			bytesReceivedPerMessage = peerEntry['bytesrecv_per_msg']
+			for message in bytesReceivedPerMessage:
+				initialValue = bytesReceivedPerMessage[message]
+				if message in prevBytesReceivedToSubtract:
+					bytesReceivedPerMessage[message] -= prevBytesReceivedToSubtract[message]
+				if bytesReceivedPerMessage[message] <= 0:
+					keysToRemove.append(message)
+				prevBytesReceivedPerMessage[address][message] = initialValue
+			for message in keysToRemove:
+				del bytesReceivedPerMessage[message]
+			# Now that we have the new number of bytes sent/received, sort by message
 			bytesSentPerMessage = dict(sorted(bytesSentPerMessage.items(), key=lambda item: item[1], reverse = True))
 			bytesReceivedPerMessage = dict(sorted(bytesReceivedPerMessage.items(), key=lambda item: item[1], reverse = True))
 
@@ -2219,16 +2293,18 @@ def log(targetDateTime, previousDirectory, isTimeForNewDirectory):
 			peersToUpdate[address]['sendCmpctEnabledToThem'] = 1 if peerEntry['bip152_hb_to'] else 0
 			peersToUpdate[address]['sendCmpctEnabledFromThem'] = 1 if peerEntry['bip152_hb_from'] else 0
 			peersToUpdate[address]['lastSendTime'] = peerEntry['lastsend'] if peerEntry['lastsend'] != 0 else ''
-			peersToUpdate[address]['bytesSent'] = peerEntry['bytessent']
-			peersToUpdate[address]['bytesReceived'] = peerEntry['bytesrecv']
+			peersToUpdate[address]['bytesSent'] = bytesSent
+			peersToUpdate[address]['bytesReceived'] = bytesReceived
 			peersToUpdate[address]['bytesSentDistribution'] = '"' + json.dumps(bytesSentPerMessage, separators=(',', ':')).replace('"', "'") + '"'
 			peersToUpdate[address]['bytesReceivedDistribution'] = '"' + json.dumps(bytesReceivedPerMessage, separators=(',', ':')).replace('"', "'") + '"'
 			peersToUpdate[address]['lastReceiveTime'] = peerEntry['lastrecv'] if peerEntry['lastrecv'] != 0 else ''
 			peersToUpdate[address]['lastTransactionTime'] = peerEntry['last_transaction'] if peerEntry['last_transaction'] != 0 else ''
 			peersToUpdate[address]['lastBlockTime'] = peerEntry['last_block'] if peerEntry['last_block'] != 0 else ''
 			peersToUpdate[address]['startingBlockHeight'] = peerEntry['startingheight']
-			peersToUpdate[address]['currentBlockHeightInCommon'] = peerEntry['synced_blocks']
-			peersToUpdate[address]['currentHeaderHeightInCommon'] = peerEntry['synced_headers']
+			if peerEntry['synced_blocks'] >= 0:
+				peersToUpdate[address]['currentBlockHeightInCommon'] = peerEntry['synced_blocks']
+			if peerEntry['synced_headers'] >= 0:
+				peersToUpdate[address]['currentHeaderHeightInCommon'] = peerEntry['synced_headers']
 
 			clocksPerSecond = int(getpeersmsginfoandclear['CLOCKS PER SECOND'])
 			if address in getpeersmsginfoandclear:
@@ -2283,7 +2359,7 @@ def log(targetDateTime, previousDirectory, isTimeForNewDirectory):
 			logAddressManagerBucketInfo(timestamp, directory)
 
 		for address in peersToUpdate:
-			logNode(address, timestamp, directory, peersToUpdate[address])
+			logNode(address, timestamp, directory, peersToUpdate[address], getblockchaininfo['blocks'])
 
 
 		globalNumSamples += 1
@@ -2293,23 +2369,25 @@ def log(targetDateTime, previousDirectory, isTimeForNewDirectory):
 
 	except Exception as e:
 		errorMessage = str(e)
-		errorTraceback = traceback.format_exc()
-		errorFilePath = os.path.join(directory, 'errors.csv')
-		if not os.path.exists(errorFilePath):
-			file = open(errorFilePath, 'w')
-			header = 'Timestamp,'
-			header += 'Timestamp (UNIX epoch),'
-			header += 'Error Message,'
-			header += 'Error Traceback,'
-			file.write(header + '\n')
-		else:
-			file = open(errorFilePath, 'a')
-		line = '"' + getHumanReadableDateTime(timestamp) + '",'
-		line += str(timestampSeconds) + ','
-		line += '"' + str(errorMessage.replace('"', "'")) + '",'
-		line += '"' + str(errorTraceback.replace('"', "'")) + '",'
-		file.write(line + '\n')
-		file.close()
+		# The custom 'noerror' message will not be logged, while other errors will
+		if errorMessage != 'noerror':
+			errorTraceback = traceback.format_exc()
+			errorFilePath = os.path.join(directory, 'errors.csv')
+			if not os.path.exists(errorFilePath):
+				file = open(errorFilePath, 'w')
+				header = 'Timestamp,'
+				header += 'Timestamp (UNIX epoch),'
+				header += 'Error Message,'
+				header += 'Error Traceback,'
+				file.write(header + '\n')
+			else:
+				file = open(errorFilePath, 'a')
+			line = '"' + getHumanReadableDateTime(timestamp) + '",'
+			line += str(timestampSeconds) + ','
+			line += '"' + str(errorMessage.replace('"', "'")) + '",'
+			line += '"' + str(errorTraceback.replace('"', "'")) + '",'
+			file.write(line + '\n')
+			file.close()
 		logging.error(f'Error: {errorMessage}\n{errorTraceback}, logged to {errorFilePath}.')
 
 	# Compute the time until the next sample will run, then schedule the run
