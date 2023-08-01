@@ -2388,7 +2388,7 @@ def log(targetDateTime, previousDirectory, isTimeForNewDirectory):
 			line += '"' + str(errorTraceback.replace('"', "'")) + '",'
 			file.write(line + '\n')
 			file.close()
-		logging.error(f'Error: {errorMessage}\n{errorTraceback}, logged to {errorFilePath}.')
+			logging.error(f'Error: {errorMessage}\n{errorTraceback}, logged to {errorFilePath}.')
 
 	# Compute the time until the next sample will run, then schedule the run
 	targetDateTime += datetime.timedelta(seconds = numSecondsPerSample)
