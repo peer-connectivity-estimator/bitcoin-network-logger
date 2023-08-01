@@ -177,8 +177,9 @@ def onExit():
 	if isI2PUp(): stopI2P()
 	if isCJDNSUp(): stopCJDNS()
 	print()
+	print('Resolving Traceroute Threads...')
 	for i, tracerouteFutureDict in enumerate(tracerouteFutureDicts):
-		print(f'Resolving Traceroute Thread {i + 1} / {len(tracerouteFutureDicts)}...')
+		#print(f'Resolving Traceroute Thread {i + 1} / {len(tracerouteFutureDicts)}...')
 		resolveConcurrentTraceroutes(tracerouteFutureDict)
 	print()
 	print('Have a nice day!')
@@ -2038,15 +2039,22 @@ def appendTracerouteToCsv(address, directory, tracerouteOutput, numHops, reached
 		hopNumber = parts.pop(0) # Remove the hop number
 		ip = parts.pop(0)
 		# Check for hostname and remove parentheses
-		if ip != "*":
+		if ip != '*':
 			hostname = parts.pop(0).strip('()') if parts[0].startswith('(') else ''
 		else:
 			hostname = ''
-		RTTs = [float(part.replace('ms', '')) for part in parts if 'ms' in part and part != '*'] # Only get milliseconds
+		if hostname == ip: hostname = ''
+		RTTs = []
+		for part in parts:
+			if 'ms' in part and part != '*':
+				try:
+					RTTs.append(float(part.replace('ms', '')))
+				except:
+					pass
 		avgRTT = '{:.4f}'.format(sum(RTTs) / len(RTTs)) if RTTs else ''
 		addressField = f'{hostname} ({ip})' if hostname else ip
-		if ip == "*":
-			newRow[index + numColumnsBeforeRTTList] = '*' # Record * without latency
+		if ip == '*':
+			newRow[index + numColumnsBeforeRTTList] = '*'
 		else:
 			newRow[index + numColumnsBeforeRTTList] = f'{addressField},{avgRTT}'
 	existingRows.append(newRow)
