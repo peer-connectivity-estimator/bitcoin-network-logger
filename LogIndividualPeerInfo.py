@@ -1897,8 +1897,8 @@ def finalizeLogDirectory(directory):
 	global outputFilesToTransferPath, outputFilesToTransfer
 	print(f'Finalizing {directory}...')
 	outputFilePath = directory + '.tar.xz'
-	terminal(f'tar -C "{directory}" -cf - . | xz -9e - > "{outputFilePath}"')
-	#terminal(f'cd "{directory}" && tar -cf - . | xz -9e - > "../{outputFilePath}"')
+	contents = ' '.join(os.listdir(directory))
+	terminal(f'tar -C "{directory}" -cf - {contents} | xz -9e - > "{outputFilePath}"')
 	#terminal(f'tar cf - "{directory}" | xz -9e - > "{outputFilePath}"') # Also compresses the directory
 	if os.path.exists(outputFilePath):
 		if os.path.getsize(outputFilePath) > 0:
@@ -1933,7 +1933,7 @@ def resolveConcurrentIcmpPings(executor, futureDict, backupPingsAddresses, force
 	if forceShutdown:
 		# Cancel all pending futures and shut down the executor
 		executor.shutdown(wait=False, cancel_futures=True)
-		return result # If forceShutdown is True, you can just return an empty result (or handle it in any other way you like)
+		return result
 
 	for future in concurrent.futures.as_completed(futureDict):
 		address = futureDict[future]
@@ -1979,8 +1979,9 @@ def callTracerouteOnAddress(address, directory, numTries=2, numSecondsPerTry=3, 
 		# Break the loop if we've hit the consecutive timeout limit, which counts the number of * hops and terminates after maxConsecutiveTimeouts
 		if consecutiveTimeouts >= maxConsecutiveTimeouts:
 			reachedDestination = False
-			numHops -= consecutiveTimeouts + 1
+			numHops -= consecutiveTimeouts
 			break
+	numHops -= 1
 	process.kill()
 	# Ensure only one concurrent.futures thread can access the resource at once
 	with tracerouteThreadLock:
@@ -1989,7 +1990,7 @@ def callTracerouteOnAddress(address, directory, numTries=2, numSecondsPerTry=3, 
 
 # After running inetutils-traceroute, this function processes the result and appends it to the JSON file
 def appendTracerouteToCsv(address, directory, tracerouteOutput, numHops, reachedDestination):
-	rows = tracerouteOutput.strip().split('\n')[1:numHops+1] # Include only the valid hops
+	rows = tracerouteOutput.strip().split('\n')[1:numHops+1]
 	tracerouteFilePath = os.path.join(directory, 'traceroutes.csv')
 	try:
 		with open(tracerouteFilePath, 'r') as file:
@@ -2005,12 +2006,20 @@ def appendTracerouteToCsv(address, directory, tracerouteOutput, numHops, reached
 	newRow = [address, numHops, reachedDestinationStr] + [''] * len(rows)
 	for index, row in enumerate(rows):
 		parts = row.split()
-		hostname = parts[1].strip('()') if '(' in parts[1] else ''
-		ip = parts[2].strip('()') if hostname else parts[1]
-		addressField = f'{hostname} ({ip})' if hostname else ip
-		RTTs = [float(part.replace('ms', '')) for part in parts[3:5] if part != '*']
+		hopNumber = parts.pop(0) # Remove the hop number
+		ip = parts.pop(0)
+		# Check for hostname and remove parentheses
+		if ip != "*":
+			hostname = parts.pop(0).strip('()') if parts[0].startswith('(') else ''
+		else:
+			hostname = ''
+		RTTs = [float(part.replace('ms', '')) for part in parts if 'ms' in part and part != '*'] # Only get milliseconds
 		avgRTT = '{:.4f}'.format(sum(RTTs) / len(RTTs)) if RTTs else ''
-		newRow[index + numColumnsBeforeRTTList] = f'{addressField},{avgRTT}'
+		addressField = f'{hostname} ({ip})' if hostname else ip
+		if ip == "*":
+			newRow[index + numColumnsBeforeRTTList] = '*' # Record * without latency
+		else:
+			newRow[index + numColumnsBeforeRTTList] = f'{addressField},{avgRTT}'
 	existingRows.append(newRow)
 	with open(tracerouteFilePath, 'w', newline='') as file:
 		writer = csv.writer(file)
@@ -2055,6 +2064,22 @@ def log(targetDateTime, previousDirectory, isTimeForNewDirectory):
 
 		if isTimeForNewDirectory:
 			# Restart the Bitcoin node to get a new fresh set of peers
+
+			globalBitcoinPingTimes = {}
+			globalIcmpPingTimes = {}
+			if icmpPingExecutor is not None:
+				print('Resolving Ping Thread...')
+				icmpPingResults = resolveConcurrentIcmpPings(icmpPingExecutor, icmpPingFutureDict, globalIcmpPingTimes)
+			icmpPingExecutor = None
+			icmpPingFutureDict = {}
+
+			if len(tracerouteFutureDicts) > 0:
+				print('Resolving Traceroute Threads...')
+				for tracerouteFutureDict in tracerouteFutureDicts:
+					resolveConcurrentTraceroutes(tracerouteFutureDict)
+			globalTracerouteAddressList = []
+			tracerouteFutureDicts = []
+
 			if len(previousDirectory) > 0:
 				if isTorUp(): stopTor()
 				if isI2PUp(): stopI2P()
@@ -2080,21 +2105,6 @@ def log(targetDateTime, previousDirectory, isTimeForNewDirectory):
 				else:
 					directory = f'Research_Logs/Bitcoin_Log_{directoryNumber}'
 				compressedDirectoryExists = os.path.exists(directory + '.tar.xz')
-
-			globalBitcoinPingTimes = {}
-			globalIcmpPingTimes = {}
-			if icmpPingExecutor is not None:
-				print('Resolving Ping Thread...')
-				icmpPingResults = resolveConcurrentIcmpPings(icmpPingExecutor, icmpPingFutureDict, globalIcmpPingTimes)
-			icmpPingExecutor = None
-			icmpPingFutureDict = {}
-
-			if len(tracerouteFutureDicts) > 0:
-				print('Resolving Traceroute Threads...')
-				for tracerouteFutureDict in tracerouteFutureDicts:
-					resolveConcurrentTraceroutes(tracerouteFutureDict)
-			globalTracerouteAddressList = []
-			tracerouteFutureDicts = []
 
 			# If a sample terminates prematurely, then it is still uncompressed.
 			# Rather than deleting it (like the code below), we let the sample live and get finalized
@@ -2183,6 +2193,7 @@ def log(targetDateTime, previousDirectory, isTimeForNewDirectory):
 				if address not in globalBitcoinPingTimes:
 					globalBitcoinPingTimes[address] = ''
 				if address not in globalIcmpPingTimes:
+					peersNeedingTraceroute.append(address) # Register the address for ICMP ping
 					globalIcmpPingTimes[address] = ''
 				if globalBitcoinPingTimes[address] != peersToUpdate[address]['bitcoinPingRoundTripTime']:
 					peersNeedingIcmpPingUpdate.append(address) # Register the address for ICMP ping
@@ -2232,12 +2243,16 @@ def log(targetDateTime, previousDirectory, isTimeForNewDirectory):
 						peersToUpdate[address][f'Time_{msg} (milliseconds)'] = time
 						peersToUpdate[address][f'MaxTime_{msg} (milliseconds)'] = timeMax
 
+		# Resolve any outstanding ICMP pings from the last sample before scheduling again
 		if icmpPingExecutor is not None:
 			# Resolve ICMP pings, and apply the results to the log data
 			icmpPingResults = resolveConcurrentIcmpPings(icmpPingExecutor, icmpPingFutureDict, globalIcmpPingTimes)
 			for address in icmpPingResults:
-				globalIcmpPingTimes[address] = icmpPingResults[address]
-				peersToUpdate[address]['icmpPingRoundTripTime'] = globalIcmpPingTimes[address]
+				if icmpPingResults[address] != '':
+					globalIcmpPingTimes[address] = icmpPingResults[address]
+				if address in peersToUpdate:
+					# The address may no longer be in the peersToUpdate if the peer disconnected within the last interval; we still track it
+					peersToUpdate[address]['icmpPingRoundTripTime'] = globalIcmpPingTimes[address]
 			icmpPingExecutor = None
 
 		# Send ICMP pings in a separate set of threads
