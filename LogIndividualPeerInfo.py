@@ -31,6 +31,7 @@ import threading
 import time
 import traceback
 
+os.system('clear')
 
 # The logger will take one sample for every numSecondsPerSample interval
 numSecondsPerSample = 10
@@ -94,7 +95,6 @@ EnabledCJDNS = False
 # Main function loop
 def main():
 	global EnabledIPv4, EnabledIPv6, EnabledTor, EnabledI2P, EnabledCJDNS, outputFilesToTransferPath, bitcoinDirectory
-	os.system('clear')
 	atexit.register(onExit)
 
 	print('Which networks would you like enabled?')
