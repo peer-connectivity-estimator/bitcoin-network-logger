@@ -31,6 +31,7 @@ import threading
 import time
 import traceback
 
+os.system('clear')
 
 # The logger will take one sample for every numSecondsPerSample interval
 numSecondsPerSample = 10
@@ -46,12 +47,17 @@ if os.path.exists(f'/media/{user}/BTC'):
 	outputFilesToTransferPath = f'/media/{user}/BTC/Official_Research_Logs'
 elif os.path.exists('/media/sf_Shared_Folder'):
 	outputFilesToTransferPath = '/media/sf_Shared_Folder/Official_Research_Logs'
+print(f'Path to send finalized outputs: "{outputFilesToTransferPath}"')
 
 # The path where the Bitcoin blockchain is stored
 bitcoinDirectory = f'/home/{user}/.bitcoin'
 if os.path.exists(f'/home/{user}/BitcoinFullLedger'):
 	numSamplesPerDirectory = 10000 # 10000*10/60/60 = 27.7 hours
 	bitcoinDirectory = f'/home/{user}/BitcoinFullLedger'
+print(f'Bitcoin directory path: "{outputFilesToTransferPath}"')
+print(f'Number of seconds per sample: {numSecondsPerSample}')
+print(f'Number of samples per directory: {numSamplesPerDirectory}')
+print()
 
 
 # Keep three decimal points for timestamps and time durations
@@ -90,7 +96,6 @@ EnabledCJDNS = False
 # Main function loop
 def main():
 	global EnabledIPv4, EnabledIPv6, EnabledTor, EnabledI2P, EnabledCJDNS, outputFilesToTransferPath, bitcoinDirectory
-	os.system('clear')
 	atexit.register(onExit)
 
 	print('Which networks would you like enabled?')
