@@ -57,6 +57,7 @@ if os.path.exists(f'/home/{user}/BitcoinFullLedger'):
 print(f'Bitcoin directory path: "{outputFilesToTransferPath}"')
 print(f'Number of seconds per sample: {numSecondsPerSample}')
 print(f'Number of samples per directory: {numSamplesPerDirectory}')
+print()
 
 
 # Keep three decimal points for timestamps and time durations
