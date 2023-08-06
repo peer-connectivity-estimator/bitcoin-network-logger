@@ -11,7 +11,7 @@ directory has 10000 samples. The bucket logger makes a row every 100 samples.
 
 __author__ = 'Simeon Wuthier'
 __contact__ = 'swuthier@uccs.edu'
-__date__ = '2023/06/09'
+__date__ = '2023/08/06'
 
 from threading import Timer
 import atexit
@@ -30,6 +30,18 @@ import sys
 import threading
 import time
 import traceback
+
+filesToLog = {
+	'bitcoin_debug.log': False,
+	'tor.log': False,
+	'i2pd.log': False,
+	'blockchain_state_info.csv': True,
+	'address_manager_bucket_info.csv': True,
+	'traceroutes.csv': True,
+	'machine_info.txt': True,
+	'individual_peer_logs': True,
+	'errors.csv': True,
+}
 
 os.system('clear')
 
@@ -52,7 +64,8 @@ print(f'Path to send finalized outputs: "{outputFilesToTransferPath}"')
 # The path where the Bitcoin blockchain is stored
 bitcoinDirectory = f'/home/{user}/.bitcoin'
 if os.path.exists(f'/home/{user}/BitcoinFullLedger'):
-	numSamplesPerDirectory = 10000 # 10000*10/60/60 = 27.7 hours
+	#numSamplesPerDirectory = 10000 # 10000*10/60/60 = 27.7 hours
+	numSamplesPerDirectory = 10000000000000000 # 10000000000000000*10/60/60/24/365 = 3170979198 years
 	bitcoinDirectory = f'/home/{user}/BitcoinFullLedger'
 print(f'Bitcoin directory path: "{outputFilesToTransferPath}"')
 print(f'Number of seconds per sample: {numSecondsPerSample}')
@@ -62,6 +75,9 @@ print()
 
 # Keep three decimal points for timestamps and time durations
 timePrecision = 1000000
+
+# If True, the logger will skip each sample where the machine isn't connected to the internet
+doNotLogWhenMachineIsOffline = True
 
 # Initialize the global Bitcoin-related variables
 prevBlockHeight = None
@@ -215,15 +231,17 @@ def isBitcoinUp():
 # Start Tor instance
 def startTor(logDirectory = ''):
 	if not isTorUp():
-		logFilePath = os.path.join('..', logDirectory, 'tor.log')
-		subprocess.Popen([f'gnome-terminal -t "Tor Instance" -- bash -c "cd tor-researcher && ./run.sh \'{logFilePath}\'"'], shell=True)
+		if filesToLog['tor.log']: logFilePath = ' \'' + os.path.join('..', logDirectory, 'tor.log') + '\''
+		else: logFilePath = ''
+		subprocess.Popen([f'gnome-terminal -t "Tor Instance" -- bash -c "cd tor-researcher && ./run.sh{logFilePath}"'], shell=True)
 		time.sleep(1)
 
 # Start I2P instance
 def startI2P(logDirectory = ''):
 	if not isI2PUp():
-		logFilePath = os.path.join('..', logDirectory, 'i2pd.log')
-		subprocess.Popen([f'gnome-terminal -t "I2P Instance" -- bash -c "cd i2pd-researcher && ./run.sh \'{logFilePath}\'"'], shell=True)
+		if filesToLog['i2pd.log']: logFilePath = ' \'' + os.path.join('..', logDirectory, 'i2pd.log') + '\''
+		else: logFilePath = ''
+		subprocess.Popen([f'gnome-terminal -t "I2P Instance" -- bash -c "cd i2pd-researcher && ./run.sh{logFilePath}"'], shell=True)
 		time.sleep(1)
 
 # Start CJDNS instance
@@ -255,7 +273,11 @@ def startBitcoin():
 	rpcReady = False
 	while rpcReady is False:
 		if not isBitcoinUp():
-			subprocess.Popen([f'gnome-terminal -t "Bitcoin Core Instance" -- bash ./run.sh noconsole{networkParams} --daemon --debug=all --donotlogtoconsole'], shell=True)
+			if filesToLog['bitcoin_debug.log']:
+				subprocess.Popen([f'gnome-terminal -t "Bitcoin Core Instance" -- bash ./run.sh noconsole{networkParams} --daemon --debug=all'], shell=True)
+			else:
+				subprocess.Popen([f'gnome-terminal -t "Bitcoin Core Instance" -- bash ./run.sh noconsole{networkParams} --daemon'], shell=True)
+
 			time.sleep(5)
 
 		time.sleep(1)
@@ -1927,9 +1949,11 @@ def finalizeLogDirectory(directory):
 	global outputFilesToTransferPath, outputFilesToTransfer
 	print(f'Finalizing {directory}...')
 	outputFilePath = directory + '.tar.xz'
-	contents = ' '.join(os.listdir(directory))
-	terminal(f'tar -C "{directory}" -cf - {contents} | xz -9e - > "{outputFilePath}"')
-	#terminal(f'tar cf - "{directory}" | xz -9e - > "{outputFilePath}"') # Also compresses the directory
+	try:
+		contents = ' '.join(os.listdir(directory))
+		terminal(f'tar -C "{directory}" -cf - {contents} | xz -9e - > "{outputFilePath}"')
+	except:
+		terminal(f'tar cf - "{directory}" | xz -9e - > "{outputFilePath}"') # Also compresses the directory
 	if os.path.exists(outputFilePath):
 		if os.path.getsize(outputFilePath) > 0:
 			terminal(f'rm -rf "{directory}"')
@@ -1949,6 +1973,10 @@ def finalizeLogDirectory(directory):
 	else:
 		for source in outputFilesToTransfer:
 			print(f'\tCould not export {source} to {outputFilesToTransferPath}, will retry next cycle.')
+
+# Returns True if the machine is connected to the internet, otherwise returns False
+def isOnline():
+	return 'rtt min/avg/max/mdev' in terminal('ping -c 1 -W 5 8.8.8.8')
 
 # Given a list of addresses, concurrently send an ICMP ping to each of them
 def sendConcurrentIcmpPings(addresses):
@@ -2087,6 +2115,11 @@ def log(targetDateTime, previousDirectory, isTimeForNewDirectory):
 	timestampSeconds = int(getTimestampEpoch(timestamp) * timePrecision) / timePrecision
 	directory = previousDirectory
 	try:
+		if doNotLogWhenMachineIsOffline and not isOnline():
+			print('Machine is not connected to the internet...')
+			# No internet connection, skip the sample without registering it to errors.csv
+			raise ValueError('noerror')
+
 		getblockchaininfo = bitcoin('getblockchaininfo', True)
 
 		isLastDirectoryIBD = '_IBD_' in previousDirectory
@@ -2120,7 +2153,8 @@ def log(targetDateTime, previousDirectory, isTimeForNewDirectory):
 				if isTorUp(): stopTor()
 				if isI2PUp(): stopI2P()
 				if isCJDNSUp(): stopCJDNS()
-				terminal(f'mv {os.path.join(bitcoinDirectory, "debug.log")} {previousDirectory}')
+				if filesToLog['bitcoin_debug.log']:
+					terminal(f'mv {os.path.join(bitcoinDirectory, "debug.log")} {previousDirectory}')
 				finalizeLogDirectory(previousDirectory)
 				while not isBitcoinUp():
 					startBitcoin()
@@ -2153,7 +2187,8 @@ def log(targetDateTime, previousDirectory, isTimeForNewDirectory):
 			# After the node has restarted and is up and running, create the directory
 			print('Creating directory:', directory)
 			os.makedirs(directory)
-			writeInitialMachineInfo(timestamp, directory)
+			if filesToLog['machine_info.txt']:
+				writeInitialMachineInfo(timestamp, directory)
 		
 		if EnabledTor and not isTorUp():
 			startTor(directory)
@@ -2347,7 +2382,8 @@ def log(targetDateTime, previousDirectory, isTimeForNewDirectory):
 		# Send ICMP pings in a separate set of threads
 		icmpPingExecutor, icmpPingFutureDict = sendConcurrentIcmpPings(peersNeedingIcmpPingUpdate)
 		# For unregistered traceroute addresses, run their traceroute thread
-		if len(peersNeedingTraceroute) > 0:
+		
+		if filesToLog['traceroutes.csv'] and len(peersNeedingTraceroute) > 0:
 			tracerouteFutureDicts.append(sendConcurrentTraceroutes(tracerouteExecutor, peersNeedingTraceroute, directory))
 
 		# If a peer connected then disconnected in between the sample duration, we still want to log it
@@ -2367,13 +2403,15 @@ def log(targetDateTime, previousDirectory, isTimeForNewDirectory):
 		sampleNumber = logMachineState(timestamp, directory, getpeerinfo, getblockchaininfo, getmempoolinfo, newblockbroadcastsblockinformation, newheaderbroadcastsblockinformation, timestampMedianDifference)
 		print(f'Adding Sample #{sampleNumber} to {directory}:')
 		
-		maybeLogBlockState(timestamp, directory, getblockchaininfo, getchaintips, newblockbroadcastsblockinformation, newheaderbroadcastsblockinformation)
-		if (sampleNumber - 1) % numSamplesPerAddressManagerBucketLog == 0:
+		if filesToLog['blockchain_state_info.csv']:
+			maybeLogBlockState(timestamp, directory, getblockchaininfo, getchaintips, newblockbroadcastsblockinformation, newheaderbroadcastsblockinformation)
+		
+		if filesToLog['address_manager_bucket_info.csv'] and (sampleNumber - 1) % numSamplesPerAddressManagerBucketLog == 0:
 			logAddressManagerBucketInfo(timestamp, directory)
 
-		for address in peersToUpdate:
-			logNode(address, timestamp, directory, peersToUpdate[address], getblockchaininfo['blocks'])
-
+		if filesToLog['individual_peer_logs']:
+			for address in peersToUpdate:
+				logNode(address, timestamp, directory, peersToUpdate[address], getblockchaininfo['blocks'])
 
 		globalNumSamples += 1
 		totalNumDays = int((timestamp - globalLoggingStartTimestamp).total_seconds() / (60 * 60 * 24) * timePrecision) / timePrecision
@@ -2383,7 +2421,7 @@ def log(targetDateTime, previousDirectory, isTimeForNewDirectory):
 	except Exception as e:
 		errorMessage = str(e)
 		# The custom 'noerror' message will not be logged, while other errors will
-		if errorMessage != 'noerror':
+		if filesToLog['errors.csv'] and errorMessage != 'noerror':
 			errorTraceback = traceback.format_exc()
 			errorFilePath = os.path.join(directory, 'errors.csv')
 			if not os.path.exists(errorFilePath):
