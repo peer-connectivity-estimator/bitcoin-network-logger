@@ -43,6 +43,7 @@ The compressed log directories are bulk, and contain `numSamplesPerDirectory` sa
 * **tor.log** -- Tor's debug log. This is disabled by default and is not generated.
 * **i2pd.log** -- I2P's debug log. This is disabled by default and is not generated.
 The last type of file contains one file for each peer connection, and the corresponding file name is the peer's address.
+* **errors.csv** -- A list of each error received by the logger, including a stack trace and line number. If this file exists, then please consider submitting its contents as an issue request so that this error can be promptly resolved.
 
 Modifications
 ----------------
