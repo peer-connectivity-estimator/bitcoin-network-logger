@@ -1,5 +1,9 @@
 Bitcoin Network Logger
 =====================================
+Log thousands of parameters specific to Bitcoin Core at a recurring interval, and generate data insights that have never been seen before.
+
+---
+
 This is a fork from the official Bitcoin Core main branch, which includes many additional features for testing the protocol and functionality of Bitcoin, as well as real-time logging of each individual peer connection, supporting Bitcoin over IPv4, IPv6, Tor, I2P, and CJDNS.
 
 Instructions
