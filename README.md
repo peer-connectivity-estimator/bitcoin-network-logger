@@ -1,12 +1,12 @@
 Bitcoin Network Logger
 =====================================
-Log thousands of parameters specific to Bitcoin Core at a recurring interval, and generate data insights that have never been seen before.
+Log thousands of parameters specific to Bitcoin Core at a recurring interval, and generate data insights about the network that have never been seen before.
 
 ---
 
-This is a fork from the official Bitcoin Core main branch, which includes many additional features for testing the protocol and functionality of Bitcoin, as well as real-time logging of each individual peer connection, supporting Bitcoin over IPv4, IPv6, Tor, I2P, and CJDNS.
+This is a fork from the official Bitcoin Core main branch, which includes several additional features for testing the protocol and functionality of Bitcoin, as well as real-time logging of each individual peer connection, supporting Bitcoin over IPv4, IPv6, Tor, I2P, and CJDNS. The previous prototype can be found [here](https://github.com/simewu/bitcoin_researcher).
 
-Instructions
+Getting Started
 ----------------
 For first-time users, inside a Debian version of Linux, run `./first_compile.sh` from the terminal to install all the necessary prerequisites, compile, and run Bitcoin.
 
@@ -86,7 +86,6 @@ A new category of RPC commands exist under the label "Researcher". A few of them
 	* Number of CJDNS tried addresses
 	* Number of internal new addresses
 	* Number of internal tried addresses
-	* Last time Good was called
 * **getbucketentry** "address" -- Get a specific entry from the buckets.
 * **sendaddr** ( "peer_ip" "addrs_to_send" "seconds_offset" ) -- Send an ADDR message to a peer IP address, including a list of addresses to send, and the seconds offset for the nTime value in each address
 
