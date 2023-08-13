@@ -1,6 +1,6 @@
 Bitcoin Network Logger
 =====================================
-Log thousands of parameters specific to Bitcoin Core at a recurring interval, and generate data insights about the network that have never been seen before.
+Generate insights over thousands of parameters specific to Bitcoin Core at a recurring interval.
 
 ---
 
@@ -34,32 +34,32 @@ python3 LogIndividualPeerInfo.py
 First, check the configuration variables in the beginning of the file, which define the behaviors of the logger. Upon running the file, logs will be generated in a Research_Logs/Bitcoin_Log_X or Research_Logs/Bitcoin_**IBD**_Log_X (depending on whether the node is in Initial Block Download (IBD) mode or not), where X increments, starting at 1. At the end of each log, it will be compressed into a .tar.xz file for maximum compression, and copied over to the directory path: `outputFilesToTransferPath`. This is recommended to be an external storage device, like a USB flash drive. If the flash drive is not plugged in at the end of a sample, then it will resume logging but next time it finalizes a compressed Tar file and the directory at outputFilesToTransferPath does exist, then it will also move the past files that it was unable to move, so no data will be lost.
 
 The compressed log directories are bulk, and contain `numSamplesPerDirectory` samples/rows. They include the following files:
-* **machine_info.txt** -- Appends the machine specifications once upon directory creation
-* **machine_state.csv** -- The primary log file containing information about the machine, one row is generated every `numSecondsPerSample` seconds
-* **blockchain_state_info.csv** -- Keeps track of each newly received block (including forks)
-* **address_manager_bucket_info.csv** -- Logs the contents of the address manager buckets every `numSamplesPerAddressManagerBucketLog` samples
+* **machine_info.txt** -- Appends the machine specifications once upon directory creation.
+* **machine_state.csv** -- The primary log file containing information about the machine, one row is generated every `numSecondsPerSample` seconds.
+* **blockchain_state_info.csv** -- Keeps track of each newly received block (including forks).
+* **address_manager_bucket_info.csv** -- Logs the contents of the address manager buckets every `numSamplesPerAddressManagerBucketLog` samples.
 * **traceroutes.csv** -- A simple ICMP traceroute to each IPv4 and IPv6 connection.
 * **debug.log** -- Bitcoin's debug log with all categories enabled. Due to size limitations, this file is disabled by default, and is not generated.
 * **tor.log** -- Tor's debug log. This is disabled by default and is not generated.
 * **i2pd.log** -- I2P's debug log. This is disabled by default and is not generated.
 The last type of file contains one file for each peer connection, and the corresponding file name is the peer's address.
-* **errors.csv** -- A list of each error received by the logger, including a stack trace and line number. If this file exists, then please consider submitting its contents as an issue request so that this error can be promptly resolved.
+* **errors.csv** -- A list of each error received by the logger, including a stack trace and line number. If this file exists, then please consider submitting the file contents as an issue request so that the error can be promptly resolved.
 
 Modifications
 ----------------
 
 A new category of RPC commands exist under the label "Researcher". A few of them are as follows:
-* **count** -- Displays the number of peer connections
-* **ls** -- Displays the list of peer connections and each connection's ID
+* **count** -- Displays the number of peer connections.
+* **ls** -- Displays the list of peer connections and each connection's ID.
 * **getmsginfo** -- Display the aggregate information about each message type, consisting of:
-	* Count for how many times the message was received
-	* Average number of bytes for the message
-	* Maximum number of bytes for the message
-	* Average number of clocks to process the message
-	* Maximum number of clocks to process the message
-	* At the end, a list of all undocumented messages received in Bitcoin
-* **getpeersmsginfo** -- Display the getmsginfo for each individual peer connection
-* **getpeersmsginfoandclear** -- Same as getpeersmsginfo, but then it clears all the data each RPC call
+	* Count for how many times the message was received.
+	* Average number of bytes for the message.
+	* Maximum number of bytes for the message.
+	* Average number of clocks to process the message.
+	* Maximum number of clocks to process the message.
+	* At the end, a list of all undocumented messages received in Bitcoin.
+* **getpeersmsginfo** -- Display the getmsginfo for each individual peer connection.
+* **getpeersmsginfoandclear** -- Same as getpeersmsginfo, but then it clears all the data each RPC call.
 * **listnewbroadcasts** -- Displays information about the blocks and transactions for each peer, consisting of:
 	* Number of unique block broadcasts for each peer
 	* Latest block propagation time (system time)

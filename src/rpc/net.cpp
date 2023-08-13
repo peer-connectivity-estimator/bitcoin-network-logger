@@ -1375,6 +1375,8 @@ static RPCHelpMan listnewbroadcasts()
     UniValue subresultT(UniValue::VOBJ);
     subresultT.pushKV("timestamp", now);
     subresultT.pushKV("timestamp_median", now_median);
+    result.pushKV("timestamps", subresultT);
+
     return result;
 },
     };
@@ -1472,6 +1474,7 @@ static RPCHelpMan listnewbroadcastsandclear()
     UniValue subresultT(UniValue::VOBJ);
     subresultT.pushKV("timestamp", now);
     subresultT.pushKV("timestamp_median", now_median);
+    result.pushKV("timestamps", subresultT);
 
     return result;
 },

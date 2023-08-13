@@ -31,6 +31,8 @@ import threading
 import time
 import traceback
 
+os.system('clear')
+
 filesToLog = {
 	'bitcoin_debug.log': False,
 	'tor.log': False,
@@ -43,7 +45,6 @@ filesToLog = {
 	'errors.csv': True,
 }
 
-os.system('clear')
 
 # The logger will take one sample for every numSecondsPerSample interval
 numSecondsPerSample = 10
@@ -78,6 +79,10 @@ timePrecision = 1000000
 
 # If True, the logger will skip each sample where the machine isn't connected to the internet
 doNotLogWhenMachineIsOffline = True
+
+# If True, the logger will skip each sample that involves the node in initial block download mode
+# If False, then IBD logs will be logged separately into Bitcoin_IBD_Log_#.tar.xz files
+doNotLogWhenInInitialBlockDownload = True
 
 # Initialize the global Bitcoin-related variables
 prevBlockHeight = None
@@ -2022,24 +2027,37 @@ def callTracerouteOnAddress(address, directory, numTries=2, numSecondsPerTry=3, 
 	consecutiveTimeouts = 0
 	tracerouteOutput = ''
 	numHops = 0
-	reachedDestination = True
+	reachedDestination = False
 	timeoutPattern = re.compile(r'(?:\*\s+)+\*')
+	# Regular expression pattern to extract IPv4 and IPv6 addresses
+	ipPattern = re.compile(r'(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}|\[[0-9a-fA-F:]+\])')
+	lastHopIP = None
 	for line in iter(process.stdout.readline, b''):
 		line_decoded = line.decode('utf-8')
 		tracerouteOutput += line_decoded
 		#print(line_decoded.strip())
 		numHops += 1
+		# Extract IP address from the hop
+		match = ipPattern.search(line_decoded)
+		if match:
+			lastHopIP = match.group(1)
 		# Check if the result has a timeout (indicated by '*')
 		if timeoutPattern.search(line_decoded.strip()):
 			consecutiveTimeouts += 1
 		else:
 			consecutiveTimeouts = 0
-		# Break the loop if we've hit the consecutive timeout limit, which counts the number of * hops and terminates after maxConsecutiveTimeouts
+		# Break the loop if we've hit the consecutive timeout limit
 		if consecutiveTimeouts >= maxConsecutiveTimeouts:
-			reachedDestination = False
 			numHops -= consecutiveTimeouts
 			break
-	numHops -= 1
+	# Check if the last hop IP matches the target address
+	if lastHopIP == address:
+		reachedDestination = True
+
+	numHops -= 1 # Fix the off-by-one offset
+	if numHops < 0: # Fix a failed traceroute
+		numHops = 0
+		reachedDestination = False
 	process.kill()
 	# Ensure only one concurrent.futures thread can access the resource at once
 	with tracerouteThreadLock:
@@ -2060,7 +2078,11 @@ def appendTracerouteToCsv(address, directory, tracerouteOutput, numHops, reached
 	header = existingRows[0]
 	for hopNumber in range(len(header) - numColumnsBeforeRTTList, len(rows)):
 		header.append(f'Hop {hopNumber + 1} (Address, RTT) (milliseconds)')
-	reachedDestinationStr = '1' if reachedDestination else '0'
+	if numHops == 0: # If failed traceroute
+		numHops = ''
+		reachedDestinationStr = ''
+	else:
+		reachedDestinationStr = '1' if reachedDestination else '0'
 	newRow = [address, numHops, reachedDestinationStr] + [''] * len(rows)
 	for index, row in enumerate(rows):
 		parts = row.split()
@@ -2121,6 +2143,11 @@ def log(targetDateTime, previousDirectory, isTimeForNewDirectory):
 			raise ValueError('noerror')
 
 		getblockchaininfo = bitcoin('getblockchaininfo', True)
+
+		if doNotLogWhenInInitialBlockDownload and getblockchaininfo['initialblockdownload']:
+			print('Blockchain is in initial block download mode, skipping sample...')
+			# Skip the sample without registering it to errors.csv
+			raise ValueError('noerror')
 
 		isLastDirectoryIBD = '_IBD_' in previousDirectory
 		if isLastDirectoryIBD != getblockchaininfo['initialblockdownload']:
