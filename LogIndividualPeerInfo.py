@@ -1075,7 +1075,12 @@ def makeAddressManagerBucketStateHeader(numNewBuckets, numTriedBuckets):
 def logAddressManagerBucketInfo(timestamp, directory):
 	global globalPrevNewBuckets, globalPrevTriedBuckets
 	print('\tLogging address manager bucket information...')
-	getbucketinfo = bitcoin('getbucketinfo', True)
+	try:
+		getbucketinfo = bitcoin('getbucketinfo', True)
+	except:
+		# If the RPC failed, return
+		return
+	
 	numTriedBuckets = 256
 	numNewBuckets = 1024
 
@@ -2194,7 +2199,11 @@ def log(targetDateTime, previousDirectory, isTimeForNewDirectory):
 			# No internet connection, skip the sample without registering it to errors.csv
 			raise ValueError('noerror')
 
-		getblockchaininfo = bitcoin('getblockchaininfo', True)
+		try:
+			getblockchaininfo = bitcoin('getblockchaininfo', True)
+		except:
+			# If the RPC failed, we can continue without registering it to errors.csv
+			raise ValueError('noerror')
 
 		if doNotLogWhenInInitialBlockDownload and getblockchaininfo['initialblockdownload']:
 			print('Blockchain is in initial block download mode, skipping sample...')
@@ -2241,7 +2250,11 @@ def log(targetDateTime, previousDirectory, isTimeForNewDirectory):
 				# Reset the target datetime to accommodate for the time just spent finalizing the sample
 				timestamp = targetDateTime = datetime.datetime.now()
 				timestampSeconds = int(getTimestampEpoch(timestamp) * timePrecision) / timePrecision
-				getblockchaininfo = bitcoin('getblockchaininfo', True)
+				try:
+					getblockchaininfo = bitcoin('getblockchaininfo', True)
+				except:
+					# If the RPC failed, we can continue without registering it to errors.csv
+					raise ValueError('noerror')
 
 			sampleNumber = 1
 			compressedDirectoryExists = True
@@ -2286,6 +2299,7 @@ def log(targetDateTime, previousDirectory, isTimeForNewDirectory):
 		except:
 			# If the RPC failed, we can continue without registering it to errors.csv
 			raise ValueError('noerror')
+
 		peersToUpdate = {}
 
 		newblockbroadcastsblockinformation = {'hash': '', 'propagation_time': '', 'propagation_time_median_of_peers': '', 'node_received_by': ''}
@@ -2386,6 +2400,7 @@ def log(targetDateTime, previousDirectory, isTimeForNewDirectory):
 			peersToUpdate[address]['port'] = int(port)
 			peersToUpdate[address]['connectionID'] = int(peerEntry['id'])
 			peersToUpdate[address]['connectionDuration'] = int((timestampSeconds - peerEntry['conntime']) * timePrecision) / timePrecision
+			if peersToUpdate[address]['connectionDuration'] <= 0: peersToUpdate[address]['connectionDuration'] = ''
 			peersToUpdate[address]['secondsOffset'] = peerEntry['timeoffset']
 			if 'pingtime' in peerEntry: peersToUpdate[address]['bitcoinPingRoundTripTime'] = peerEntry['pingtime'] * 1000
 
