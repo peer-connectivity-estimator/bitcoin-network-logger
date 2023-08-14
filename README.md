@@ -39,6 +39,7 @@ The compressed log directories are bulk, and contain `numSamplesPerDirectory` sa
 * **blockchain_state_info.csv** -- Keeps track of each newly received block (including forks).
 * **address_manager_bucket_info.csv** -- Logs the contents of the address manager buckets every `numSamplesPerAddressManagerBucketLog` samples.
 * **traceroutes.csv** -- A simple ICMP traceroute to each IPv4 and IPv6 connection.
+* **transaction_timestamps.csv** -- Each transaction's truncated hash and it's corresponding receive timestamp.
 * **debug.log** -- Bitcoin's debug log with all categories enabled. Due to size limitations, this file is disabled by default, and is not generated.
 * **tor.log** -- Tor's debug log. This is disabled by default and is not generated.
 * **i2pd.log** -- I2P's debug log. This is disabled by default and is not generated.
@@ -68,6 +69,7 @@ A new category of RPC commands exist under the label "Researcher". A few of them
 	* Fee in satoshi for the unique transactions for each peer
 	* Size in bytes for the unique transactions for each peer
 * **listnewbroadcastsandclear** -- Same as listnewbroadcasts, but then it clears all the data each RPC call
+* **listtransactiontimesandclear** -- Returns every truncated transaction hash received since the last RPC call, and each transaction's corresponding UNIX epoch.
 * **getbucketinfo** -- Print the entire contents of the every new and tried bucket, including statistics:
 	* Addrman nKey
 	* Number of tried entries
