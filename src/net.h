@@ -803,6 +803,7 @@ public:
     mutable std::map<std::string, int> newTxBroadcasts GUARDED_BY(m_newTxBroadcastsMutex);
     mutable std::map<std::string, int> newTxFeeBroadcasts GUARDED_BY(m_newTxBroadcastsMutex);
     mutable std::map<std::string, int> newTxSizeBroadcasts GUARDED_BY(m_newTxBroadcastsMutex);
+    mutable std::vector<std::pair<std::string, int64_t>> listOfTransactions GUARDED_BY(m_newTxBroadcastsMutex);
 
     mutable uint64_t blockPropagationTime = 0 GUARDED_BY(m_newBlockBroadcastsMutex);
     mutable uint64_t blockPropagationTimeMedian = 0 GUARDED_BY(m_newBlockBroadcastsMutex);

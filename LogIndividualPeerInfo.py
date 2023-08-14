@@ -11,7 +11,7 @@ directory has 10000 samples. The bucket logger makes a row every 100 samples.
 
 __author__ = 'Simeon Wuthier'
 __contact__ = 'swuthier@uccs.edu'
-__date__ = '2023/08/06'
+__date__ = '2023/08/13'
 
 from threading import Timer
 import atexit
@@ -34,11 +34,12 @@ import traceback
 os.system('clear')
 
 filesToLog = {
+	'transaction_timestamps.csv': True,
+	'address_manager_bucket_info.csv': True,
 	'bitcoin_debug.log': False,
 	'tor.log': False,
 	'i2pd.log': False,
 	'blockchain_state_info.csv': True,
-	'address_manager_bucket_info.csv': True,
 	'traceroutes.csv': True,
 	'machine_info.txt': True,
 	'individual_peer_logs': True,
@@ -437,7 +438,7 @@ def maybeLogBlockState(timestamp, directory, getblockchaininfo, getchaintips, ne
 
 	filePath = os.path.join(directory, 'blockchain_state_info.csv')
 	if not os.path.exists(filePath):
-		print(f'Creating blockchain state file')
+		print(f'\tCreating blockchain state file')
 		file = open(filePath, 'w')
 		file.write(makeBlockStateHeader() + '\n')
 		prevLine = ''
@@ -881,7 +882,7 @@ def logMachineState(timestamp, directory, getpeerinfo, getblockchaininfo, getmem
 	global targetDateTime
 	filePath = os.path.join(directory, 'machine_state_info.csv')
 	if not os.path.exists(filePath):
-		print(f'Creating machine state file')
+		print(f'\tCreating machine state file')
 		file = open(filePath, 'w')
 		file.write(makeMachineStateHeader() + '\n')
 		prevLine = ''
@@ -984,6 +985,48 @@ def logMachineState(timestamp, directory, getpeerinfo, getblockchaininfo, getmem
 	file.close()
 	return numPrevLines
 
+# Generate the timestamps CSV header
+def makeTransactionTimestampsHeader():
+	line = 'Timestamp,'
+	line += 'Timestamp (UNIX epoch),'
+	line += 'Number of Transaction Entries,'
+	line += 'Transaction Receive Times (JSON),'
+	return line
+
+# Log the transaction hashes and their corresponding receive timestamp
+def logTransactionTimestamps(timestamp, directory):
+	try:
+		listtransactiontimesandclear = bitcoin('listtransactiontimesandclear', True)
+	except: return
+
+	filePath = os.path.join(directory, 'transaction_timestamps.csv')
+	if not os.path.exists(filePath):
+		file = open(filePath, 'w')
+		file.write(makeTransactionTimestampsHeader() + '\n')
+	else:
+		# Try to open the file for appending, loop until successful
+		attempts = 0
+		file = None
+		while file is None:
+			try:
+				attempts += 1
+				file = open(filePath, 'a')
+			except PermissionError as e:
+				print(f'{e}, attempt {attempts}')
+				time.sleep(1)
+ 
+	timestampSeconds = int(getTimestampEpoch(timestamp) * timePrecision) / timePrecision
+
+	for txid in listtransactiontimesandclear:
+		listtransactiontimesandclear[txid] /= 1000 # Convert epoch to seconds
+
+	line = '"' + getHumanReadableDateTime(timestamp) + '",'
+	line += str(timestampSeconds) + ','
+	line += str(len(listtransactiontimesandclear)) + ','
+	line += '"' + json.dumps(listtransactiontimesandclear).replace('"', "'") + '",'
+	file.write(line + '\n')
+	file.close()
+
 # Generate the address manager bucket info CSV header line
 def makeAddressManagerBucketStateHeader(numNewBuckets, numTriedBuckets):
 	line = 'Timestamp,'
@@ -1035,7 +1078,7 @@ def logAddressManagerBucketInfo(timestamp, directory):
 
 	filePath = os.path.join(directory, 'address_manager_bucket_info.csv')
 	if not os.path.exists(filePath):
-		print(f'\t\tCreating address manager bucket info file')
+		print(f'\tCreating address manager bucket info file')
 		file = open(filePath, 'w')
 		file.write(makeAddressManagerBucketStateHeader(numNewBuckets, numTriedBuckets) + '\n')
 		prevLine = ''
@@ -2084,6 +2127,7 @@ def appendTracerouteToCsv(address, directory, tracerouteOutput, numHops, reached
 	else:
 		reachedDestinationStr = '1' if reachedDestination else '0'
 	newRow = [address, numHops, reachedDestinationStr] + [''] * len(rows)
+	numHopsWithoutTailingAsterisks = 0
 	for index, row in enumerate(rows):
 		parts = row.split()
 		hopNumber = parts.pop(0) # Remove the hop number
@@ -2107,6 +2151,11 @@ def appendTracerouteToCsv(address, directory, tracerouteOutput, numHops, reached
 			newRow[index + numColumnsBeforeRTTList] = '*'
 		else:
 			newRow[index + numColumnsBeforeRTTList] = f'{addressField},{avgRTT}'
+			numHopsWithoutTailingAsterisks = index + 1
+	if numHops != numHopsWithoutTailingAsterisks:
+		newRow[1] = numHopsWithoutTailingAsterisks
+		while newRow[:-1] == '*':
+			newRow.pop()
 	existingRows.append(newRow)
 	with open(tracerouteFilePath, 'w', newline='') as file:
 		writer = csv.writer(file)
@@ -2433,6 +2482,9 @@ def log(targetDateTime, previousDirectory, isTimeForNewDirectory):
 		if filesToLog['blockchain_state_info.csv']:
 			maybeLogBlockState(timestamp, directory, getblockchaininfo, getchaintips, newblockbroadcastsblockinformation, newheaderbroadcastsblockinformation)
 		
+		if filesToLog['transaction_timestamps.csv']:
+			logTransactionTimestamps(timestamp, directory)
+
 		if filesToLog['address_manager_bucket_info.csv'] and (sampleNumber - 1) % numSamplesPerAddressManagerBucketLog == 0:
 			logAddressManagerBucketInfo(timestamp, directory)
 
@@ -2442,7 +2494,7 @@ def log(targetDateTime, previousDirectory, isTimeForNewDirectory):
 
 		globalNumSamples += 1
 		totalNumDays = int((timestamp - globalLoggingStartTimestamp).total_seconds() / (60 * 60 * 24) * timePrecision) / timePrecision
-		print(f'	Sample successfully logged. Total of {globalNumSamples} samples to date, logging interval: {totalNumDays} days. Total of {globalNumForksSeen} forks with a max length of {globalMaxForkLength} blocks.')
+		print(f'	Sample successfully logged to {directory}. Total of {globalNumSamples} samples to date, logging interval: {totalNumDays} days. Total of {globalNumForksSeen} forks with a max length of {globalMaxForkLength} blocks. Time until finalized directory: {int((numSamplesPerDirectory - sampleNumber) * numSecondsPerSample / 60 * 10) / 10} minutes')
 		isTimeForNewDirectory = (sampleNumber >= numSamplesPerDirectory)
 
 	except Exception as e:

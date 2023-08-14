@@ -4340,18 +4340,29 @@ void PeerManagerImpl::_ProcessMessage(CNode& pfrom, const std::string& msg_type,
             //LogPrint(BCLog::RESEARCHER, "!!! Transaction fee: i%lld - o%lld = %lld", inputsSum, outputsSum, fee);
 
             // Cybersecurity Lab: Increment the unique transaction dissemination counter
-            std::string address = pfrom.addr.ToStringAddr();
-            std::shared_lock<std::shared_mutex> lock(m_connman.m_newTxBroadcastsMutex);
-            std::map<std::string, int>::const_iterator it = (m_connman.newTxBroadcasts).find(address);
-            if (it == m_connman.newTxBroadcasts.end()) {
-                // Peer does not exist in the entries, create a log for it
-                (m_connman.newTxBroadcasts)[address] = 1;
-                (m_connman.newTxFeeBroadcasts)[address] = static_cast<int>(fee);
-                (m_connman.newTxSizeBroadcasts)[address] = txSize;
-            } else {
-                (m_connman.newTxBroadcasts)[address]++;
-                (m_connman.newTxFeeBroadcasts)[address] += static_cast<int>(fee);
-                (m_connman.newTxSizeBroadcasts)[address] += txSize;
+            {
+                std::shared_lock<std::shared_mutex> lock(m_connman.m_newTxBroadcastsMutex);
+                std::string address = pfrom.addr.ToStringAddr();
+                std::map<std::string, int>::const_iterator it = (m_connman.newTxBroadcasts).find(address);
+                if (it == m_connman.newTxBroadcasts.end()) {
+                    // Peer does not exist in the entries, create a log for it
+                    (m_connman.newTxBroadcasts)[address] = 1;
+                    (m_connman.newTxFeeBroadcasts)[address] = static_cast<int>(fee);
+                    (m_connman.newTxSizeBroadcasts)[address] = txSize;
+                } else {
+                    (m_connman.newTxBroadcasts)[address]++;
+                    (m_connman.newTxFeeBroadcasts)[address] += static_cast<int>(fee);
+                    (m_connman.newTxSizeBroadcasts)[address] += txSize;
+                }
+                // With a length of 10, the birthday paradox states that we would have to get sqrt(2*16^10)=1,482,910 transactions to have a 50% probability of a collision
+                std::string txHash = tx.GetHash().ToString().substr(0, 10);
+                
+                int64_t now = GetTimeMillis();
+                m_connman.listOfTransactions.push_back(std::make_pair(txHash, now));
+                // To prevent too much memory usage, we only keep a finite amount of transaction data, chopping them off 1000 at a time
+                if (m_connman.listOfTransactions.size() > 10000) {
+                    m_connman.listOfTransactions.erase(m_connman.listOfTransactions.begin(), m_connman.listOfTransactions.begin() + 1000);
+                }
             }
         }
         else if (state.GetResult() == TxValidationResult::TX_MISSING_INPUTS)

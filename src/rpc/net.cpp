@@ -1481,6 +1481,34 @@ static RPCHelpMan listnewbroadcastsandclear()
     };
 }
 
+// Cybersecurity Lab: listtransactiontimesandclear RPC definition
+static RPCHelpMan listtransactiontimesandclear()
+{
+    return RPCHelpMan{"listtransactiontimesandclear",
+                "\nList the transactions with the timestamp that they were received.\n",
+                {},
+                RPCResults{},
+                RPCExamples{
+                    HelpExampleCli("listtransactiontimesandclear", "")
+            + HelpExampleRpc("listtransactiontimesandclear", "")
+                },
+        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+{
+    NodeContext& node = EnsureAnyNodeContext(request.context);
+    const CConnman& connman = EnsureConnman(node);
+    UniValue result(UniValue::VOBJ);
+    {
+        std::shared_lock<std::shared_mutex> lock(connman.m_newTxBroadcastsMutex);
+        for (const auto& it : connman.listOfTransactions) {
+            result.pushKV(it.first, it.second);
+        }
+        connman.listOfTransactions.clear();
+    }
+    return result;
+},
+    };
+}
+
 // Cybersecurity Lab: getbucketentry RPC definition
 static RPCHelpMan getbucketentry()
 {
@@ -1661,6 +1689,7 @@ void RegisterNetRPCCommands(CRPCTable& t)
         {"researcher", &getpeersmsginfoandclear},
         {"researcher", &listnewbroadcasts},
         {"researcher", &listnewbroadcastsandclear},
+        {"researcher", &listtransactiontimesandclear},
         {"researcher", &getbucketinfo},
         {"researcher", &getbucketentry},
         {"researcher", &sendaddr},
