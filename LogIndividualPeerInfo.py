@@ -52,6 +52,13 @@ numSecondsPerSample = 10
 numSamplesPerDirectory = 100 # 100*10/60 = 16.6 minutes
 numSamplesPerAddressManagerBucketLog = 100
 
+# If True, the logger will skip each sample where the machine isn't connected to the internet
+doNotLogWhenMachineIsOffline = True
+
+# If True, the logger will skip each sample that involves the node in initial block download mode
+# If False, then IBD logs will be logged separately into Bitcoin_IBD_Log_#.tar.xz files
+doNotLogWhenInInitialBlockDownload = True
+
 user = os.getenv('SUDO_USER')
 if user is None: user = os.getenv('USER')
 
@@ -69,21 +76,17 @@ if os.path.exists(f'/home/{user}/BitcoinFullLedger'):
 	#numSamplesPerDirectory = 10000 # 10000*10/60/60 = 27.7 hours
 	numSamplesPerDirectory = 10000000000000000 # 10000000000000000*10/60/60/24/365 = 3170979198 years
 	bitcoinDirectory = f'/home/{user}/BitcoinFullLedger'
-print(f'Bitcoin directory path: "{outputFilesToTransferPath}"')
+print(f'Bitcoin directory path: "{bitcoinDirectory}"')
 print(f'Number of seconds per sample: {numSecondsPerSample}')
 print(f'Number of samples per directory: {numSamplesPerDirectory}')
+print(f'Files to log: {json.dumps(filesToLog, indent=4)}')
+print(f'Log when machine is offline? {not doNotLogWhenMachineIsOffline}')
+print(f'Log when in initial block download mode? {not doNotLogWhenInInitialBlockDownload}')
 print()
 
 
 # Keep three decimal points for timestamps and time durations
 timePrecision = 1000000
-
-# If True, the logger will skip each sample where the machine isn't connected to the internet
-doNotLogWhenMachineIsOffline = True
-
-# If True, the logger will skip each sample that involves the node in initial block download mode
-# If False, then IBD logs will be logged separately into Bitcoin_IBD_Log_#.tar.xz files
-doNotLogWhenInInitialBlockDownload = True
 
 # Initialize the global Bitcoin-related variables
 prevBlockHeight = None
