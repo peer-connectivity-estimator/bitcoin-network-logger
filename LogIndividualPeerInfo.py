@@ -11,7 +11,7 @@ directory has 10000 samples. The bucket logger makes a row every 100 samples.
 
 __author__ = 'Simeon Wuthier'
 __contact__ = 'swuthier@uccs.edu'
-__date__ = '2023/08/13'
+__date__ = '2023/08/16'
 
 from threading import Timer
 import atexit
@@ -697,9 +697,10 @@ def maybeLogBlockState(timestamp, directory, getblockchaininfo, getchaintips, ne
 				globalMaxForkLength = forkLength
 			globalLastForkJson = json.dumps(tip)
 
-	# Finally, write the blockchain info to the output file
-	file.write(lines)
-	file.close()
+	# Finally, write the blockchain info to the output file if there is data to write
+	if len(lines) > 0:
+		file.write(lines)
+		file.close()
 	return
 
 # Return the size of a directory
