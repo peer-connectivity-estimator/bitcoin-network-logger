@@ -94,6 +94,7 @@ prevBlockHash = None
 isInStartupDownload = True
 outputFilesToTransfer = []
 globalNumSamples = 0
+globalBlockchainStateHashes = {}
 globalNumForksSeen = 0
 globalMaxForkLength = 0
 globalLastForkJson = '{}'
@@ -430,7 +431,7 @@ def makeBlockStateHeader():
 
 # If any new blocks exist, log them
 def maybeLogBlockState(timestamp, directory, getblockchaininfo, getchaintips, newblockbroadcastsblockinformation, newheaderbroadcastsblockinformation):
-	global prevBlockHeight, prevBlockHash, isInStartupDownload, globalNumForksSeen, globalMaxForkLength, globalLastForkJson
+	global prevBlockHeight, prevBlockHash, isInStartupDownload, globalBlockchainStateHashes, globalNumForksSeen, globalMaxForkLength, globalLastForkJson
 
 	# Quickly check if any new blocks have arrived, if they haven't 
 	if prevBlockHash is not None:
@@ -536,6 +537,15 @@ def maybeLogBlockState(timestamp, directory, getblockchaininfo, getchaintips, ne
 		tipIsFork = tip['isFork']
 		forkLength = tip['forkLength']
 		blockHash = tip['hash']
+
+		# Ensure that we don't log any pair of status,hash into the log more than once
+		# However, if we have the same hash, but the status changes, then we log that entry
+		uniquenessIdentifier = tipStatus + ',' + blockHash
+		if uniquenessIdentifier in globalBlockchainStateHashes:
+			continue
+		else:
+			globalBlockchainStateHashes[uniquenessIdentifier] = True
+
 		try:
 			getblockstats = bitcoin(f'getblockstats {height}', True)
 			if blockHash == '': blockHash = getblockstats['blockhash']
@@ -2190,7 +2200,7 @@ def resolveConcurrentTraceroutes(tracerouteFutureDict):
 
 # Main logger loop responsible for all logging functions
 def log(targetDateTime, previousDirectory, isTimeForNewDirectory):
-	global globalBitcoinPingTimes, globalIcmpPingTimes, globalLoggingStartTimestamp, globalMaxForkLength, globalNumForksSeen, globalLastForkJson, globalNumSamples, globalTracerouteAddressList, icmpPingExecutor, icmpPingFutureDict, prevBytesSent, prevBytesReceived, prevBytesReceivedPerMessage, prevBytesSentPerMessage, timerThread, tracerouteExecutor, tracerouteFutureDicts
+	global globalBitcoinPingTimes, globalIcmpPingTimes, globalLoggingStartTimestamp, globalBlockchainStateHashes, globalMaxForkLength, globalNumForksSeen, globalLastForkJson, globalNumSamples, globalTracerouteAddressList, icmpPingExecutor, icmpPingFutureDict, prevBytesSent, prevBytesReceived, prevBytesReceivedPerMessage, prevBytesSentPerMessage, timerThread, tracerouteExecutor, tracerouteFutureDicts
 	
 	if not isBitcoinUp():
 		startBitcoin()
@@ -2226,6 +2236,7 @@ def log(targetDateTime, previousDirectory, isTimeForNewDirectory):
 			prevBytesReceived = {}
 			prevBytesSentPerMessage = {}
 			prevBytesReceivedPerMessage = {}
+			globalBlockchainStateHashes = {}
 			globalBitcoinPingTimes = {}
 			globalIcmpPingTimes = {}
 			if icmpPingExecutor is not None:
