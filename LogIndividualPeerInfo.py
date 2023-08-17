@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 '''
 This script logs a lot of Bitcoin node information, including the machine
-specification, current machine state, blockchain state, state of each peer
+specification, current machine state, chainstate info, state of each peer
 connection, and state of the address manager buckets. For the initial block
 download, data is written to Research_Logs/Bitcoin_IBD_Log_#/, otherwise,
 the logging directory is Research_Logs/Bitcoin_Log_#/, where # counts the
@@ -39,7 +39,7 @@ filesToLog = {
 	'bitcoin_debug.log': False,
 	'tor.log': False,
 	'i2pd.log': False,
-	'blockchain_state_info.csv': True,
+	'chainstate_info.csv': True,
 	'traceroutes.csv': True,
 	'machine_info.txt': True,
 	'individual_peer_logs': True,
@@ -441,7 +441,7 @@ def maybeLogBlockState(timestamp, directory, getblockchaininfo, getchaintips, ne
 				if prevBlockHash == tip['hash']: return
 				break
 
-	filePath = os.path.join(directory, 'blockchain_state_info.csv')
+	filePath = os.path.join(directory, 'chainstate_info.csv')
 	if not os.path.exists(filePath):
 		print(f'\tCreating blockchain state file')
 		file = open(filePath, 'w')
@@ -2513,7 +2513,7 @@ def log(targetDateTime, previousDirectory, isTimeForNewDirectory):
 		sampleNumber = logMachineState(timestamp, directory, getpeerinfo, getblockchaininfo, getmempoolinfo, newblockbroadcastsblockinformation, newheaderbroadcastsblockinformation, timestampMedianDifference)
 		print(f'Adding Sample #{sampleNumber} to {directory}:')
 		
-		if filesToLog['blockchain_state_info.csv']:
+		if filesToLog['chainstate_info.csv']:
 			maybeLogBlockState(timestamp, directory, getblockchaininfo, getchaintips, newblockbroadcastsblockinformation, newheaderbroadcastsblockinformation)
 		
 		if filesToLog['transaction_timestamps.csv']:
