@@ -2237,7 +2237,11 @@ def log(targetDateTime, previousDirectory, isTimeForNewDirectory):
 			prevBytesReceived = {}
 			prevBytesSentPerMessage = {}
 			prevBytesReceivedPerMessage = {}
-			globalBlockchainStateHashes = {}
+			newGlobalBlockchainStateHashes = {}
+			for pair in globalBlockchainStateHashes:
+				if 'fork' in pair.split(',')[0]: # Delete everything but the forks, since they persist
+					newGlobalBlockchainStateHashes[pair] = True
+			globalBlockchainStateHashes = newGlobalBlockchainStateHashes
 			globalBitcoinPingTimes = {}
 			globalIcmpPingTimes = {}
 			if icmpPingExecutor is not None:
