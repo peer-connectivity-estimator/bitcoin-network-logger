@@ -96,6 +96,7 @@ outputFilesToTransfer = []
 globalNumSamples = 0
 globalNumForksSeen = 0
 globalMaxForkLength = 0
+globalLastForkJson = '{}'
 globalLoggingStartTimestamp = datetime.datetime.now()
 globalPrevNewBuckets = {}
 globalPrevTriedBuckets = {}
@@ -429,7 +430,7 @@ def makeBlockStateHeader():
 
 # If any new blocks exist, log them
 def maybeLogBlockState(timestamp, directory, getblockchaininfo, getchaintips, newblockbroadcastsblockinformation, newheaderbroadcastsblockinformation):
-	global prevBlockHeight, prevBlockHash, isInStartupDownload, globalNumForksSeen, globalMaxForkLength
+	global prevBlockHeight, prevBlockHash, isInStartupDownload, globalNumForksSeen, globalMaxForkLength, globalLastForkJson
 
 	# Quickly check if any new blocks have arrived, if they haven't 
 	if prevBlockHash is not None:
@@ -479,11 +480,14 @@ def maybeLogBlockState(timestamp, directory, getblockchaininfo, getchaintips, ne
 
 	# Fetch the active tip from getchaintips
 	activeTip = {'height': getblockchaininfo['blocks'], 'hash': getblockchaininfo['bestblockhash'], 'branchlen': 0, 'status': 'active'}
+	activeTipIndex = None
 	for i, tip in enumerate(getchaintips):
 		if tip['status'] == 'active':
 			activeTip = tip
-			del getchaintips[i]
+			activeTipIndex = i
 			break
+	if activeTipIndex is not None:
+		del getchaintips[activeTipIndex]
 
 	# If we don't want to iterate through the change in blocks, then reset the previous block height
 	if prevBlockHeight is None or allowSkippedBlocks or isInStartupDownload:
@@ -681,6 +685,7 @@ def maybeLogBlockState(timestamp, directory, getblockchaininfo, getchaintips, ne
 			globalNumForksSeen += 1
 			if forkLength > globalMaxForkLength:
 				globalMaxForkLength = forkLength
+			globalLastForkJson = json.dumps(tip)
 
 	# Finally, write the blockchain info to the output file
 	file.write(lines)
@@ -2185,7 +2190,7 @@ def resolveConcurrentTraceroutes(tracerouteFutureDict):
 
 # Main logger loop responsible for all logging functions
 def log(targetDateTime, previousDirectory, isTimeForNewDirectory):
-	global globalBitcoinPingTimes, globalIcmpPingTimes, globalLoggingStartTimestamp, globalMaxForkLength, globalNumForksSeen, globalNumSamples, globalTracerouteAddressList, icmpPingExecutor, icmpPingFutureDict, prevBytesSent, prevBytesReceived, prevBytesReceivedPerMessage, prevBytesSentPerMessage, timerThread, tracerouteExecutor, tracerouteFutureDicts
+	global globalBitcoinPingTimes, globalIcmpPingTimes, globalLoggingStartTimestamp, globalMaxForkLength, globalNumForksSeen, globalLastForkJson, globalNumSamples, globalTracerouteAddressList, icmpPingExecutor, icmpPingFutureDict, prevBytesSent, prevBytesReceived, prevBytesReceivedPerMessage, prevBytesSentPerMessage, timerThread, tracerouteExecutor, tracerouteFutureDicts
 	
 	if not isBitcoinUp():
 		startBitcoin()
@@ -2512,7 +2517,7 @@ def log(targetDateTime, previousDirectory, isTimeForNewDirectory):
 
 		globalNumSamples += 1
 		totalNumDays = int((timestamp - globalLoggingStartTimestamp).total_seconds() / (60 * 60 * 24) * timePrecision) / timePrecision
-		print(f'	Sample successfully logged to {directory}. Total of {globalNumSamples} samples to date, logging interval: {totalNumDays} days. Total of {globalNumForksSeen} forks with a max length of {globalMaxForkLength} blocks. Time until finalized directory: {int((numSamplesPerDirectory - sampleNumber) * numSecondsPerSample / 60 * 10) / 10} minutes')
+		print(f'	Sample successfully logged to {directory}. Total of {globalNumSamples} samples to date, logging interval: {totalNumDays} days. Total of {globalNumForksSeen} forks with a max length of {globalMaxForkLength} blocks: {globalLastForkJson}. Time until finalized directory: {int((numSamplesPerDirectory - sampleNumber) * numSecondsPerSample / 60 * 10) / 10} minutes')
 		isTimeForNewDirectory = (sampleNumber >= numSamplesPerDirectory)
 
 	except Exception as e:
