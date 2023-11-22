@@ -45,12 +45,12 @@ cd i2pd-researcher
 ./first_compile.sh
 cd ..
 
-# Compile CJDNS
-rm -rf cjdns-researcher
-git clone https://github.com/peer-connectivity-estimator/cjdns-researcher.git
-cd cjdns-researcher
-./first_compile.sh
-cd ..
+# # Compile CJDNS
+# rm -rf cjdns-researcher
+# git clone https://github.com/peer-connectivity-estimator/cjdns-researcher.git
+# cd cjdns-researcher
+# ./first_compile.sh
+# cd ..
 
 
 params=""
