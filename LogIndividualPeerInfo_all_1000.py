@@ -80,7 +80,7 @@ def bitcoin(cmd, isJSON = False):
 
 # Check if the Bitcoin Core instance is up
 def bitcoinUp():
-	return terminal('ps -A | grep bitcoind').strip() != ''
+	return terminal('ps -A | awk \'$4=="bitcoind"\'').strip() != ''
 
 # Start the Bitcoin Core instance
 def startBitcoin():

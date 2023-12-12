@@ -225,19 +225,19 @@ def bitcoin(cmd, isJSON = False):
 
 # Check if Tor instance is up
 def isTorUp():
-	return terminal('ps -A | grep tor').strip() != ''
+	return terminal('ps -A | awk \'$4=="tor"\'').strip() != ''
 
 # Check if I2P instance is up
 def isI2PUp():
-	return terminal('ps -A | grep i2pd').strip() != ''
+	return terminal('ps -A | awk \'$4=="i2pd"\'').strip() != ''
 
 # Check if CJDNS instance is up
 def isCJDNSUp():
-	return terminal('ps -A | grep cjdroute').strip() != ''
+	return terminal('ps -A | awk \'$4=="cjdroute"\'').strip() != ''
 
 # Check if the Bitcoin Core instance is up
 def isBitcoinUp():
-	return terminal('ps -A | grep bitcoind').strip() != ''
+	return terminal('ps -A | awk \'$4=="bitcoind"\'').strip() != ''
 
 # Start Tor instance
 def startTor(logDirectory = ''):
