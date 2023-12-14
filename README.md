@@ -4,7 +4,9 @@ Generate insights over thousands of parameters specific to Bitcoin Core at a rec
 
 ---
 
-This is a fork from the official Bitcoin Core main branch, which includes several additional features for testing the protocol and functionality of Bitcoin, as well as real-time logging of each individual peer connection, supporting Bitcoin over IPv4, IPv6, Tor, I2P, and CJDNS. The previous prototype can be found [here](https://github.com/simewu/bitcoin_researcher).
+This is a fork from the official Bitcoin Core main branch, which includes several additional features for testing the protocol and functionality of Bitcoin, as well as real-time logging of each individual peer connection, supporting Bitcoin over IPv4, IPv6, Tor, I2P, and CJDNS. The previous implementation can be found [here](https://github.com/simewu/bitcoin_researcher).
+
+**This prototype should be used for research purposes only.**
 
 Getting Started
 ----------------

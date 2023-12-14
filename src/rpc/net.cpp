@@ -982,7 +982,12 @@ static RPCHelpMan ls() {
     return RPCHelpMan{"ls",
         "\nList the peer connections.",
         {},
-                RPCResults{},
+                RPCResult{
+                    RPCResult::Type::OBJ, "", "", {
+                        {RPCResult::Type::STR, "ADDRESS", "The IP address of the peer"},
+                        {RPCResult::Type::NUM, "CONNECTION ID", "The connection ID of the peer"},
+                    }
+                },
                 RPCExamples{
                     HelpExampleCli("ls", "")
             + HelpExampleRpc("ls", "")
@@ -1011,7 +1016,11 @@ static RPCHelpMan count() {
     return RPCHelpMan{"count",
         "\nCount the peer connections.",
         {},
-                RPCResults{},
+                RPCResult{
+                    RPCResult::Type::OBJ, "", "", {
+                        {RPCResult::Type::NUM, "Number of peer connections", "The number of peer connections"},
+                    }
+                },
                 RPCExamples{
                     HelpExampleCli("count", "")
             + HelpExampleRpc("count", "")
@@ -1038,7 +1047,12 @@ RPCHelpMan getmsginfo()
     return RPCHelpMan{"getmsginfo",
                 "\nList out the computer message info.\n",
                 {},
-                RPCResults{},
+                RPCResult{
+                    RPCResult::Type::OBJ, "", "",
+                    {
+                        {},
+                    }
+                },
                 RPCExamples{
                     HelpExampleCli("getmsginfo", "")
             + HelpExampleRpc("getmsginfo", "")
@@ -1139,7 +1153,12 @@ RPCHelpMan getpeersmsginfo()
     return RPCHelpMan{"getpeersmsginfo",
                 "\nList out the computer message info for each peer.\n",
                 {},
-                RPCResults{},
+                RPCResult{
+                    RPCResult::Type::OBJ, "", "",
+                    {
+                        {},
+                    }
+                },
                 RPCExamples{
                     HelpExampleCli("getpeersmsginfo", "")
             + HelpExampleRpc("getpeersmsginfo", "")
@@ -1219,7 +1238,12 @@ RPCHelpMan getpeersmsginfoandclear()
     return RPCHelpMan{"getpeersmsginfoandclear",
                 "\nList out the computer message info for each peer.\n",
                 {},
-                RPCResults{},
+                RPCResult{
+                    RPCResult::Type::OBJ, "", "",
+                    {
+                        {},
+                    }
+                },
                 RPCExamples{
                     HelpExampleCli("getpeersmsginfoandclear", "")
             + HelpExampleRpc("getpeersmsginfoandclear", "")
@@ -1302,7 +1326,40 @@ static RPCHelpMan listnewbroadcasts()
     return RPCHelpMan{"listnewbroadcasts",
                 "\nList the unique block and transaction transmission counts for each peer.\n",
                 {},
-                RPCResults{},
+                RPCResult{
+                    RPCResult::Type::OBJ, "", "",
+                    {
+                        {RPCResult::Type::OBJ, "new_block_broadcasts", "The list of unique block transmission counts for each peer",
+                        {
+                            {RPCResult::Type::NUM, "NUMBER OF BROADCASTS", "The number of broadcasts"},
+                        }},
+                        {RPCResult::Type::OBJ, "new_transaction_broadcasts", "The list of unique transaction transmission counts for each peer",
+                        {
+                            {RPCResult::Type::NUM, "NUMBER OF BROADCASTS", "The number of broadcasts"},
+                        }},
+                        {RPCResult::Type::OBJ, "new_transaction_fee_broadcasts", "The list of unique transaction fee transmission counts for each peer",
+                        {
+                            {RPCResult::Type::NUM, "NUMBER OF BROADCASTS", "The number of broadcasts"},
+                        }},
+                        {RPCResult::Type::OBJ, "new_transaction_size_broadcasts", "The list of unique transaction size transmission counts for each peer",
+                        {
+                            {RPCResult::Type::NUM, "NUMBER OF BROADCASTS", "The number of broadcasts"},
+                        }},
+                        {RPCResult::Type::OBJ, "unique_transaction_broadcasts", "The list of unique transaction transmission counts for each peer",
+                        {
+                            {RPCResult::Type::NUM, "NUMBER OF BROADCASTS", "The number of broadcasts"},
+                        }},
+                        {RPCResult::Type::OBJ, "unique_transaction_size_broadcasts", "The list of unique transaction size transmission counts for each peer",
+                        {
+                            {RPCResult::Type::NUM, "NUMBER OF BROADCASTS", "The number of broadcasts"},
+                        }},
+                        {RPCResult::Type::OBJ, "timestamps", "The timestamps of when the RPC was called",
+                        {
+                            {RPCResult::Type::NUM, "timestamp", "The timestamp of when the RPC was called"},
+                            {RPCResult::Type::NUM, "timestamp_median", "The median timestamp of when the RPC was called"},
+                        }},
+                    }
+                },
                 RPCExamples{
                     HelpExampleCli("listnewbroadcasts", "")
             + HelpExampleRpc("listnewbroadcasts", "")
@@ -1388,7 +1445,40 @@ static RPCHelpMan listnewbroadcastsandclear()
     return RPCHelpMan{"listnewbroadcastsandclear",
                 "\nList the unique block and transaction transmission counts for each peer, then clear the counters.\n",
                 {},
-                RPCResults{},
+                RPCResult{
+                    RPCResult::Type::OBJ, "", "",
+                    {
+                        {RPCResult::Type::OBJ, "new_block_broadcasts", "The list of unique block transmission counts for each peer",
+                        {
+                            {RPCResult::Type::NUM, "NUMBER OF BROADCASTS", "The number of broadcasts"},
+                        }},
+                        {RPCResult::Type::OBJ, "new_transaction_broadcasts", "The list of unique transaction transmission counts for each peer",
+                        {
+                            {RPCResult::Type::NUM, "NUMBER OF BROADCASTS", "The number of broadcasts"},
+                        }},
+                        {RPCResult::Type::OBJ, "new_transaction_fee_broadcasts", "The list of unique transaction fee transmission counts for each peer",
+                        {
+                            {RPCResult::Type::NUM, "NUMBER OF BROADCASTS", "The number of broadcasts"},
+                        }},
+                        {RPCResult::Type::OBJ, "new_transaction_size_broadcasts", "The list of unique transaction size transmission counts for each peer",
+                        {
+                            {RPCResult::Type::NUM, "NUMBER OF BROADCASTS", "The number of broadcasts"},
+                        }},
+                        {RPCResult::Type::OBJ, "unique_transaction_broadcasts", "The list of unique transaction transmission counts for each peer",
+                        {
+                            {RPCResult::Type::NUM, "NUMBER OF BROADCASTS", "The number of broadcasts"},
+                        }},
+                        {RPCResult::Type::OBJ, "unique_transaction_size_broadcasts", "The list of unique transaction size transmission counts for each peer",
+                        {
+                            {RPCResult::Type::NUM, "NUMBER OF BROADCASTS", "The number of broadcasts"},
+                        }},
+                        {RPCResult::Type::OBJ, "timestamps", "The timestamps of when the RPC was called",
+                        {
+                            {RPCResult::Type::NUM, "timestamp", "The timestamp of when the RPC was called"},
+                            {RPCResult::Type::NUM, "timestamp_median", "The median timestamp of when the RPC was called"},
+                        }},
+                    }
+                },
                 RPCExamples{
                     HelpExampleCli("listnewbroadcastsandclear", "")
             + HelpExampleRpc("listnewbroadcastsandclear", "")
@@ -1487,7 +1577,15 @@ static RPCHelpMan listtransactiontimesandclear()
     return RPCHelpMan{"listtransactiontimesandclear",
                 "\nList the transactions with the timestamp that they were received.\n",
                 {},
-                RPCResults{},
+                RPCResult{
+                    RPCResult::Type::OBJ, "", "",
+                    {
+                        {RPCResult::Type::OBJ, "list_of_transactions", "The list of transactions and their corresponding timestamps",
+                        {
+                            {RPCResult::Type::NUM, "TIMESTAMP", "The timestamp of when the transaction was received"},
+                        }},
+                    }
+                },
                 RPCExamples{
                     HelpExampleCli("listtransactiontimesandclear", "")
             + HelpExampleRpc("listtransactiontimesandclear", "")
@@ -1517,7 +1615,26 @@ static RPCHelpMan getbucketentry()
                 {
                     {"address", RPCArg::Type::STR, RPCArg::Optional::NO, "The IP address of the peer"},
                 },
-                RPCResults{},
+                RPCResult{
+                    RPCResult::Type::OBJ, "", "",
+                    {
+                        {RPCResult::Type::OBJ, "Address Info", "The address information for the entry",
+                        {
+                            {RPCResult::Type::STR, "Address", "The address of the peer"},
+                            {RPCResult::Type::STR, "Entry Location", "The location of the entry in the address manager"},
+                            {RPCResult::Type::STR, "Network Type", "The network type of the peer"},
+                            {RPCResult::Type::NUM, "fChance", "The chance of the peer being selected"},
+                            {RPCResult::Type::BOOL, "isTerrible", "Whether the peer is terrible"},
+                            {RPCResult::Type::NUM, "nInstances", "The number of instances of the peer"},
+                            {RPCResult::Type::NUM, "nTime", "The time of the peer"},
+                            {RPCResult::Type::NUM, "Last try by us", "The last time the peer was tried by us"},
+                            {RPCResult::Type::NUM, "nAttempts", "The number of attempts on the peer"},
+                            {RPCResult::Type::NUM, "Last counted attempt", "The last counted attempt on the peer"},
+                            {RPCResult::Type::NUM, "Last success by us", "The last time the peer was successfully connected to by us"},
+                            {RPCResult::Type::STR, "Source", "The source of the peer"},
+                        }},
+                    }
+                },
                 RPCExamples{
                     HelpExampleCli("getbucketentry", "\"1.2.3.4\"")
             + HelpExampleRpc("getbucketentry", "\"1.2.3.4\"")
@@ -1542,7 +1659,12 @@ static RPCHelpMan getbucketinfo()
     return RPCHelpMan{"getbucketinfo",
                 "\nGet the address manager bucket information.\n",
                 {},
-                RPCResults{},
+                RPCResult{
+                    RPCResult::Type::OBJ, "", "",
+                    {
+                        {},
+                    }
+                },
                 RPCExamples{
                     HelpExampleCli("getbucketinfo", "")
             + HelpExampleRpc("getbucketinfo", "")
@@ -1579,9 +1701,14 @@ RPCHelpMan sendaddr() {
             {"seconds_offset", RPCArg::Type::STR, RPCArg::Default{"0"}, "The seconds offset from the nTime in each address entry in ADDR"}
         },
         RPCResult{
-            RPCResult::Type::OBJ, "", "", {
-                {RPCResult::Type::STR, "result", "The result of the operation"},
-            },
+            RPCResult::Type::OBJ, "", "",
+            {
+                {RPCResult::Type::OBJ, "Result Details", "Details of the send address result",
+                {
+                    {RPCResult::Type::NUM, "nTime", "The nTime of the addresses sent to the peer"},
+                    {RPCResult::Type::STR, "result", "The result of the RPC"},
+                }},
+            }
         },
         RPCExamples{
             HelpExampleCli("sendaddr", "\"1.2.3.4:8333\", \"5.6.7.8,9.10.11.12\", \"60\"") + HelpExampleRpc("sendaddr", "\"1.2.3.4\", \"5.6.7.8,9.10.11.12\", \"60\"")

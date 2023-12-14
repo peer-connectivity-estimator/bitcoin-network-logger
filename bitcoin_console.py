@@ -6,18 +6,13 @@ import readline
 
 
 
-datadir = '' # Virtual machine shared folder
+datadir = ''
 
 # Main logger node path
 if os.path.exists(f'/home/{os.getlogin()}/BitcoinFullLedger/blocks'):
 	datadir = f' -datadir=/home/{os.getlogin()}/BitcoinFullLedger'
-
 elif os.path.exists('/media/sf_Bitcoin/blocks'):
-	datadir = ' -datadir=/media/sf_Bitcoin' # Virtual machine shared folder
-elif os.path.exists('/media/sf_BitcoinVictim/blocks'):
-	datadir = ' -datadir=/media/sf_BitcoinVictim'
-elif os.path.exists('/media/sf_BitcoinAttacker/blocks'):
-	datadir = ' -datadir=/media/sf_BitcoinAttacker'
+	datadir = ' -datadir=/media/sf_Bitcoin'
 elif os.path.exists(f'/media/{os.getlogin()}/BITCOIN/blocks'):
 	datadir = f' -datadir=/media/{os.getlogin()}/BITCOIN'
 elif os.path.exists(f'/media/{os.getlogin()}/Blockchains/Bitcoin/blocks'):

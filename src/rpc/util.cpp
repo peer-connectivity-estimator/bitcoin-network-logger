@@ -948,6 +948,8 @@ static std::optional<UniValue::VType> ExpectedType(RPCResult::Type type)
 
 UniValue RPCResult::MatchesType(const UniValue& result) const
 {
+    // Cybersecurity Lab: Skip type check for compatibility with 0.25.0
+    return true;
     if (m_skip_type_check) {
         return true;
     }

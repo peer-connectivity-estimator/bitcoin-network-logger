@@ -4387,9 +4387,9 @@ void PeerManagerImpl::_ProcessMessage(CNode& pfrom, const std::string& msg_type,
                 
                 int64_t now = GetTimeMillis();
                 m_connman.listOfTransactions.push_back(std::make_pair(txHash, now));
-                // To prevent too much memory usage, we only keep a finite amount of transaction data, chopping them off 1000 at a time
+                // To prevent too much memory usage, we only keep a finite amount of transaction data, chopping them off 5000 at a time
                 if (m_connman.listOfTransactions.size() > 10000) {
-                    m_connman.listOfTransactions.erase(m_connman.listOfTransactions.begin(), m_connman.listOfTransactions.begin() + 1000);
+                    m_connman.listOfTransactions.erase(m_connman.listOfTransactions.begin(), m_connman.listOfTransactions.begin() + 5000);
                 }
             }
         }

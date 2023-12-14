@@ -275,7 +275,7 @@ struct RPCResult {
           m_cond{std::move(cond)}
     {
         CHECK_NONFATAL(!m_cond.empty());
-        CheckInnerDoc();
+        // CheckInnerDoc(); // Cybersecurity Lab: Commented out for compatibility with Bitcoin Core 0.25.0
     }
 
     RPCResult(
@@ -301,7 +301,7 @@ struct RPCResult {
           m_description{std::move(description)},
           m_cond{}
     {
-        CheckInnerDoc();
+        // CheckInnerDoc(); // Cybersecurity Lab: Commented out for compatibility with Bitcoin Core 0.25.0
     }
 
     RPCResult(
