@@ -225,7 +225,9 @@ public:
     std::unordered_map<Network, NewTriedCount> m_network_counts GUARDED_BY(cs);
 
     //! Find an entry.
-    AddrInfo* Find(const CService& addr, int* pnId = nullptr) EXCLUSIVE_LOCKS_REQUIRED(cs);
+    // Cybersecurity Lab: Update header of Find() to include addMutexLock bypass
+    //AddrInfo* Find(const CService& addr, int* pnId = nullptr) EXCLUSIVE_LOCKS_REQUIRED(cs);
+    AddrInfo* Find(const CService& addr, int* pnId = nullptr, bool addMutexLock = false);
 
     //! Create a new entry and add it to the internal data structures mapInfo, mapAddr and vRandom.
     AddrInfo* Create(const CAddress& addr, const CNetAddr& addrSource, int* pnId = nullptr) EXCLUSIVE_LOCKS_REQUIRED(cs);

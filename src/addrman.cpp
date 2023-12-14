@@ -403,9 +403,12 @@ void AddrManImpl::Unserialize(Stream& s_)
     }
 }
 
-AddrInfo* AddrManImpl::Find(const CService& addr, int* pnId)
+// Cybersecurity Lab: Add mutex lock assertion bypass to the Find function
+//AddrInfo* AddrManImpl::Find(const CService& addr, int* pnId)
+AddrInfo* AddrManImpl::Find(const CService& addr, int* pnId, bool addMutexLock)
 {
-    AssertLockHeld(cs);
+    if(addMutexLock) LOCK(cs); // Cybersecurity Lab: Bypass mutex lock assertion to access the AddrManImpl internals
+    else AssertLockHeld(cs);
 
     const auto it = mapAddr.find(addr);
     if (it == mapAddr.end())
@@ -1315,6 +1318,7 @@ std::optional<AddressPosition> AddrMan::FindAddressEntry(const CAddress& addr)
 
 // Cybersecurity Lab: Add interace to retrieve the fChhance reputation score
 std::pair<double, bool> AddrMan::GetChanceScore(const CService& addr_service) {
-    AddrInfo* pinfo = m_impl->Find(addr_service);
+    bool addMutexLockForMePlease = true;
+    AddrInfo* pinfo = m_impl->Find(addr_service, nullptr, addMutexLockForMePlease);
     return std::make_pair(pinfo->GetChance(), pinfo->IsTerrible());
 }

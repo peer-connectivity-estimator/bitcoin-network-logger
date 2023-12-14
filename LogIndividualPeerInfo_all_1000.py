@@ -1,17 +1,22 @@
 #!/usr/bin/env python
 '''
-This script logs a lot of Bitcoin node information, including the machine
-specification, current machine state, blockchain state, state of each peer
+This script logs the state of the Bitcoin node, including the machine
+specification, current machine state, chainstate info, state of each peer
 connection, and state of the address manager buckets. For the initial block
 download, data is written to Research_Logs/Bitcoin_IBD_Log_#/, otherwise,
 the logging directory is Research_Logs/Bitcoin_Log_#/, where # counts the
-number of directories. Every 10 seconds a sample is created, and every
-directory has 10000 samples. The bucket logger makes a row every 100 samples.
+number of directories. Every {numSecondsPerSample} seconds a sample is created,
+and every directory has {numSamplesPerDirectory} samples. The bucket logger
+makes a row every {numSamplesPerAddressManagerBucketLog} samples, which handles
+the address manager bucket logging. The logger will skip each sample where the
+machine isn't connected to the internet. The logger will also skip each sample
+that involves the node in initial block download mode or if the node is
+disconnected from the network.
 '''
 
 __author__ = 'Simeon Wuthier'
 __contact__ = 'swuthier@uccs.edu'
-__date__ = '2023/06/09'
+__date__ = '2023/12/13'
 
 from threading import Timer
 import datetime
@@ -40,7 +45,7 @@ bitcoinDirectory = '/home/research/BitcoinFullLedger'
 # numSamplesPerDirectory = 100
 # numSamplesPerAddressManagerBucketLog = 100
 numSecondsPerSample = 10
-numSamplesPerDirectory = 10000
+numSamplesPerDirectory = 10000000000000000 # 10000000000000000*10/60/60/24/365 = 3170979198 years
 numSamplesPerAddressManagerBucketLog = 100
 
 # Keep three decimal points for timestamps and time durations

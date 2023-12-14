@@ -1,17 +1,22 @@
 #!/usr/bin/env python
 '''
-This script logs a lot of Bitcoin node information, including the machine
+This script logs the state of the Bitcoin node, including the machine
 specification, current machine state, chainstate info, state of each peer
 connection, and state of the address manager buckets. For the initial block
 download, data is written to Research_Logs/Bitcoin_IBD_Log_#/, otherwise,
 the logging directory is Research_Logs/Bitcoin_Log_#/, where # counts the
-number of directories. Every 10 seconds a sample is created, and every
-directory has 10000 samples. The bucket logger makes a row every 100 samples.
+number of directories. Every {numSecondsPerSample} seconds a sample is created,
+and every directory has {numSamplesPerDirectory} samples. The bucket logger
+makes a row every {numSamplesPerAddressManagerBucketLog} samples, which handles
+the address manager bucket logging. The logger will skip each sample where the
+machine isn't connected to the internet. The logger will also skip each sample
+that involves the node in initial block download mode or if the node is
+disconnected from the network.
 '''
 
 __author__ = 'Simeon Wuthier'
 __contact__ = 'swuthier@uccs.edu'
-__date__ = '2023/08/16'
+__date__ = '2023/12/13'
 
 from threading import Timer
 import atexit
@@ -73,9 +78,22 @@ print(f'Path to send finalized outputs: "{outputFilesToTransferPath}"')
 # The path where the Bitcoin blockchain is stored
 bitcoinDirectory = f'/home/{user}/.bitcoin'
 if os.path.exists(f'/home/{user}/BitcoinFullLedger'):
-	#numSamplesPerDirectory = 10000 # 10000*10/60/60 = 27.7 hours
-	numSamplesPerDirectory = 10000000000000000 # 10000000000000000*10/60/60/24/365 = 3170979198 years
+	numSamplesPerDirectory = 10000 # 10000*10/60/60 = 27.7 hours
+	#numSamplesPerDirectory = 10000000000000000 # 10000000000000000*10/60/60/24/365 = 3170979198 years
 	bitcoinDirectory = f'/home/{user}/BitcoinFullLedger'
+
+if os.path.exists(f'/media/{user}/Long040Term040Storage/Bitcoin Full Ledger'):
+	numSamplesPerDirectory = 10000000000000000 # 10000000000000000*10/60/60/24/365 = 3170979198 years
+	bitcoinDirectory = f'/media/{user}/Long040Term040Storage/Bitcoin Full Ledger'
+
+# # The path to copy over the finalized output files (preferably an external storage device)
+# #outputFilesToTransferPath = '/media/sf_Shared_Folder/Official_Research_Logs_Hybrid'
+# outputFilesToTransferPath = '/media/research/BTC/Official_Research_Logs_Hybrid'
+
+# # The path where the Bitcoin blockchain is stored
+# #bitcoinDirectory = '/home/linux/.bitcoin'
+# bitcoinDirectory = '/home/research/BitcoinFullLedger'
+
 print(f'Bitcoin directory path: "{bitcoinDirectory}"')
 print(f'Number of seconds per sample: {numSecondsPerSample}')
 print(f'Number of samples per directory: {numSamplesPerDirectory}')
@@ -83,6 +101,8 @@ print(f'Files to log: {json.dumps(filesToLog, indent=4)}')
 print(f'Log when machine is offline? {not doNotLogWhenMachineIsOffline}')
 print(f'Log when in initial block download mode? {not doNotLogWhenInInitialBlockDownload}')
 print()
+
+confirm = input('Proceed? [y/n]: ').lower() in ['y', 'yes', '1']
 
 
 # Keep three decimal points for timestamps and time durations
@@ -174,7 +194,7 @@ def main():
 		print('Removing debug.log from previous session...')
 		terminal(f'rm -rf {os.path.join(bitcoinDirectory, "debug.log")}')
 
-	if isBitcoinUp(): stopBitcoin()
+	#if isBitcoinUp(): stopBitcoin()
 	if isTorUp(): stopTor()
 	if isI2PUp(): stopI2P()
 	if isCJDNSUp(): stopCJDNS()

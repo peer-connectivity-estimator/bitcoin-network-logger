@@ -1048,7 +1048,7 @@ RPCHelpMan getmsginfo()
                 "\nList out the computer message info.\n",
                 {},
                 RPCResult{
-                    RPCResult::Type::OBJ, "", "",
+                    RPCResult::Type::OBJ, "", false,
                     {
                         {},
                     }
@@ -1154,7 +1154,7 @@ RPCHelpMan getpeersmsginfo()
                 "\nList out the computer message info for each peer.\n",
                 {},
                 RPCResult{
-                    RPCResult::Type::OBJ, "", "",
+                    RPCResult::Type::OBJ, "", false,
                     {
                         {},
                     }
@@ -1239,7 +1239,7 @@ RPCHelpMan getpeersmsginfoandclear()
                 "\nList out the computer message info for each peer.\n",
                 {},
                 RPCResult{
-                    RPCResult::Type::OBJ, "", "",
+                    RPCResult::Type::OBJ, "", false,
                     {
                         {},
                     }
@@ -1660,7 +1660,7 @@ static RPCHelpMan getbucketinfo()
                 "\nGet the address manager bucket information.\n",
                 {},
                 RPCResult{
-                    RPCResult::Type::OBJ, "", "",
+                    RPCResult::Type::OBJ, "", false,
                     {
                         {},
                     }
