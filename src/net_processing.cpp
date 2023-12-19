@@ -3393,7 +3393,7 @@ void PeerManagerImpl::ProcessMessage(CNode& pfrom, const std::string& msg_type, 
   std::string address = pfrom.addr.ToStringAddr();
   if ((m_connman.getPeersMessageInfoData).find(address) == (m_connman.getPeersMessageInfoData).end()) {
     // Peer does not exist in the entries, create a log for it
-    std::vector<int> timePerMessageContainer{std::vector<int>(37 * 5)}; // Copied from src/net.h#L754
+    std::vector<int> timePerMessageContainer{std::vector<int>(38 * 5)}; // Copied from src/net.h#L754
     (m_connman.getPeersMessageInfoData)[address] = timePerMessageContainer;
     (m_connman.getPeersUndocumentedMessages)[address] = {};
   }

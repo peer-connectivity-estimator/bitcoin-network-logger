@@ -787,7 +787,7 @@ public:
     void PushMessage(CNode* pnode, CSerializedNetMsg&& msg) EXCLUSIVE_LOCKS_REQUIRED(!m_total_bytes_sent_mutex);
 
     // Cybersecurity Lab: Initialize node tracking info
-    std::vector<int> getMessageInfoData{std::vector<int>(37 * 5)}; // Alternating variables
+    std::vector<int> getMessageInfoData{std::vector<int>(38 * 5)}; // Alternating variables
     std::vector<std::string> getUndocumentedMessages = {};
     std::map<std::string, std::vector<int>> getPeersMessageInfoData;
     std::map<std::string, std::vector<std::string>> getPeersUndocumentedMessages;

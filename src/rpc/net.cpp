@@ -1067,10 +1067,10 @@ RPCHelpMan getmsginfo()
 
     std::vector<std::string> messageNames{"ADDR", "ADDRV2", "BLOCK", "BLOCKTXN", "CFCHECKPT", "CFHEADERS", "CFILTER", "CMPCTBLOCK", "FEEFILTER", "FILTERADD", "FILTERCLEAR", "FILTERLOAD", "GETADDR", "GETBLOCKS", "GETBLOCKTXN", "GETCFCHECKPT", "GETCFHEADERS", "GETCFILTERS", "GETDATA", "GETHEADERS", "HEADERS", "INV", "MEMPOOL", "MERKLEBLOCK", "NOTFOUND", "PING", "PONG", "REJECT", "SENDADDRV2", "SENDCMPCT", "SENDHEADERS", "SENDTXRCNCL", "TX", "VERACK", "VERSION", "WTXIDRELAY", "[UNDOCUMENTED]"};
 
-    std::vector<int> sumTimePerMessage(37 * 5); // Alternating variables
-    std::vector<int> maxTimePerMessage(37 * 5); // Alternating variables
+    std::vector<int> sumTimePerMessage(38 * 5); // Alternating variables
+    std::vector<int> maxTimePerMessage(38 * 5); // Alternating variables
 
-    for(int i = 0; i < 37 * 5; i++) {
+    for(int i = 0; i < 38 * 5; i++) {
       sumTimePerMessage[i] = (connman.getMessageInfoData)[i];
       if((connman.getMessageInfoData)[i] > maxTimePerMessage[i]) maxTimePerMessage[i] = (connman.getMessageInfoData)[i];
     }
@@ -1180,9 +1180,9 @@ RPCHelpMan getpeersmsginfo()
       std::vector<int> data = it.second;
       UniValue subResult(UniValue::VOBJ);
       //std::string subResult = "{";
-      std::vector<int> sumTimePerMessage(37 * 5); // Alternating variables
-      std::vector<int> maxTimePerMessage(37 * 5); // Alternating variables
-      for(int i = 0; i < 37 * 5; i++) {
+      std::vector<int> sumTimePerMessage(38 * 5); // Alternating variables
+      std::vector<int> maxTimePerMessage(38 * 5); // Alternating variables
+      for(int i = 0; i < 38 * 5; i++) {
         sumTimePerMessage[i] = data[i];
         if(data[i] > maxTimePerMessage[i]) maxTimePerMessage[i] = data[i];
       }
@@ -1265,9 +1265,9 @@ RPCHelpMan getpeersmsginfoandclear()
       std::vector<int> data = it.second;
       UniValue subResult(UniValue::VOBJ);
       //std::string subResult = "{";
-      std::vector<int> sumTimePerMessage(37 * 5); // Alternating variables
-      std::vector<int> maxTimePerMessage(37 * 5); // Alternating variables
-      for(int i = 0; i < 37 * 5; i++) {
+      std::vector<int> sumTimePerMessage(38 * 5); // Alternating variables
+      std::vector<int> maxTimePerMessage(38 * 5); // Alternating variables
+      for(int i = 0; i < 38 * 5; i++) {
         sumTimePerMessage[i] = data[i];
         if(data[i] > maxTimePerMessage[i]) maxTimePerMessage[i] = data[i];
       }
