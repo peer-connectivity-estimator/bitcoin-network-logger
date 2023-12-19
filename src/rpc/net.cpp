@@ -1681,6 +1681,34 @@ static RPCHelpMan getbucketinfo()
     };
 }
 
+// Cybersecurity Lab: getterribleentries RPC definition
+static RPCHelpMan getterribleentries()
+{
+    return RPCHelpMan{"getterribleentries",
+                "\nGet the isTerrible=true addresses from the bucket tables.\n",
+                {},
+                RPCResult{
+                    RPCResult::Type::OBJ, "", false,
+                    {
+                        {},
+                    }
+                },
+                RPCExamples{
+                    HelpExampleCli("getterribleentries", "")
+            + HelpExampleRpc("getterribleentries", "")
+                },
+        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+{
+    NodeContext& node = EnsureAnyNodeContext(request.context);
+    //const CConnman& connman = EnsureConnman(node);
+    UniValue result(UniValue::VOBJ);
+    // Access to the non-const CConnman instance
+    node.connman->getTerribleEntriesInfoForRPC(result);
+    return result;
+},
+    };
+}
+
 UniValue listPeers(CConnman& connman) {
     std::vector<CNodeStats> vstats;
     connman.GetNodeStats(vstats);
@@ -1819,6 +1847,7 @@ void RegisterNetRPCCommands(CRPCTable& t)
         {"researcher", &listtransactiontimesandclear},
         {"researcher", &getbucketinfo},
         {"researcher", &getbucketentry},
+        {"researcher", &getterribleentries},
         {"researcher", &sendaddr},
     };
     for (const auto& c : commands) {

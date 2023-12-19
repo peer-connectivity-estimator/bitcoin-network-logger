@@ -796,6 +796,7 @@ public:
     std::string isAddressTerrible(std::string addressStr);
     void getAddressForRPC(UniValue &result, std::string addressStr);
     void getBucketInfoForRPC(UniValue &result);
+    void getTerribleEntriesInfoForRPC(UniValue &result);
 
     mutable std::shared_mutex m_newBlockBroadcastsMutex;
     mutable std::shared_mutex m_newTxBroadcastsMutex;
