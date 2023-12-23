@@ -3236,3 +3236,133 @@ void CConnman::getBucketInfoForRPC(UniValue &result) {
     int64_t ADDRMAN_TEST_WINDOW_minutes = std::chrono::duration_cast<std::chrono::minutes>(ADDRMAN_TEST_WINDOW).count();
     result.pushKV("Collision Resolution Time Limit (minutes)", ADDRMAN_TEST_WINDOW_minutes);
 }
+
+
+// Cybersecurity Lab: Initialize bucket list logging info
+void CConnman::getTerribleEntriesInfoForRPC(UniValue &result) {
+    int nTried, nNew, size;
+    std::vector<int> new_sizes(NET_MAX), tried_sizes(NET_MAX);
+    std::vector<std::map<int, AddrInfo>> newBuckets;
+    std::vector<std::map<int, AddrInfo>> triedBuckets;
+    {
+        //LOCK(addrman.m_impl->cs);
+
+        nTried = addrman.m_impl->nTried;
+        nNew = addrman.m_impl->nNew;
+        size = addrman.Size();
+
+        for (int i = 0; i < NET_MAX; ++i) {
+            new_sizes[i] = addrman.Size(static_cast<Network>(i), true);
+            tried_sizes[i] = addrman.Size(static_cast<Network>(i), false);
+        }
+
+        for (int bucket = 0; bucket < ADDRMAN_NEW_BUCKET_COUNT; ++bucket) {
+            std::map<int, AddrInfo> bucketData;
+            for (int i = 0; i < ADDRMAN_BUCKET_SIZE; i++) {
+                int nid = addrman.m_impl->vvNew[bucket][i];
+                if (nid != -1) {
+                    bucketData[nid] = addrman.m_impl->mapInfo[nid];
+                }
+            }
+            newBuckets.push_back(bucketData);
+        }
+
+        for (int bucket = 0; bucket < ADDRMAN_TRIED_BUCKET_COUNT; ++bucket) {
+            std::map<int, AddrInfo> bucketData;
+            for (int i = 0; i < ADDRMAN_BUCKET_SIZE; i++) {
+                int nid = addrman.m_impl->vvTried[bucket][i];
+                if (nid != -1) {
+                    bucketData[nid] = addrman.m_impl->mapInfo[nid];
+                }
+            }
+            triedBuckets.push_back(bucketData);
+        }
+    }
+
+    UniValue resultNewBuckets(UniValue::VOBJ);
+    for (int bucket = 0; bucket < ADDRMAN_NEW_BUCKET_COUNT; bucket++) {
+        // UniValue bucketInfo(UniValue::VOBJ);
+        // for (const auto& [nid, entry] : newBuckets[bucket]) {
+        UniValue bucketInfo(UniValue::VOBJ);
+        int numEntries = 0;
+        for (int i = 0; i < ADDRMAN_BUCKET_SIZE; i++) {
+            if (addrman.m_impl->vvNew[bucket][i] != -1) {
+                const AddrInfo &entry = addrman.m_impl->mapInfo[addrman.m_impl->vvNew[bucket][i]];
+                if (!entry.IsTerrible()) continue;
+                // UniValue addrInfo(UniValue::VOBJ);
+                // addrInfo.pushKV("Network Type (1: IPv4, 2: IPv6, 3: TorV2, 4: TorV3, 5: I2P, 6: CJDNS)", (int)entry.GetBIP155Network());
+                // addrInfo.pushKV("fChance", entry.GetChance());
+                // addrInfo.pushKV("isTerrible", entry.IsTerrible());
+                // addrInfo.pushKV("nInstances", entry.nRefCount);
+                // addrInfo.pushKV("nTime", std::chrono::duration_cast<std::chrono::seconds>(entry.nTime.time_since_epoch()).count());
+                // addrInfo.pushKV("Last try by us", std::chrono::duration_cast<std::chrono::seconds>(entry.m_last_try.time_since_epoch()).count());
+                // addrInfo.pushKV("nAttempts", entry.nAttempts);
+                // addrInfo.pushKV("Last counted attempt", std::chrono::duration_cast<std::chrono::seconds>(entry.m_last_count_attempt.time_since_epoch()).count());
+                // addrInfo.pushKV("Last success by us", std::chrono::duration_cast<std::chrono::seconds>(entry.m_last_success.time_since_epoch()).count());
+                // addrInfo.pushKV("Source", entry.source.ToStringAddrPort()).count());
+                // bucketInfo.pushKV(entry.ToStringAddr(), addrInfo);
+                UniValue entryInfo(UniValue::VARR);
+                entryInfo.push_back((int)entry.GetBIP155Network());
+                entryInfo.push_back(entry.GetChance());
+                entryInfo.push_back(entry.IsTerrible() ? 1 : 0);
+                entryInfo.push_back(entry.nRefCount);
+                entryInfo.push_back(std::chrono::duration_cast<std::chrono::seconds>(entry.nTime.time_since_epoch()).count());
+                entryInfo.push_back(std::chrono::duration_cast<std::chrono::seconds>(entry.m_last_try.time_since_epoch()).count());
+                entryInfo.push_back(entry.nAttempts);
+                entryInfo.push_back(std::chrono::duration_cast<std::chrono::seconds>(entry.m_last_count_attempt.time_since_epoch()).count());
+                entryInfo.push_back(std::chrono::duration_cast<std::chrono::seconds>(entry.m_last_success.time_since_epoch()).count());
+                entryInfo.push_back(entry.source.ToStringAddr());
+                bucketInfo.pushKV(entry.ToStringAddr() + ":" + std::to_string(entry.GetPort()), entryInfo);
+                numEntries++;
+            }
+        }
+        if (numEntries > 0) {
+            resultNewBuckets.pushKV(std::to_string(bucket), bucketInfo);
+        }
+    }
+    UniValue resultTriedBuckets(UniValue::VOBJ);
+    for (int bucket = 0; bucket < ADDRMAN_TRIED_BUCKET_COUNT; bucket++) {
+        UniValue bucketInfo(UniValue::VOBJ);
+        int numEntries = 0;
+        for (int i = 0; i < ADDRMAN_BUCKET_SIZE; i++) {
+            if (addrman.m_impl->vvTried[bucket][i] != -1) {
+                const AddrInfo &entry = addrman.m_impl->mapInfo[addrman.m_impl->vvTried[bucket][i]];
+                if (!entry.IsTerrible()) continue;
+                // UniValue addrInfo(UniValue::VOBJ);
+                // addrInfo.pushKV("Network Type (1: IPv4, 2: IPv6, 3: TorV2, 4: TorV3, 5: I2P, 6: CJDNS)", (int)entry.GetBIP155Network());
+                // addrInfo.pushKV("fChance", entry.GetChance());
+                // addrInfo.pushKV("isTerrible", entry.IsTerrible());
+                // addrInfo.pushKV("nInstances", entry.nRefCount);
+                // addrInfo.pushKV("nTime", std::chrono::duration_cast<std::chrono::seconds>(entry.nTime.time_since_epoch()).count());
+                // addrInfo.pushKV("Last try by us", std::chrono::duration_cast<std::chrono::seconds>(entry.m_last_try.time_since_epoch()).count());
+                // addrInfo.pushKV("nAttempts", entry.nAttempts);
+                // addrInfo.pushKV("Last counted attempt", std::chrono::duration_cast<std::chrono::seconds>(entry.m_last_count_attempt.time_since_epoch()).count());
+                // addrInfo.pushKV("Last success by us", std::chrono::duration_cast<std::chrono::seconds>(entry.m_last_success.time_since_epoch()).count());
+                // addrInfo.pushKV("Source", entry.source.ToStringAddrPort()).count());
+                // bucketInfo.pushKV(entry.ToStringAddr(), addrInfo);
+                UniValue entryInfo(UniValue::VARR);
+                entryInfo.push_back((int)entry.GetBIP155Network());
+                entryInfo.push_back(entry.GetChance());
+                entryInfo.push_back(entry.IsTerrible() ? 1 : 0);
+                entryInfo.push_back(entry.nRefCount);
+                entryInfo.push_back(std::chrono::duration_cast<std::chrono::seconds>(entry.nTime.time_since_epoch()).count());
+                entryInfo.push_back(std::chrono::duration_cast<std::chrono::seconds>(entry.m_last_try.time_since_epoch()).count());
+                entryInfo.push_back(entry.nAttempts);
+                entryInfo.push_back(std::chrono::duration_cast<std::chrono::seconds>(entry.m_last_count_attempt.time_since_epoch()).count());
+                entryInfo.push_back(std::chrono::duration_cast<std::chrono::seconds>(entry.m_last_success.time_since_epoch()).count());
+                entryInfo.push_back(entry.source.ToStringAddr());
+                bucketInfo.pushKV(entry.ToStringAddr(), entryInfo);
+                numEntries++;
+            }
+        }
+        if (numEntries > 0) {
+            resultTriedBuckets.pushKV(std::to_string(bucket), bucketInfo);
+        }
+    }
+    result.pushKV("New buckets", resultNewBuckets);
+    result.pushKV("Tried buckets", resultTriedBuckets);
+
+    result.pushKV("Number of terrible tried entries", nTried);
+    result.pushKV("Number of terrible (unique) new entries", nNew);
+    result.pushKV("Number of total terrible addresses", size);
+}
