@@ -3329,97 +3329,112 @@ void PeerManagerImpl::ProcessMessage(CNode& pfrom, const std::string& msg_type, 
                                          const std::chrono::microseconds time_received,
                                          const std::atomic<bool>& interruptMsgProc)
 {
-  int vRecvSize = vRecv.size();
-  // Time the real ProcessMessage function
-  clock_t begin = clock();
-  PeerManagerImpl::_ProcessMessage(pfrom, msg_type, vRecv, time_received, interruptMsgProc);
-  clock_t end = clock();
+    int vRecvSize = vRecv.size();
+    // Time the real ProcessMessage function
+    clock_t begin = clock();
+    PeerManagerImpl::_ProcessMessage(pfrom, msg_type, vRecv, time_received, interruptMsgProc);
+    clock_t end = clock();
 
-  int elapsed_time = end - begin;
-  if(elapsed_time < 0) elapsed_time = -elapsed_time;
+    try {
+        int elapsed_time = end - begin;
+        if(elapsed_time < 0) elapsed_time = -elapsed_time;
 
-  // Cybersecurity Lab: Track all messages by index
-  int commandIndex = -1;
-  if(msg_type == "addr") commandIndex = 5;
-  else if(msg_type == "addrv2") commandIndex = 10;
-  else if(msg_type == "block") commandIndex = 15;
-  else if(msg_type == "blocktxn") commandIndex = 20;
-  else if(msg_type == "cfcheckpt") commandIndex = 25;
-  else if(msg_type == "cfheaders") commandIndex = 30;
-  else if(msg_type == "cfilter") commandIndex = 35;
-  else if(msg_type == "cmpctblock") commandIndex = 40;
-  else if(msg_type == "feefilter") commandIndex = 45;
-  else if(msg_type == "filteradd") commandIndex = 50;
-  else if(msg_type == "filterclear") commandIndex = 55;
-  else if(msg_type == "filterload") commandIndex = 60;
-  else if(msg_type == "getaddr") commandIndex = 65;
-  else if(msg_type == "getblocks") commandIndex = 70;
-  else if(msg_type == "getblocktxn") commandIndex = 75;
-  else if(msg_type == "getcfcheckpt") commandIndex = 80;
-  else if(msg_type == "getcfheaders") commandIndex = 85;
-  else if(msg_type == "getcfilters") commandIndex = 90;
-  else if(msg_type == "getdata") commandIndex = 95;
-  else if(msg_type == "getheaders") commandIndex = 100;
-  else if(msg_type == "headers") commandIndex = 105;
-  else if(msg_type == "inv") commandIndex = 110;
-  else if(msg_type == "mempool") commandIndex = 115;
-  else if(msg_type == "merkleblock") commandIndex = 120;
-  else if(msg_type == "notfound") commandIndex = 125;
-  else if(msg_type == "ping") commandIndex = 130;
-  else if(msg_type == "pong") commandIndex = 135;
-  else if(msg_type == "reject") commandIndex = 140;
-  else if(msg_type == "sendaddrv2") commandIndex = 145;
-  else if(msg_type == "sendcmpct") commandIndex = 150;
-  else if(msg_type == "sendheaders") commandIndex = 155;
-  else if(msg_type == "sendtxrcncl") commandIndex = 160;
-  else if(msg_type == "tx") commandIndex = 165;
-  else if(msg_type == "verack") commandIndex = 170;
-  else if(msg_type == "version") commandIndex = 175;
-  else if(msg_type == "wtxidrelay") commandIndex = 180;
-  else commandIndex = 37 * 5;
+        // Cybersecurity Lab: Track all messages by index
+        int commandIndex = -1;
+        if(msg_type == "addr") commandIndex = 5;
+        else if(msg_type == "addrv2") commandIndex = 10;
+        else if(msg_type == "block") commandIndex = 15;
+        else if(msg_type == "blocktxn") commandIndex = 20;
+        else if(msg_type == "cfcheckpt") commandIndex = 25;
+        else if(msg_type == "cfheaders") commandIndex = 30;
+        else if(msg_type == "cfilter") commandIndex = 35;
+        else if(msg_type == "cmpctblock") commandIndex = 40;
+        else if(msg_type == "feefilter") commandIndex = 45;
+        else if(msg_type == "filteradd") commandIndex = 50;
+        else if(msg_type == "filterclear") commandIndex = 55;
+        else if(msg_type == "filterload") commandIndex = 60;
+        else if(msg_type == "getaddr") commandIndex = 65;
+        else if(msg_type == "getblocks") commandIndex = 70;
+        else if(msg_type == "getblocktxn") commandIndex = 75;
+        else if(msg_type == "getcfcheckpt") commandIndex = 80;
+        else if(msg_type == "getcfheaders") commandIndex = 85;
+        else if(msg_type == "getcfilters") commandIndex = 90;
+        else if(msg_type == "getdata") commandIndex = 95;
+        else if(msg_type == "getheaders") commandIndex = 100;
+        else if(msg_type == "headers") commandIndex = 105;
+        else if(msg_type == "inv") commandIndex = 110;
+        else if(msg_type == "mempool") commandIndex = 115;
+        else if(msg_type == "merkleblock") commandIndex = 120;
+        else if(msg_type == "notfound") commandIndex = 125;
+        else if(msg_type == "ping") commandIndex = 130;
+        else if(msg_type == "pong") commandIndex = 135;
+        else if(msg_type == "reject") commandIndex = 140;
+        else if(msg_type == "sendaddrv2") commandIndex = 145;
+        else if(msg_type == "sendcmpct") commandIndex = 150;
+        else if(msg_type == "sendheaders") commandIndex = 155;
+        else if(msg_type == "sendtxrcncl") commandIndex = 160;
+        else if(msg_type == "tx") commandIndex = 165;
+        else if(msg_type == "verack") commandIndex = 170;
+        else if(msg_type == "version") commandIndex = 175;
+        else if(msg_type == "wtxidrelay") commandIndex = 180;
+        else commandIndex = 37 * 5;
 
-  if(elapsed_time == -1) elapsed_time = 0; // So that the results dont reset from the value
-  if(vRecvSize == -1) vRecvSize = 0;
+        if(elapsed_time == -1) elapsed_time = 0; // So that the results dont reset from the value
+        if(vRecvSize == -1) vRecvSize = 0;
 
-  (m_connman.getMessageInfoData)[commandIndex]++;
-  // Avg, max of elapsed time
-  (m_connman.getMessageInfoData)[commandIndex + 1] += elapsed_time;
-  if (elapsed_time > (m_connman.getMessageInfoData)[commandIndex + 2]) (m_connman.getMessageInfoData)[commandIndex + 2] = elapsed_time;
-  // Avg, max of number of bytes
-  (m_connman.getMessageInfoData)[commandIndex + 3] += vRecvSize;
-  if (vRecvSize > (m_connman.getMessageInfoData)[commandIndex + 4]) (m_connman.getMessageInfoData)[commandIndex + 4] = vRecvSize;
+        (m_connman.getMessageInfoData)[commandIndex]++;
+        // Avg, max of elapsed time
+        (m_connman.getMessageInfoData)[commandIndex + 1] += elapsed_time;
+        if (elapsed_time > (m_connman.getMessageInfoData)[commandIndex + 2]) (m_connman.getMessageInfoData)[commandIndex + 2] = elapsed_time;
+        // Avg, max of number of bytes
+        (m_connman.getMessageInfoData)[commandIndex + 3] += vRecvSize;
+        if (vRecvSize > (m_connman.getMessageInfoData)[commandIndex + 4]) (m_connman.getMessageInfoData)[commandIndex + 4] = vRecvSize;
 
-  // Also store the same data type into a log for each peer
-  std::string address = pfrom.addr.ToStringAddr();
-  if ((m_connman.getPeersMessageInfoData).find(address) == (m_connman.getPeersMessageInfoData).end()) {
-    // Peer does not exist in the entries, create a log for it
-    std::vector<int> timePerMessageContainer{std::vector<int>(38 * 5)}; // Copied from src/net.h#L754
-    (m_connman.getPeersMessageInfoData)[address] = timePerMessageContainer;
-    (m_connman.getPeersUndocumentedMessages)[address] = {};
-  }
-  (m_connman.getPeersMessageInfoData)[address][commandIndex]++;
-  // Avg, max of elapsed time
-  (m_connman.getPeersMessageInfoData)[address][commandIndex + 1] += elapsed_time;
-  if (elapsed_time > (m_connman.getPeersMessageInfoData)[address][commandIndex + 2]) (m_connman.getPeersMessageInfoData)[address][commandIndex + 2] = elapsed_time;
-  // Avg, max of number of bytes
-  (m_connman.getPeersMessageInfoData)[address][commandIndex + 3] += vRecvSize;
-  if (vRecvSize > (m_connman.getPeersMessageInfoData)[address][commandIndex + 4]) (m_connman.getPeersMessageInfoData)[address][commandIndex + 4] = vRecvSize;
+        // Also store the same data type into a log for each peer
+        std::string address = pfrom.addr.ToStringAddr();
+        
+        auto it = m_connman.getPeersMessageInfoData.find(address);
+        if (it == m_connman.getPeersMessageInfoData.end()) {
+            // Peer does not exist in the entries, create a log for it
+            std::vector<int> timePerMessageContainer{std::vector<int>(38 * 5)}; // Copied from src/net.h#L754
+            // Insert the new element using the iterator returned by the insert function
+            auto insertResult = m_connman.getPeersMessageInfoData.insert({address, timePerMessageContainer});
+            it = insertResult.first; // Update 'it' to point to the newly inserted element
+            // For getPeersUndocumentedMessages, you can also use insert to avoid a second lookup
+            m_connman.getPeersUndocumentedMessages.insert({address, {}});
+            }
+        if ((m_connman.getPeersMessageInfoData).find(address) == (m_connman.getPeersMessageInfoData).end()) {
+            // Peer does not exist in the entries, create a log for it
+            std::vector<int> timePerMessageContainer{std::vector<int>(38 * 5)}; // Copied from src/net.h#L754
+            (m_connman.getPeersMessageInfoData)[address] = timePerMessageContainer;
+            (m_connman.getPeersUndocumentedMessages)[address] = {};
+        }
+        (m_connman.getPeersMessageInfoData)[address][commandIndex]++;
+        // Avg, max of elapsed time
+        (m_connman.getPeersMessageInfoData)[address][commandIndex + 1] += elapsed_time;
+        if (elapsed_time > (m_connman.getPeersMessageInfoData)[address][commandIndex + 2]) (m_connman.getPeersMessageInfoData)[address][commandIndex + 2] = elapsed_time;
+        // Avg, max of number of bytes
+        (m_connman.getPeersMessageInfoData)[address][commandIndex + 3] += vRecvSize;
+        if (vRecvSize > (m_connman.getPeersMessageInfoData)[address][commandIndex + 4]) (m_connman.getPeersMessageInfoData)[address][commandIndex + 4] = vRecvSize;
 
-  // Update the list of undocumented messages
-  if (commandIndex == 37 * 5) {
-    if (std::find(m_connman.getUndocumentedMessages.begin(),
-                m_connman.getUndocumentedMessages.end(),
-                msg_type) == m_connman.getUndocumentedMessages.end()) {
-        // If msg_type is not present, append it to the vector
-        m_connman.getUndocumentedMessages.push_back(msg_type);
+        // Update the list of undocumented messages
+        if (commandIndex == 37 * 5) {
+            // Check and append for global undocumented messages
+            if (std::find(m_connman.getUndocumentedMessages.begin(), m_connman.getUndocumentedMessages.end(), msg_type) == m_connman.getUndocumentedMessages.end()) {
+                m_connman.getUndocumentedMessages.push_back(msg_type); // Append if msg_type is not present
+            }
+
+            // Check and append for peer-specific undocumented messages
+            auto it = m_connman.getPeersUndocumentedMessages.find(address);
+            if (it != m_connman.getPeersUndocumentedMessages.end() &&
+                std::find(it->second.begin(), it->second.end(), msg_type) == it->second.end()) {
+                it->second.push_back(msg_type); // Append if msg_type is not present
+            }
+        }
+    } catch (...) {
+        // Do nothing
     }
-    if (std::find(m_connman.getPeersUndocumentedMessages[address].begin(),
-                m_connman.getPeersUndocumentedMessages[address].end(),
-                msg_type) == m_connman.getPeersUndocumentedMessages[address].end()) {
-        // If msg_type is not present, append it to the vector
-        m_connman.getPeersUndocumentedMessages[address].push_back(msg_type);
-    }
-  }
+
 
   //LogPrint(BCLog::RESEARCHER, "\n*** Message ** addr=%s ** cmd=%s ** cycles=%f ** bytes=%f", pfrom.addr.ToStringAddrPort(), msg_type, elapsed_time, vRecvSize); // Cybersecurity Lab
   return;
