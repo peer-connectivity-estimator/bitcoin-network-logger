@@ -7,12 +7,18 @@
 
 bitcoinParams=""
 otherParams=""
+datadirParam=""
+
+# Check for '-datadir' parameter
 for var in "$@"; do
-    if [[ $var == -* ]]; then
-		bitcoinParams="$bitcoinParams $var"
-	else
-		otherParams="$otherParams $var"
-	fi
+    if [[ "$var" == -datadir=* ]]; then
+        datadirParam="${var#*=}"
+        echo "Using provided datadir: $datadirParam"
+    elif [[ "$var" == -* ]]; then
+        bitcoinParams="$bitcoinParams $var"
+    else
+        otherParams="$otherParams $var"
+    fi
 done
 
 
@@ -67,6 +73,12 @@ else
 	if [ ! -d "$dir" ] ; then
 		mkdir "$dir"
 	fi
+fi
+
+# Override 'dir' if '-datadir' parameter was provided
+if [ -n "$datadirParam" ]; then
+    echo "Overriding with provided datadir: $datadirParam"
+    dir="$datadirParam"
 fi
 
 if [ -f "$dir/bitcoind.pid" ] ; then
