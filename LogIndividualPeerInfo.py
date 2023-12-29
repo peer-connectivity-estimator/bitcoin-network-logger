@@ -284,11 +284,8 @@ def startCJDNS():
 # Start the Bitcoin Core instance
 def startBitcoin():
 	global isInStartupDownload
-	if not isBitcoinUp():
-		# If Bitcoin crashed for whatever reason before, remove the PID that would prevent it from starting again
-		terminal(f'rm -rf {os.path.join(bitcoinDirectory, "bitcoind.pid")}')
 
-	networkParams = ''
+	networkParams = f' -datadir="{bitcoinDirectory}"'
 	if EnabledIPv4:
 		networkParams += ' -onlynet=ipv4'
 	if EnabledIPv6:
@@ -300,10 +297,16 @@ def startBitcoin():
 	if EnabledCJDNS:
 		networkParams += ' -cjdnsreachable=1 -onlynet=cjdns'
 
-	print('Starting Bitcoin...')
+	print('Starting Bitcoin in', bitcoinDirectory, '...')
 	rpcReady = False
 	while rpcReady is False:
 		if not isBitcoinUp():
+			# If Bitcoin crashed for whatever reason before, remove the PID that would prevent it from starting again
+			if os.path.exists(os.path.join(bitcoinDirectory, 'bitcoind.pid')):
+				print('Removing old Bitcoin PID file...')
+				os.remove(os.path.join(bitcoinDirectory, 'bitcoind.pid'))
+				#terminal(f'rm -rf {os.path.join(bitcoinDirectory, 'bitcoind.pid')}')
+
 			if filesToLog['bitcoin_debug.log']:
 				subprocess.Popen([f'gnome-terminal -t "Bitcoin Core Instance" -- bash ./run.sh noconsole{networkParams} --daemon --debug=all'], shell=True)
 			else:

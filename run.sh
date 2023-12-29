@@ -7,12 +7,19 @@
 
 bitcoinParams=""
 otherParams=""
+datadirParam=""
+
+# Check for '-datadir' parameter
 for var in "$@"; do
-    if [[ $var == -* ]]; then
-		bitcoinParams="$bitcoinParams $var"
-	else
-		otherParams="$otherParams $var"
-	fi
+    if [[ "$var" == -datadir=* ]]; then
+        datadirParam="${var#*=}"
+        echo "Using provided datadir: $datadirParam"
+        break
+    elif [[ "$var" == -* ]]; then
+        bitcoinParams="$bitcoinParams $var"
+    else
+        otherParams="$otherParams $var"
+    fi
 done
 
 
@@ -69,6 +76,12 @@ else
 	fi
 fi
 
+# Override 'dir' if '-datadir' parameter was provided
+if [ -n "$datadirParam" ]; then
+    echo "Overriding with provided datadir: $datadirParam"
+    dir="$datadirParam"
+fi
+
 if [ -f "$dir/bitcoind.pid" ] ; then
 	echo "The directory \"$dir\" has bitcoind.pid, meaning that Bitcoin is already running. In order to ensure that the blockchain does not get corrupted, the program will now terminate."
 	exit 1
@@ -121,17 +134,17 @@ if [[ " ${otherParams[*]} " =~ " gui " ]]; then
 		echo
 
 		if [[ " ${otherParams[*]} " =~ " gdb " ]]; then
-			gdb -ex run --args src/qt/bitcoin-qt -prune=550 -datadir="$dir" $bitcoinParams #--debug=researcher
+			gdb -ex run --args src/qt/bitcoin-qt -prune=550 -datadir="$dir" $bitcoinParams #--debug=researcher #-uacomment=CS
 		else
-			src/qt/bitcoin-qt -prune=550 -datadir="$dir" $bitcoinParams ##--debug=researcher
+			src/qt/bitcoin-qt -prune=550 -datadir="$dir" $bitcoinParams ##--debug=researcher #-uacomment=CS
 		fi
 	else
 		echo
 
 		if [[ " ${otherParams[*]} " =~ " gdb " ]]; then
-			gdb -ex run --args src/qt/bitcoin-qt -datadir="$dir" $bitcoinParams #--debug=researcher
+			gdb -ex run --args src/qt/bitcoin-qt -datadir="$dir" $bitcoinParams #--debug=researcher #-uacomment=CS
 		else
-			src/qt/bitcoin-qt -datadir="$dir" $bitcoinParams ##--debug=researcher
+			src/qt/bitcoin-qt -datadir="$dir" $bitcoinParams ##--debug=researcher #-uacomment=CS
 		fi
 	fi
 else
@@ -155,15 +168,15 @@ else
 		echo
 
 		if [[ " ${otherParams[*]} " =~ " gdb " ]]; then
-			gdb -ex run --args src/bitcoind -prune=550 -datadir="$dir" $bitcoinParams #--debug=researcher
+			gdb -ex run --args src/bitcoind -prune=550 -datadir="$dir" $bitcoinParams #--debug=researcher #-uacomment=CS
 		else
-			src/bitcoind -prune=550 -datadir="$dir" $bitcoinParams #--debug=net
+			src/bitcoind -prune=550 -datadir="$dir" $bitcoinParams #--debug=net #-uacomment=CS
 		fi
 	else
 		echo
 
 		if [[ " ${otherParams[*]} " =~ " gdb " ]]; then
-			gdb -ex run --args src/bitcoind -datadir="$dir" -txindex=1 $bitcoinParams #--debug=researcher
+			gdb -ex run --args src/bitcoind -datadir="$dir" -txindex=1 $bitcoinParams #--debug=researcher #-uacomment=CS
 		else
 			src/bitcoind -datadir="$dir" -txindex=1 $bitcoinParams
 		fi
@@ -171,6 +184,6 @@ else
 		#src/bitcoind -datadir="/media/sf_Bitcoin" --debug=researcher -reindex-chainstate
 		
 		# Reindexing the transaction index database
-		#src/bitcoind -datadir="$dir" -txindex=1 -reindex $bitcoinParams #--debug=researcher
+		#src/bitcoind -datadir="$dir" -txindex=1 -reindex $bitcoinParams #--debug=researcher #-uacomment=CS
 	fi
 fi
