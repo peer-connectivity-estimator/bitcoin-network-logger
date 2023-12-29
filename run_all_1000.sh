@@ -14,7 +14,6 @@ for var in "$@"; do
     if [[ "$var" == -datadir=* ]]; then
         datadirParam="${var#*=}"
         echo "Using provided datadir: $datadirParam"
-        break
     elif [[ "$var" == -* ]]; then
         bitcoinParams="$bitcoinParams $var"
     else

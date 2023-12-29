@@ -305,7 +305,6 @@ def startBitcoin():
 			if os.path.exists(os.path.join(bitcoinDirectory, 'bitcoind.pid')):
 				print('Removing old Bitcoin PID file...')
 				os.remove(os.path.join(bitcoinDirectory, 'bitcoind.pid'))
-				#terminal(f'rm -rf {os.path.join(bitcoinDirectory, 'bitcoind.pid')}')
 
 			if filesToLog['bitcoin_debug.log']:
 				subprocess.Popen([f'gnome-terminal -t "Bitcoin Core Instance" -- bash ./run.sh noconsole{networkParams} --daemon --debug=all'], shell=True)
