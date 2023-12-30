@@ -302,9 +302,12 @@ def startBitcoin():
 	while rpcReady is False:
 		if not isBitcoinUp():
 			# If Bitcoin crashed for whatever reason before, remove the PID that would prevent it from starting again
-			if os.path.exists(os.path.join(bitcoinDirectory, 'bitcoind.pid')):
+			pidPath = os.path.join(bitcoinDirectory, 'bitcoind.pid').replace(' ', '\\ ')
+			while os.path.exists(pidPath):
 				print('Removing old Bitcoin PID file...')
-				os.remove(os.path.join(bitcoinDirectory, 'bitcoind.pid'))
+				terminal(f'rm -rf "{pidPath}"')
+				time.sleep(1)
+
 
 			if filesToLog['bitcoin_debug.log']:
 				subprocess.Popen([f'gnome-terminal -t "Bitcoin Core Instance" -- bash ./run.sh noconsole{networkParams} --daemon --debug=all'], shell=True)
@@ -1538,7 +1541,7 @@ def logNode(address, timestamp, directory, updateInfo, blockHeight):
 		if prevLine[2] != '':
 			connectionCount = int(prevLine[2])
 		# Check if this is the same connection or a new connection
-		if (prevLine[4] != '' and updateInfo['port'] != int(prevLine[4])) or (prevLine[3] != '' and updateInfo['connectionDuration'] < float(prevLine[3])):
+		if (prevLine[4] != '' and updateInfo['port'] != int(prevLine[4])) or (prevLine[3] != '' and type(updateInfo['connectionDuration']) is not str and updateInfo['connectionDuration'] < float(prevLine[3])):
 			connectionCount += 1
 			prevBytesSent[address] = 0
 			prevBytesReceived[address] = 0
