@@ -3329,6 +3329,7 @@ void PeerManagerImpl::ProcessMessage(CNode& pfrom, const std::string& msg_type, 
                                          const std::chrono::microseconds time_received,
                                          const std::atomic<bool>& interruptMsgProc)
 {
+    AssertLockHeld(g_msgproc_mutex);
     int vRecvSize = vRecv.size();
     // Time the real ProcessMessage function
     clock_t begin = clock();
@@ -3378,6 +3379,10 @@ void PeerManagerImpl::ProcessMessage(CNode& pfrom, const std::string& msg_type, 
         else if(msg_type == "version") commandIndex = 175;
         else if(msg_type == "wtxidrelay") commandIndex = 180;
         else commandIndex = 37 * 5;
+        // Ensure commandIndex is within the expected range
+        if (commandIndex < 0 || commandIndex > 38 * 5 - 5) {
+            commandIndex = 38 * 5 - 5;
+        }
 
         if(elapsed_time == -1) elapsed_time = 0; // So that the results dont reset from the value
         if(vRecvSize == -1) vRecvSize = 0;
@@ -3393,29 +3398,22 @@ void PeerManagerImpl::ProcessMessage(CNode& pfrom, const std::string& msg_type, 
         // Also store the same data type into a log for each peer
         std::string address = pfrom.addr.ToStringAddr();
         
-        auto it = m_connman.getPeersMessageInfoData.find(address);
-        if (it == m_connman.getPeersMessageInfoData.end()) {
-            // Peer does not exist in the entries, create a log for it
-            std::vector<int> timePerMessageContainer{std::vector<int>(38 * 5)}; // Copied from src/net.h#L754
-            // Insert the new element using the iterator returned by the insert function
-            auto insertResult = m_connman.getPeersMessageInfoData.insert({address, timePerMessageContainer});
-            it = insertResult.first; // Update 'it' to point to the newly inserted element
-            // For getPeersUndocumentedMessages, you can also use insert to avoid a second lookup
-            m_connman.getPeersUndocumentedMessages.insert({address, {}});
-            }
         if ((m_connman.getPeersMessageInfoData).find(address) == (m_connman.getPeersMessageInfoData).end()) {
             // Peer does not exist in the entries, create a log for it
-            std::vector<int> timePerMessageContainer{std::vector<int>(38 * 5)}; // Copied from src/net.h#L754
+            std::vector<int> timePerMessageContainer(38 * 5, 0); // Size of 38*5, initialized to 0, similar to src/net.h#L790
             (m_connman.getPeersMessageInfoData)[address] = timePerMessageContainer;
             (m_connman.getPeersUndocumentedMessages)[address] = {};
         }
-        (m_connman.getPeersMessageInfoData)[address][commandIndex]++;
+
+        auto& peerData = (m_connman.getPeersMessageInfoData)[address];
+
+        peerData[commandIndex]++;
         // Avg, max of elapsed time
-        (m_connman.getPeersMessageInfoData)[address][commandIndex + 1] += elapsed_time;
-        if (elapsed_time > (m_connman.getPeersMessageInfoData)[address][commandIndex + 2]) (m_connman.getPeersMessageInfoData)[address][commandIndex + 2] = elapsed_time;
+        peerData[commandIndex + 1] += elapsed_time;
+        if (elapsed_time > peerData[commandIndex + 2]) peerData[commandIndex + 2] = elapsed_time;
         // Avg, max of number of bytes
-        (m_connman.getPeersMessageInfoData)[address][commandIndex + 3] += vRecvSize;
-        if (vRecvSize > (m_connman.getPeersMessageInfoData)[address][commandIndex + 4]) (m_connman.getPeersMessageInfoData)[address][commandIndex + 4] = vRecvSize;
+        peerData[commandIndex + 3] += vRecvSize;
+        if (vRecvSize > peerData[commandIndex + 4]) peerData[commandIndex + 4] = vRecvSize;
 
         // Update the list of undocumented messages
         if (commandIndex == 37 * 5) {

@@ -39,7 +39,7 @@ import traceback
 os.system('clear')
 
 filesToLog = {
-	'transaction_timestamps.csv': True,
+	'transaction_timestamps.csv': False,
 	'address_manager_bucket_info.csv': True,
 	'bitcoin_debug.log': False,
 	'tor.log': False,
