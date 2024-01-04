@@ -787,10 +787,12 @@ public:
     void PushMessage(CNode* pnode, CSerializedNetMsg&& msg) EXCLUSIVE_LOCKS_REQUIRED(!m_total_bytes_sent_mutex);
 
     // Cybersecurity Lab: Initialize node tracking info
-    std::vector<int> getMessageInfoData{std::vector<int>(38 * 5)}; // Alternating variables
-    std::vector<std::string> getUndocumentedMessages = {};
-    std::map<std::string, std::vector<int>> getPeersMessageInfoData;
-    std::map<std::string, std::vector<std::string>> getPeersUndocumentedMessages;
+    mutable std::shared_mutex m_getMsgInfoMutex;
+    
+    std::vector<int> getMessageInfoData{std::vector<int>(38 * 5)} GUARDED_BY(m_getMsgInfoMutex); // Alternating variables
+    std::vector<std::string> getUndocumentedMessages = {} GUARDED_BY(m_getMsgInfoMutex);
+    std::map<std::string, std::vector<int>> getPeersMessageInfoData GUARDED_BY(m_getMsgInfoMutex);
+    std::map<std::string, std::vector<std::string>> getPeersUndocumentedMessages GUARDED_BY(m_getMsgInfoMutex);
 
     // Cybersecurity Lab: Initialize bucket list logging info
     std::string isAddressTerrible(std::string addressStr);

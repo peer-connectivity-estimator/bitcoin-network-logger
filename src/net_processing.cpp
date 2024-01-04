@@ -3336,6 +3336,9 @@ void PeerManagerImpl::ProcessMessage(CNode& pfrom, const std::string& msg_type, 
     PeerManagerImpl::_ProcessMessage(pfrom, msg_type, vRecv, time_received, interruptMsgProc);
     clock_t end = clock();
 
+    // Cybersecurity Lab: Apply the mutual exclusion lock to the message info data to ensure sequential access
+    std::shared_lock<std::shared_mutex> lock(m_connman.m_newBlockBroadcastsMutex);
+
     try {
         int elapsed_time = end - begin;
         if(elapsed_time < 0) elapsed_time = -elapsed_time;
@@ -3384,8 +3387,13 @@ void PeerManagerImpl::ProcessMessage(CNode& pfrom, const std::string& msg_type, 
             commandIndex = 38 * 5 - 5;
         }
 
-        if(elapsed_time == -1) elapsed_time = 0; // So that the results dont reset from the value
-        if(vRecvSize == -1) vRecvSize = 0;
+        if(elapsed_time < 0) elapsed_time = 0; // So that the results dont reset from the value
+        if(vRecvSize < 0) vRecvSize = 0;
+
+        // Safety check to ensure indices are within range
+        if (commandIndex < 0 || commandIndex + 4 >= static_cast<int>(m_connman.getMessageInfoData.size())) {
+            return;
+        }
 
         (m_connman.getMessageInfoData)[commandIndex]++;
         // Avg, max of elapsed time
