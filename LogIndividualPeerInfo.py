@@ -302,7 +302,8 @@ def startBitcoin():
 	while rpcReady is False:
 		if not isBitcoinUp():
 			# If Bitcoin crashed for whatever reason before, remove the PID that would prevent it from starting again
-			pidPath = os.path.join(bitcoinDirectory, 'bitcoind.pid').replace(' ', '\\ ')
+			pidPath = os.path.join(bitcoinDirectory, 'bitcoind.pid')
+			print(pidPath)
 			while os.path.exists(pidPath):
 				print('Removing old Bitcoin PID file...')
 				terminal(f'rm -rf "{pidPath}"')
