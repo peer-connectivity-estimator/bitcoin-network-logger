@@ -3047,6 +3047,35 @@ void CConnman::getAddressForRPC(UniValue &result, std::string addressStr) {
 }
 
 
+// Cybersecurity Lab: Initialize bucket percentages
+void CConnman::getBucketFilledPercentForRPC(UniValue &result) {
+    // Assuming ADDRMAN_NEW_BUCKET_COUNT and ADDRMAN_TRIED_BUCKET_COUNT 
+    // are defined and represent the total number of new and tried buckets respectively
+
+    int nTried = addrman.m_impl->nTried; // Current number of tried addresses
+    int nNew = addrman.m_impl->nNew; // Current number of new addresses
+    int totalSize = addrman.Size(); // Total number of addresses
+
+    // Calculating the maximum capacities
+    int maxNewBucketsCapacity = ADDRMAN_NEW_BUCKET_COUNT * ADDRMAN_BUCKET_SIZE;
+    int maxTriedBucketsCapacity = ADDRMAN_TRIED_BUCKET_COUNT * ADDRMAN_BUCKET_SIZE;
+    int maxTotalCapacity = maxNewBucketsCapacity + maxTriedBucketsCapacity;
+
+    // Calculating the filled percentage
+    double newBucketsFilledPercent = static_cast<double>(nNew) / maxNewBucketsCapacity;
+    double triedBucketsFilledPercent = static_cast<double>(nTried) / maxTriedBucketsCapacity;
+    double totalFilledPercent = static_cast<double>(totalSize) / maxTotalCapacity;
+
+    // Formatting and adding the results to the JSON object
+    result.pushKV("New Bucket", std::to_string(nNew) + "/" + std::to_string(maxNewBucketsCapacity));
+    result.pushKV("Tried Buckets", std::to_string(nTried) + "/" + std::to_string(maxTriedBucketsCapacity));
+    result.pushKV("Total Buckets", std::to_string(totalSize) + "/" + std::to_string(maxTotalCapacity));
+    result.pushKV("New Filled Percent", newBucketsFilledPercent);
+    result.pushKV("Tried Filled Percent", triedBucketsFilledPercent);
+    result.pushKV("Total Filled Percent", totalFilledPercent);
+}
+
+
 // Cybersecurity Lab: Initialize bucket list logging info
 void CConnman::getBucketInfoForRPC(UniValue &result) {
 

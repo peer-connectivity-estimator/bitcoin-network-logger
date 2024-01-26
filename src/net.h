@@ -797,6 +797,7 @@ public:
     // Cybersecurity Lab: Initialize bucket list logging info
     std::string isAddressTerrible(std::string addressStr);
     void getAddressForRPC(UniValue &result, std::string addressStr);
+    void getBucketFilledPercentForRPC(UniValue &result);
     void getBucketInfoForRPC(UniValue &result);
     void getTerribleEntriesInfoForRPC(UniValue &result);
 

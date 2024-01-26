@@ -72,6 +72,13 @@ A new category of RPC commands exist under the label "Researcher". A few of them
 	* Size in bytes for the unique transactions for each peer
 * **listnewbroadcastsandclear** -- Same as listnewbroadcasts, but then it clears all the data each RPC call
 * **listtransactiontimesandclear** -- Returns every truncated transaction hash received since the last RPC call, and each transaction's corresponding UNIX epoch.
+* **getfillpercent** -- Print the percentage of addresses within the address manager (out of the total supported number of addresses)
+	* New Buckets: X/Y
+	* Tried Buckets: X/Y
+	* Total Buckets: X/Y
+	* New Filled Percent
+	* Tried Filled Percent
+	* Total Filled Percent
 * **getbucketinfo** -- Print the entire contents of the every new and tried bucket, including statistics:
 	* Addrman nKey
 	* Number of tried entries
@@ -92,6 +99,7 @@ A new category of RPC commands exist under the label "Researcher". A few of them
 	* Number of internal new addresses
 	* Number of internal tried addresses
 * **getbucketentry** "address" -- Get a specific entry from the buckets.
+* **getterribleentries** -- List all the addresses that are flagged as "Terrible" by the address manager
 * **sendaddr** ( "peer_ip" "addrs_to_send" "seconds_offset" ) -- Send an ADDR message to a peer IP address, including a list of addresses to send, and the seconds offset for the nTime value in each address
 
 A new optional parameter has also been added to the configuration, named `minconnections`. This can be used by adding `minconnections=X` to ~/.bitcoin/bitcoin.conf, where X is the number of outbound peer connections you would like to make. This overrides the previous "maxconnections=X" parameter with a more powerful function that forces the peer to connect to more connections than the default of 10 peers (even when incoming connections are disabled). 

