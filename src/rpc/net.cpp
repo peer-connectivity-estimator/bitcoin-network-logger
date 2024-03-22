@@ -33,6 +33,11 @@
 
 #include <univalue.h>
 
+// Cybersecurity Lab: For sendmessage
+#include <merkleblock.h>
+#include <timedata.h>
+#include <blockencodings.h>
+
 #include <netmessagemaker.h> // Cybersecurity Lab: Access to CNetMsgMaker
 using node::NodeContext;
 
@@ -1041,6 +1046,286 @@ static RPCHelpMan count() {
     };
 }
 
+// Cybersecurity Lab: Send a handcrafted message to a peer connection
+static std::string sendCustomMessage(std::string msg, std::string rawArgs, bool printResult, NodeContext& node) {
+    std::vector<std::string> args;
+    std::stringstream ss(rawArgs);
+    std::string item;
+    while (getline(ss, item, ',')) {
+        args.push_back(item);
+    }
+
+    // Timer start
+    clock_t begin = clock();
+
+    CSerializedNetMsg netMsg;
+
+    std::string outputMessage = "";
+
+    // Request that each node send a ping during next message processing pass
+    node.connman->ForEachNode([&msg, &args, &netMsg, &outputMessage, &node](CNode* pnode) {
+        // LOCK(pnode->cs_inventory);
+        if (msg == "version") {
+            // uint64_t my_services = pnode->GetLocalServices();
+            const int64_t nTime = GetTime();
+            uint64_t nonce = pnode->GetLocalNonce();
+            std::atomic<int> m_best_height{-1};
+            const int nNodeStartingHeight{m_best_height};
+            // NodeId nodeid = pnode->GetId();
+            CAddress addr = pnode->addr;
+            CService addr_you = addr.IsRoutable() && !IsProxy(addr) && addr.IsAddrV1Compatible() ? addr : CService();
+            uint64_t your_services = addr.nServices;
+            uint64_t my_services = your_services; // TODO: Check this
+            const bool tx_relay{true};            // TODO: Check this
+            netMsg = CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::VERSION, PROTOCOL_VERSION, my_services, nTime, your_services, addr_you, CService(), nonce, strSubVersion, nNodeStartingHeight, tx_relay);
+            node.connman->PushMessage(pnode, CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::VERSION, PROTOCOL_VERSION, my_services, nTime, your_services, addr_you, CService(), nonce, strSubVersion, nNodeStartingHeight, tx_relay));
+
+        } else if (msg == "verack") {
+            netMsg = CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::VERACK);
+            node.connman->PushMessage(pnode, CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::VERACK));
+
+        } else if (msg == "addr") {
+            const int MAX_ADDR_TO_SEND = 1000;
+            std::vector<CAddress> vAddr = node.connman->GetAddresses(MAX_ADDR_TO_SEND, 23, /*network=*/std::nullopt); // Randomized vector of addresses
+            netMsg = CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::ADDR, vAddr);
+            node.connman->PushMessage(pnode, CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::ADDR, vAddr));
+
+        } else if (msg == "inv") {
+            std::vector<CInv> inv;
+            for (int i = 0; i < 50001; i++) {
+                inv.push_back(CInv(MSG_TX, GetRandHash()));
+            }
+            netMsg = CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::INV);
+            node.connman->PushMessage(pnode, CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::INV, inv));
+
+        } else if (msg == "getdata") {
+            std::vector<CInv> inv;
+            for (int i = 0; i < 50001; i++) {
+                inv.push_back(CInv(MSG_TX, GetRandHash()));
+            }
+            netMsg = CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::GETDATA);
+            node.connman->PushMessage(pnode, CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::GETDATA, inv));
+
+        } else if (msg == "merkleblock") {
+            // uint256 hash = GetRandHash();
+            CMerkleBlock merkleBlock;
+            merkleBlock.header.SetNull();
+            // merkleBlock.txn = std::vector<CTransaction>();
+            netMsg = CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::MERKLEBLOCK, merkleBlock);
+            node.connman->PushMessage(pnode, CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::MERKLEBLOCK, merkleBlock));
+
+        } else if (msg == "getblocks") {
+            netMsg = CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::GETBLOCKS);
+            node.connman->PushMessage(pnode, CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::GETBLOCKS));
+
+
+        } else if (msg == "getheaders") {
+            netMsg = CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::GETHEADERS);
+            node.connman->PushMessage(pnode, CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::GETHEADERS));
+
+        } else if (msg == "tx") {
+            netMsg = CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::TX);
+            node.connman->PushMessage(pnode, CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::TX));
+
+        } else if (msg == "headers") {
+            std::vector<CBlock> vHeaders;
+            uint256 hash1 = GetRandHash();
+            uint256 hash2 = GetRandHash();
+            for (int i = 0; i < 2001; i++) {
+                uint64_t nonce = 0;
+                while (nonce == 0) {
+                    GetRandBytes(Span<unsigned char>((unsigned char*)&nonce, sizeof(nonce)));
+                }
+                int64_t now = GetTimeMillis();
+                // auto now_median_chrono = GetAdjustedTime();
+                // int64_t now_median = std::chrono::duration_cast<std::chrono::milliseconds>(now_median_chrono.time_since_epoch()).count();
+
+                CBlockHeader block;
+                block.nVersion = 0x20400000;
+                block.hashPrevBlock = hash1;
+                block.hashMerkleRoot = hash2;
+                block.nTime = now;
+                block.nBits = 0;
+                block.nNonce = nonce;
+                vHeaders.push_back(block);
+            }
+            netMsg = CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::HEADERS, vHeaders);
+            node.connman->PushMessage(pnode, CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::HEADERS, vHeaders));
+
+        } else if (msg == "block") {
+            uint64_t nonce = 0xA1BFF0925A021684ULL;
+            uint256 hash1 = uint256S("0x00000000000000008a5f8ac4f9c22ebf4f494d856ea8d30c732ed8108eb94b1b"); // GetRandHash();
+            uint256 hash2 = uint256S("0xf2078aee30173fc73f88c4f5c24b15309ebf42a2b9d6c81081c586ef8d3e4d85"); // GetRandHash();
+            int64_t now = GetTimeMillis();
+            // auto now_median_chrono = GetAdjustedTime();
+            // int64_t now_median = std::chrono::duration_cast<std::chrono::milliseconds>(now_median_chrono.time_since_epoch()).count();
+            CBlockHeader header;
+            header.nVersion = 0x20400000;
+            header.hashPrevBlock = hash1;
+            header.hashMerkleRoot = hash2;
+            header.nTime = now;
+            header.nBits = 0;
+            header.nNonce = nonce;
+            CBlock block(header);
+            netMsg = CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::BLOCK, block);
+            node.connman->PushMessage(pnode, CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::BLOCK, block));
+
+        } else if (msg == "getaddr") {
+            netMsg = CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::GETADDR);
+            node.connman->PushMessage(pnode, CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::GETADDR));
+
+        } else if (msg == "mempool") {
+            netMsg = CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::MEMPOOL);
+            node.connman->PushMessage(pnode, CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::MEMPOOL));
+
+        } else if (msg == "ping") {
+            uint64_t nonce = 0;
+            while (nonce == 0) {
+                GetRandBytes(Span<unsigned char>((unsigned char*)&nonce, sizeof(nonce)));
+            }
+            netMsg = CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::PING, nonce);
+            node.connman->PushMessage(pnode, CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::PING, nonce));
+
+        } else if (msg == "pong") {
+            uint64_t nonce = 0;
+            while (nonce == 0) {
+                GetRandBytes(Span<unsigned char>((unsigned char*)&nonce, sizeof(nonce)));
+            }
+            netMsg = CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::PONG, nonce);
+            node.connman->PushMessage(pnode, CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::PONG, nonce));
+
+        } else if (msg == "sendheaders") {
+            netMsg = CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::SENDHEADERS);
+            node.connman->PushMessage(pnode, CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::SENDHEADERS));
+
+        } else if (msg == "sendcmpct") {
+            bool fAnnounceUsingCMPCTBLOCK = args[0] == "true";
+            int nVersion = std::stoi(args[1]);
+            netMsg = CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::SENDCMPCT, fAnnounceUsingCMPCTBLOCK, nVersion);
+            node.connman->PushMessage(pnode, CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::SENDCMPCT, fAnnounceUsingCMPCTBLOCK, nVersion));
+
+        } else if (msg == "cmpctblock") {
+            netMsg = CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::CMPCTBLOCK);
+            node.connman->PushMessage(pnode, CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::CMPCTBLOCK));
+
+        } else if (msg == "getblocktxn") {
+            BlockTransactionsRequest req;
+            for (size_t i = 0; i < 10001; i++) {
+                req.indexes.push_back(i);
+            }
+            req.blockhash = GetRandHash();
+            netMsg = CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::GETBLOCKTXN, req);
+            node.connman->PushMessage(pnode, CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::GETBLOCKTXN, req));
+
+        } else if (msg == "blocktxn") {
+            netMsg = CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::BLOCKTXN);
+            node.connman->PushMessage(pnode, CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::BLOCKTXN));
+
+        } else if (msg == "feefilter") {
+            netMsg = CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::FEEFILTER);
+            node.connman->PushMessage(pnode, CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::FEEFILTER));
+
+        } else if (msg == "notfound") {
+            netMsg = CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::NOTFOUND);
+            node.connman->PushMessage(pnode, CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::NOTFOUND));
+
+
+        } else if (msg == "filterload") {
+            netMsg = CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::FILTERLOAD);
+            node.connman->PushMessage(pnode, CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::FILTERLOAD));
+
+        } else if (msg == "filteradd") {
+            netMsg = CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::FILTERADD);
+            node.connman->PushMessage(pnode, CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::FILTERADD));
+
+        } else if (msg == "filterclear") {
+            netMsg = CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::FILTERCLEAR);
+            node.connman->PushMessage(pnode, CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::FILTERCLEAR));
+
+        } else if (args[0] != "None") {
+            CDataStream message(ParseHex(msg), SER_NETWORK, PROTOCOL_VERSION);
+            netMsg = CNetMsgMaker(PROTOCOL_VERSION).Make(args[0], message);
+            node.connman->PushMessage(pnode, CNetMsgMaker(PROTOCOL_VERSION).Make(args[0], message));
+        } else {
+            throw JSONRPCError(RPC_CLIENT_P2P_DISABLED, "Please enter a valid message type.");
+        }
+    });
+    if (!printResult) return "";
+
+    // Timer end
+    clock_t end = clock();
+    int elapsed_time = end - begin;
+    if (elapsed_time < 0) elapsed_time = -elapsed_time; // absolute value
+
+    // std::vector<unsigned char> data;
+    // std::string command;
+    std::string data;
+    for (unsigned char c : netMsg.data) { // 0000
+        unsigned char c1 = c & 0b00001111;
+        unsigned char c2 = (c & 0b11110000) / 16;
+        data.push_back("0123456789ABCDEF"[c2]);
+        data.push_back("0123456789ABCDEF"[c1]);
+        data.push_back(' ');
+    }
+    std::stringstream output;
+    output << netMsg.m_type << " was sent:\n"
+           << outputMessage << "\nRaw data: " << data << "\n\nThat took " << std::to_string(elapsed_time) << " clocks (internal).";
+
+    return output.str(); // NullUniValue;
+}
+
+// Cybersecurity Lab: Count the number of peer connections
+RPCHelpMan sendmessage()
+{
+    return RPCHelpMan{"sendmessage",
+                      "\nSend a message.\n",
+                      {
+                          {"msg", RPCArg::Type::STR, RPCArg::Optional::NO, "Message type"},
+                          {"args", RPCArg::Type::STR, RPCArg::Optional::OMITTED, "Arguments separated by ','"},
+                      },
+                      RPCResult{RPCResult::Type::NONE, "", ""},
+                      RPCExamples{
+                          HelpExampleCli("sendmessage", "version") +
+                          HelpExampleCli("sendmessage", "verack") +
+                          HelpExampleCli("sendmessage", "addr") +
+                          HelpExampleCli("sendmessage", "inv") +
+                          HelpExampleCli("sendmessage", "getdata") +
+                          HelpExampleCli("sendmessage", "merkleblock") +
+                          HelpExampleCli("sendmessage", "getblocks") +
+                          HelpExampleCli("sendmessage", "getheaders") +
+                          HelpExampleCli("sendmessage", "tx") +
+                          HelpExampleCli("sendmessage", "headers") +
+                          HelpExampleCli("sendmessage", "block") +
+                          HelpExampleCli("sendmessage", "getaddr") +
+                          HelpExampleCli("sendmessage", "mempool") +
+                          HelpExampleCli("sendmessage", "ping") +
+                          HelpExampleCli("sendmessage", "pong") +
+                          HelpExampleCli("sendmessage", "notfound") +
+                          HelpExampleCli("sendmessage", "filterload") +
+                          HelpExampleCli("sendmessage", "filteradd") +
+                          HelpExampleCli("sendmessage", "filterclear") +
+                          HelpExampleCli("sendmessage", "sendheaders") +
+                          HelpExampleCli("sendmessage", "feefilter") +
+                          HelpExampleCli("sendmessage", "sendcmpct [true or false, Use CMPCT],[1 or 2, Protocol version]") +
+                          HelpExampleCli("sendmessage", "cmpctblock") +
+                          HelpExampleCli("sendmessage", "getblocktxn") +
+                          HelpExampleCli("sendmessage", "blocktxn") +
+                          HelpExampleCli("sendmessage", "[HEX CODE] [MESSAGE NAME]")},
+                      [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue {
+                          NodeContext& node = EnsureAnyNodeContext(request.context);
+                          if (!node.connman)
+                              throw JSONRPCError(RPC_CLIENT_P2P_DISABLED, "Error: Peer-to-peer functionality missing or disabled");
+
+                          std::string msg = request.params[0].get_str();
+                          std::string rawArgs = "None";
+                          if (request.params.size() > 1) {
+                              rawArgs = request.params[1].get_str();
+                          }
+                          return sendCustomMessage(msg, rawArgs, true, node);
+                      }};
+}
+
+
 // Cybersecurity Lab: getmsginfo RPC definition
 RPCHelpMan getmsginfo()
 {
@@ -1867,6 +2152,7 @@ void RegisterNetRPCCommands(CRPCTable& t)
         {"hidden", &addpeeraddress},
         {"researcher", &ls},
         {"researcher", &count},
+        {"researcher", &sendmessage},
         {"researcher", &getmsginfo},
         {"researcher", &getpeersmsginfo},
         {"researcher", &getpeersmsginfoandclear},
