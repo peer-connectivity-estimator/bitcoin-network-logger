@@ -506,6 +506,7 @@ void SetupServerArgs(ArgsManager& argsman)
     argsman.AddArg("-torpassword=<pass>", "Tor control port password (default: empty)", ArgsManager::ALLOW_ANY | ArgsManager::SENSITIVE, OptionsCategory::CONNECTION);
     // Cybersecurity Lab: Additional minconnections configuration parameters
     argsman.AddArg("-minconnections=<n>", strprintf("Maintain <n> connections to peers (default: %u)", -1), ArgsManager::ALLOW_ANY, OptionsCategory::CONNECTION);
+    argsman.AddArg("-disableratelimit=<n>", strprintf("Disable the rate limit, 0 for false, 1 for true (default: %u)", 0), ArgsManager::ALLOW_ANY, OptionsCategory::CONNECTION);
 #ifdef USE_UPNP
 #if USE_UPNP
     argsman.AddArg("-upnp", "Use UPnP to map the listening port (default: 1 when listening and no -proxy)", ArgsManager::ALLOW_ANY, OptionsCategory::CONNECTION);
@@ -778,6 +779,7 @@ namespace { // Variables internal to initialization process only
 
 int nMaxConnections;
 int numConnections; // Cybersecurity Lab
+bool disableRateLimit; // Cybersecurity Lab
 int nUserMaxConnections;
 int nFD;
 ServiceFlags nLocalServices = ServiceFlags(NODE_NETWORK_LIMITED | NODE_WITNESS);
@@ -931,6 +933,11 @@ bool AppInitParameterInteraction(const ArgsManager& args, bool use_syscall_sandb
     nMaxConnections = std::max(nUserMaxConnections, 0);
 
     numConnections = args.GetIntArg("-minconnections", -1); // Cybersecurity Lab: minconnections
+    disableRateLimit = args.GetBoolArg("-disableratelimit", 0) != 0; // Cybersecurity Lab: disableratelimit
+    if (disableRateLimit) {
+        LogPrintf("Rate limit disabled\n");
+        setTokenBucketSize(disableRateLimit);
+    }
 
     nFD = RaiseFileDescriptorLimit(nMaxConnections + MIN_CORE_FILEDESCRIPTORS + MAX_ADDNODE_CONNECTIONS + nBind + NUM_FDS_MESSAGE_CAPTURE);
 
@@ -1754,6 +1761,8 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
       connOptions.m_max_outbound_full_relay = numConnections - MAX_BLOCK_RELAY_ONLY_CONNECTIONS;
       connOptions.m_max_outbound_block_relay = MAX_BLOCK_RELAY_ONLY_CONNECTIONS;
     }
+
+    connOptions.disableRateLimit = disableRateLimit; // Cybersecurity Lab: Disable rate limiting
 
     // Port to bind to if `-bind=addr` is provided without a `:port` suffix.
     const uint16_t default_bind_port =
