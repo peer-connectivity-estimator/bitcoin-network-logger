@@ -1316,9 +1316,16 @@ std::optional<AddressPosition> AddrMan::FindAddressEntry(const CAddress& addr)
     return m_impl->FindAddressEntry(addr);
 }
 
-// Cybersecurity Lab: Add interace to retrieve the fChhance reputation score
+// Cybersecurity Lab: Add interface to retrieve the fChance reputation score
 std::pair<double, bool> AddrMan::GetChanceScore(const CService& addr_service) {
     bool addMutexLockForMePlease = true;
     AddrInfo* pinfo = m_impl->Find(addr_service, nullptr, addMutexLockForMePlease);
-    return std::make_pair(pinfo->GetChance(), pinfo->IsTerrible());
+    
+    // Check if pinfo is a valid pointer before dereferencing it
+    if (pinfo != nullptr) {
+        return std::make_pair(pinfo->GetChance(), pinfo->IsTerrible());
+    } else {
+        return std::make_pair(0.0, false);
+    }
 }
+
