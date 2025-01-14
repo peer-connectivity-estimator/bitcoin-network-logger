@@ -14,7 +14,7 @@ For first-time users, inside a Debian version of Linux, run `./first_compile.sh`
 
 If modifications are made to the code, run `./compile.sh` to only compile the code and run it, without the additional prerequisites/configurations from first_compile.sh.
 
-If no modifications are made, run `./run.sh [PARAMETERS]` to start up Bitcoin, with no additional overhead from compile.sh or first_compile.sh. Parameters are separated by spaces, and can be in any order. They include:
+If no modifications are made, run `./run.sh [PARAMETERS]` to start up Bitcoin, with no additional overhead from compile.sh or first_compile.sh. Parameters are separated by spaces and can be in any order. They include:
 * `./run.sh gui` -- Run Bitcoin Core in GUI mode.
 * `./run.sh noconsole` -- Run Bitcoin Core, but do not auto-start the console.
 * `./run.sh gdb` -- Run Bitcoin through the GNU Debugger (GDB).
@@ -25,7 +25,7 @@ Any other arguments supplied will be passed to bitcoind, for example:
 ---
 By default, Bitcoin will store its blockchain in ~/.bitcoin. If this is the case, then run.sh will by default start Bitcoin in pruned mode, where it will only keep the last 550 blocks (a few gigabytes), to avoid the cost of a full blockchain (several hundred gigabytes).
 
-If run.sh is successful, a window will show up labeled "Bitcoin Console", which is a python script (bitcoin_console.py) that communicates with Bitcoin. Within this window, type `help` to list all the available RPC commands, which can be used to interact with Bitcoin Core.
+If run.sh is successful, a window labeled "Bitcoin Console" will appear. This is a Python script (bitcoin_console.py) that communicates with Bitcoin. Within this window, type `help` to list all the available RPC commands, which can be used to interact with Bitcoin Core.
 
 The Main Logger
 ----------------
@@ -35,14 +35,14 @@ python3 LogIndividualPeerInfo.py
 ```
 First, check the configuration variables in the beginning of the file, which define the behaviors of the logger. Upon running the file, logs will be generated in a Research_Logs/Bitcoin_Log_X or Research_Logs/Bitcoin_**IBD**_Log_X (depending on whether the node is in Initial Block Download (IBD) mode or not), where X increments, starting at 1. At the end of each log, it will be compressed into a .tar.xz file for maximum compression, and copied over to the directory path: `outputFilesToTransferPath`. This is recommended to be an external storage device, like a USB flash drive. If the flash drive is not plugged in at the end of a sample, then it will resume logging but next time it finalizes a compressed Tar file and the directory at outputFilesToTransferPath does exist, then it will also move the past files that it was unable to move, so no data will be lost.
 
-The compressed log directories are bulk, and contain `numSamplesPerDirectory` samples/rows. They include the following files:
+The compressed log directories are bulk and contain `numSamplesPerDirectory` samples/rows. They include the following files:
 * **machine_info.txt** -- Appends the machine specifications once upon directory creation.
 * **machine_state.csv** -- The primary log file containing information about the machine, one row is generated every `numSecondsPerSample` seconds.
 * **blockchain_state_info.csv** -- Keeps track of each newly received block (including forks).
 * **address_manager_bucket_info.csv** -- Logs the contents of the address manager buckets every `numSamplesPerAddressManagerBucketLog` samples.
 * **traceroutes.csv** -- A simple ICMP traceroute to each IPv4 and IPv6 connection.
 * **transaction_timestamps.csv** -- Each transaction's truncated hash and it's corresponding receive timestamp.
-* **debug.log** -- Bitcoin's debug log with all categories enabled. Due to size limitations, this file is disabled by default, and is not generated.
+* **debug.log** -- Bitcoin's debug log with all categories enabled. Due to size limitations, this file is disabled by default and is not generated.
 * **tor.log** -- Tor's debug log. This is disabled by default and is not generated.
 * **i2pd.log** -- I2P's debug log. This is disabled by default and is not generated.
 The last type of file contains one file for each peer connection, and the corresponding file name is the peer's address.
@@ -51,7 +51,7 @@ The last type of file contains one file for each peer connection, and the corres
 Modifications
 ----------------
 
-A new category of RPC commands exist under the label "Researcher". A few of them are as follows:
+A new category of RPC commands exists under the label "Researcher". A few of them are as follows:
 * **count** -- Displays the number of peer connections.
 * **ls** -- Displays the list of peer connections and each connection's ID.
 * **getmsginfo** -- Display the aggregate information about each message type, consisting of:
@@ -62,7 +62,7 @@ A new category of RPC commands exist under the label "Researcher". A few of them
 	* Maximum number of clocks to process the message.
 	* At the end, a list of all undocumented messages received in Bitcoin.
 * **getpeersmsginfo** -- Display the getmsginfo for each individual peer connection.
-* **getpeersmsginfoandclear** -- Same as getpeersmsginfo, but then it clears all the data each RPC call.
+* **getpeersmsginfoandclear** -- Same as getpeersmsginfo, but then it clears all the data for each RPC call.
 * **listnewbroadcasts** -- Displays information about the blocks and transactions for each peer, consisting of:
 	* Number of unique block broadcasts for each peer
 	* Latest block propagation time (system time)
@@ -79,7 +79,7 @@ A new category of RPC commands exist under the label "Researcher". A few of them
 	* New Filled Percent
 	* Tried Filled Percent
 	* Total Filled Percent
-* **getbucketinfo** -- Print the entire contents of the every new and tried bucket, including statistics:
+* **getbucketinfo** -- Print the entire contents of every new and tried bucket, including statistics:
 	* Addrman nKey
 	* Number of tried entries
 	* Number of (unique) new entries
